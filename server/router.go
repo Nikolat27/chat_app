@@ -1,6 +1,7 @@
 package server
 
 import (
+	"chat_app/handlers"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -9,13 +10,15 @@ type Router struct {
 	CoreRouter *chi.Mux
 }
 
-func NewRouter() *Router {
+func NewRouter(handler *handlers.Handler) *Router {
 	routerInstance := chi.NewRouter()
 
 	routerInstance.Use(middleware.Logger)
 
 	// prefix api
 	routerInstance.Route("/api", func(r chi.Router) {
+		r.Get("/auth/register", handler.Register)
+		r.Get("/auth/login", handler.Login)
 
 	})
 

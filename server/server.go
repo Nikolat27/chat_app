@@ -1,6 +1,7 @@
 package server
 
 import (
+	"chat_app/handlers"
 	"fmt"
 	"net/http"
 )
@@ -10,18 +11,18 @@ type Server struct {
 	Port   string
 }
 
-func New(port string) *Server {
+func New(port string, handler *handlers.Handler) *Server {
 	var srv = &Server{
 		Port: port,
 	}
 
-	srv.setupServer()
+	srv.setupServer(handler)
 
 	return srv
 }
 
-func (srv *Server) setupServer() {
-	router := NewRouter()
+func (srv *Server) setupServer(handler *handlers.Handler) {
+	router := NewRouter(handler)
 
 	srv.Server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", srv.Port),
@@ -30,6 +31,7 @@ func (srv *Server) setupServer() {
 }
 
 func (srv *Server) Run() error {
+	fmt.Println("application started")
 	return srv.Server.ListenAndServe()
 }
 
