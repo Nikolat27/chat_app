@@ -6,11 +6,17 @@ import (
 	"chat_app/handlers"
 	"chat_app/server"
 	"errors"
+	"github.com/joho/godotenv"
+	"log"
 	"log/slog"
 	"os"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	uri, err := getMongoURI()
 	if err != nil {
 		panic(err)
@@ -23,7 +29,10 @@ func main() {
 
 	newModels := models.New(db)
 
-	handlerInstance := handlers.New(newModels)
+	handlerInstance, err := handlers.New(newModels)
+	if err != nil {
+		panic(err)
+	}
 
 	srv := server.New(getPort(), handlerInstance)
 	defer srv.Close()
