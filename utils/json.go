@@ -2,13 +2,9 @@ package utils
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
-
-type ErrorResponse struct {
-	Type   string `json:"type"`
-	Detail any    `json:"detail,omitempty"`
-}
 
 func WriteJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -25,22 +21,11 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-func WriteError(w http.ResponseWriter, status int, errorType string, errorDetail any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	var response = ErrorResponse{
-		Type:   errorType,
-		Detail: errorDetail,
-	}
-
-	encodedData, err := json.MarshalIndent(response, "", "\t")
+func ParseJSON(reqBody io.ReadCloser, maxBytes int64, input any) error {
+	body, err := io.ReadAll(io.LimitReader(reqBody, maxBytes))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
-	if _, err := w.Write(encodedData); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return json.Unmarshal(body, input)
 }
