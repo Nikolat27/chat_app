@@ -17,8 +17,8 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 	// prefix api
 	routerInstance.Route("/api", func(r chi.Router) {
-		r.Get("/auth/register", handler.Register)
-		r.Get("/auth/login", handler.Login)
+		r.Post("/auth/register", handler.Register)
+		r.Post("/auth/login", handler.Login)
 
 	})
 
