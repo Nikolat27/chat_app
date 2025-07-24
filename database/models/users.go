@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,8 +24,25 @@ type User struct {
 }
 
 func NewUserModel(db *mongo.Database) *UserModel {
+	collection := db.Collection("users")
+
+	_, err := collection.Indexes().CreateMany(context.TODO(), []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "username", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "email", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+	})
+
+	if err != nil {
+		panic(fmt.Errorf("ERROR creating index on users: %s", err))
+	}
+
 	return &UserModel{
-		collection: db.Collection("users"),
+		collection: collection,
 	}
 }
 
