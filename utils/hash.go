@@ -1,20 +1,22 @@
 package utils
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 )
 
-func Hash(plainText, salt string) string {
-	hash := sha256.Sum256([]byte(plainText + salt))
-	return string(hash[:])
+const Size = 32
+
+func Hash(plainText, salt []byte) [Size]byte {
+	newHash := append(plainText, salt...)
+	return sha256.Sum256(newHash)
 }
 
-func VerifyHash(hash []byte, plainText, salt string) bool {
-	newHash := sha256.Sum256([]byte(plainText + salt))
+func VerifyHash(hash, salt, plainText []byte) bool {
+	combinedSlice := append(plainText, salt...)
+	newHash := sha256.Sum256(combinedSlice)
 
-	return bytes.Equal(hash, newHash[:])
+	return string(newHash[:]) == string(hash)
 }
 
 func GenerateSalt(size int64) (string, error) {

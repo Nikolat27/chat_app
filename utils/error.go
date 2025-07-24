@@ -8,8 +8,8 @@ import (
 )
 
 type ErrorResponse struct {
-	Type   error `json:"type"`
-	Detail any   `json:"detail,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Detail any    `json:"detail,omitempty"`
 }
 
 func WriteError(w http.ResponseWriter, status int, errType any, errDetail any) {
@@ -28,7 +28,7 @@ func WriteError(w http.ResponseWriter, status int, errType any, errDetail any) {
 	}
 
 	var resp = ErrorResponse{
-		Type: errorType,
+		Type:   errorType.Error(),
 		Detail: errDetail,
 	}
 

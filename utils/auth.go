@@ -14,12 +14,12 @@ var (
 func CheckAuth(header http.Header, paseto *paseto.Maker) (*paseto.Payload, *ErrorResponse) {
 	authToken := header.Get("Authorization")
 	if authToken == "" {
-		return nil, &ErrorResponse{Type: NoAuthToken, Detail: "Authorization token is missing"}
+		return nil, &ErrorResponse{Type: NoAuthToken.Error(), Detail: "Authorization token is missing"}
 	}
 
 	payload, err := paseto.VerifyToken(authToken)
 	if err != nil {
-		return nil, &ErrorResponse{Type: TokenNotValid, Detail: err}
+		return nil, &ErrorResponse{Type: TokenNotValid.Error(), Detail: err}
 	}
 
 	return payload, nil
