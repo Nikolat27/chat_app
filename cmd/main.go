@@ -5,6 +5,7 @@ import (
 	"chat_app/database/models"
 	"chat_app/handlers"
 	"chat_app/server"
+	"chat_app/websocket"
 	"errors"
 	"github.com/joho/godotenv"
 	"log"
@@ -33,6 +34,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	wsInstance := websocket.Init()
+	handlerInstance.WebSocket = wsInstance
 
 	srv := server.New(getPort(), handlerInstance)
 	defer srv.Close()
