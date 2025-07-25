@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"github.com/o1egl/paseto"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"os"
 	"time"
 )
@@ -38,7 +39,7 @@ func getSymmetricKey() ([32]byte, error) {
 	return hash, nil
 }
 
-func (maker *Maker) CreateToken(userId, username string, duration time.Duration) (string, error) {
+func (maker *Maker) CreateToken(userId primitive.ObjectID, username string, duration time.Duration) (string, error) {
 	payload, err := NewPayload(userId, username, duration)
 	if err != nil {
 		return "", err
