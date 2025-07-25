@@ -24,7 +24,7 @@ func WriteError(w http.ResponseWriter, status int, errType any, errDetail any) {
 	case error:
 		errorType = value
 	default:
-		errorType = fmt.Errorf("unexepected error type :%v", errorType)
+		errorType = fmt.Errorf("unexepected error type :%T", errorType)
 	}
 
 	var resp = ErrorResponse{
