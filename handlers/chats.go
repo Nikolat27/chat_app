@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"chat_app/utils"
-	"chat_app/websocket"
+	"encoding/hex"
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log/slog"
 	"net/http"
 )
 
@@ -15,12 +16,6 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusUnauthorized, "checkAuth", err)
-		return
-	}
-
-	userObjectId, err := utils.ToObjectId(payload.UserId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", err)
 		return
 	}
 
@@ -39,7 +34,7 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	participants := []primitive.ObjectID{userObjectId, targetUserObjectId}
+	participants := []primitive.ObjectID{payload.UserId, targetUserObjectId}
 
 	filter := bson.M{
 		"participants": bson.M{
@@ -65,45 +60,42 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, "chat created successfully")
 }
 
-func (handler *Handler) GetChat(w http.ResponseWriter, r *http.Request) {
+// GetChatMessages -> Returns all the messages of the chat
+func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
 	if err != nil {
-		utils.WriteError(w, http.StatusUnauthorized, "checkAuth", err)
-		return
-	}
-
-	userObjectId, err := utils.ToObjectId(payload.UserId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", err)
-		return
-	}
-
-	chatId := chi.URLParam(r, "chat_id")
-	if chatId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
-		return
-	}
-
-	chatObjectId, err := utils.ToObjectId(chatId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert chatId to objectId")
+		utils.WriteError(w, http.StatusUnauthorized, err.Type, err.Detail)
 		return
 	}
 
 	filter := bson.M{
-		"_id": chatObjectId,
-		"participants": bson.M{
-			"$in": []primitive.ObjectID{userObjectId},
-		},
+		"sender_id": payload.UserId,
 	}
 
-	chatInstance, err2 := handler.Models.Chat.Get(filter, bson.M{})
-	if err2 != nil && !errors.Is(err2, mongo.ErrNoDocuments) {
-		utils.WriteError(w, http.StatusBadRequest, "getChat", "failed to get chat")
+	messages, err2 := handler.Models.Message.GetAll(filter, bson.M{}, 1, 10)
+	if err2 != nil {
+		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err2)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, chatInstance)
+	decryptedMessages := make([]string, 0, len(messages))
+	for _, message := range messages {
+		decodedMessage, err := hex.DecodeString(message.Content)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, "msgDecoding", "failed to decode the message")
+			continue
+		}
+
+		decryptedMsg, err := handler.Cipher.Decrypt(decodedMessage)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, "msgDecryption", "failed to decrypt the message")
+			continue
+		}
+
+		decryptedMessages = append(decryptedMessages, string(decryptedMsg))
+	}
+
+	utils.WriteJSON(w, http.StatusOK, decryptedMessages)
 }
 
 func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
@@ -113,12 +105,6 @@ func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userObjectId, err := utils.ToObjectId(payload.UserId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert userId to objectId")
-		return
-	}
-
 	chatId := chi.URLParam(r, "chat_id")
 	if chatId == "" {
 		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
@@ -134,7 +120,7 @@ func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{
 		"_id": chatObjectId,
 		"participants": bson.M{
-			"$in": []primitive.ObjectID{userObjectId},
+			"$in": []primitive.ObjectID{payload.UserId},
 		},
 	}
 
@@ -147,7 +133,7 @@ func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request) {
-	chatId := r.URL.Query().Get("chat_id")
+	chatId := chi.URLParam(r, "chat_id")
 	if chatId == "" {
 		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
 		return
@@ -159,7 +145,7 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	wsConn, err := websocket.Upgrade(w, r)
+	wsConn, err := WebsocketUpgrade(w, r)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "upgradingWebsocket", err)
 		return
@@ -168,6 +154,8 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 	wsConn.Add(chatId, userId, handler.WebSocket)
 
 	go func() {
-		wsConn.HandleInputs(chatId, userId, handler.WebSocket)
+		if err := wsConn.HandleIncomingMessages(chatId, userId, handler.WebSocket, handler); err != nil {
+			slog.Error("handling incoming ws messages", "error", err)
+		}
 	}()
 }

@@ -103,12 +103,12 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := handler.Paseto.CreateToken(user.Id.Hex(), input.Username, 12*time.Hour)
+	token, err := handler.Paseto.CreateToken(user.Id, input.Username, 12*time.Hour)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "createPasetoToken", "failed to create paseto token")
 		return
 	}
-
+	
 	var response = map[string]string{
 		"token": token,
 	}

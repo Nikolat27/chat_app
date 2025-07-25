@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"chat_app/cipher"
 	"chat_app/database/models"
 	"chat_app/paseto"
-	"chat_app/websocket"
 )
 
 type Handler struct {
 	Models    *models.Models
 	Paseto    *paseto.Maker
-	WebSocket *websocket.WebSocket
+	WebSocket *WebSocket
+	Cipher    *cipher.Cipher
 }
 
 func New(models *models.Models) (*Handler, error) {
