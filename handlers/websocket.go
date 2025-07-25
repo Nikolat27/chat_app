@@ -68,14 +68,15 @@ func (wsConn *WsConnection) Delete(chatId, userId string, wsInstance *WebSocket)
 
 type ChatMessage struct {
 	MessageType int    `json:"message_type"`
-	SenderID    string `json:"sender_id"`
+	SenderId    string `json:"sender_id"`
+	ReceiverId  string `json:"receiver_id"`
 	Content     string `json:"content"`
 }
 
-func (wsConn *WsConnection) HandleIncomingMessages(chatId, userId string, wsInstance *WebSocket,
+func (wsConn *WsConnection) HandleIncomingMessages(chatId, senderId, receiverId string, wsInstance *WebSocket,
 	handler *Handler) error {
 	defer func() {
-		wsConn.Delete(chatId, userId, wsInstance)
+		wsConn.Delete(chatId, senderId, wsInstance)
 		wsConn.Conn.Close()
 	}()
 
@@ -88,7 +89,8 @@ func (wsConn *WsConnection) HandleIncomingMessages(chatId, userId string, wsInst
 		// Wrap the payload with sender info
 		msg := ChatMessage{
 			MessageType: messageType,
-			SenderID:    userId,
+			SenderId:    senderId,
+			ReceiverId:  receiverId,
 			Content:     string(payload),
 		}
 
@@ -100,7 +102,7 @@ func (wsConn *WsConnection) HandleIncomingMessages(chatId, userId string, wsInst
 		chatConnections := wsInstance.ChatConnections[chatId]
 
 		for userId, conn := range chatConnections {
-			if err := handler.storeMsgToDB(chatId, userId, payload); err != nil {
+			if err := handler.storeMsgToDB(chatId, senderId, receiverId, payload); err != nil {
 				return fmt.Errorf("failed to store msg in the DB: %s", err)
 			}
 

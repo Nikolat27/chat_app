@@ -23,8 +23,14 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/chat/create", handler.CreateChat)
 		r.Get("/chat/get/{chat_id}", handler.GetChatMessages)
 		r.Delete("/chat/delete/{chat_id}", handler.DeleteChat)
-		
+
 		r.Get("/websocket/chat/add/{chat_id}", handler.AddChatWebsocket)
+
+		r.Put("/message/update/${message_id}", handler.EditMessage)
+		r.Delete("/message/delete/sender/{message_id}", handler.DeleteMessageForSender)
+		r.Delete("/message/delete/receiver/{message_id}", handler.DeleteMessageForReceiver)
+		r.Delete("/message/delete/all/{message_id}", handler.DeleteMessageForAll)
+
 	})
 
 	return &Router{

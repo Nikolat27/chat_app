@@ -139,9 +139,15 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	userId := r.URL.Query().Get("user_id")
-	if userId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "user id is missing")
+	senderId := r.URL.Query().Get("sender_id")
+	if senderId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "sender id is missing")
+		return
+	}
+
+	receiverId := r.URL.Query().Get("receiver_id")
+	if receiverId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "receiver id is missing")
 		return
 	}
 
@@ -151,10 +157,10 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	wsConn.Add(chatId, userId, handler.WebSocket)
+	wsConn.Add(chatId, senderId, handler.WebSocket)
 
 	go func() {
-		if err := wsConn.HandleIncomingMessages(chatId, userId, handler.WebSocket, handler); err != nil {
+		if err := wsConn.HandleIncomingMessages(chatId, senderId, receiverId, handler.WebSocket, handler); err != nil {
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()

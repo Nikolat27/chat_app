@@ -46,7 +46,7 @@ func (chat *ChatModel) Create(participants []primitive.ObjectID) (primitive.Obje
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
-func (chat *ChatModel) Get(filter bson.M, projection bson.M) (*Chat, error) {
+func (chat *ChatModel) Get(filter, projection bson.M) (*Chat, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
