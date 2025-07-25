@@ -24,7 +24,6 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	filter := bson.M{
 		"username": input.Username,
-		"email":    input.Email,
 	}
 
 	projection := bson.M{
@@ -32,7 +31,7 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := handler.Models.User.Get(filter, projection); err == nil {
-		utils.WriteError(w, http.StatusBadRequest, "usernameEmailTaken", "user with this email or username exists already")
+		utils.WriteError(w, http.StatusBadRequest, "usernameEmailTaken", "user with this username exists already")
 		return
 	}
 
@@ -48,7 +47,7 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	encodedSalt := hex.EncodeToString([]byte(salt))
 
 	if _, err := handler.Models.User.Create(input.Username, input.Email, encodedHashedPassword, encodedSalt); err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "creatingUserInstance", err)
+		utils.WriteError(w, http.StatusInternalServerError, "creatingUserInstance", "failed to create user")
 		return
 	}
 
