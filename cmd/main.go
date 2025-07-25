@@ -1,11 +1,11 @@
 package main
 
 import (
+	"chat_app/cipher"
 	"chat_app/database"
 	"chat_app/database/models"
 	"chat_app/handlers"
 	"chat_app/server"
-	"chat_app/websocket"
 	"errors"
 	"github.com/joho/godotenv"
 	"log"
@@ -35,8 +35,11 @@ func main() {
 		panic(err)
 	}
 
-	wsInstance := websocket.Init()
+	wsInstance := handlers.WebsocketInit()
 	handlerInstance.WebSocket = wsInstance
+
+	cipherInstance := cipher.New()
+	handlerInstance.Cipher = cipherInstance
 
 	srv := server.New(getPort(), handlerInstance)
 	defer srv.Close()
