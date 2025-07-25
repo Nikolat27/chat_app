@@ -20,6 +20,10 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/auth/register", handler.Register)
 		r.Post("/auth/login", handler.Login)
 
+		r.Post("/chat/create", handler.CreateChat)
+		r.Get("/chat/get/{chat_id}", handler.GetChat)
+		r.Delete("/chat/delete/{chat_id}", handler.DeleteChat)
+
 		r.Get("/websocket/chat/add", handler.AddChatWebsocket)
 	})
 
