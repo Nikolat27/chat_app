@@ -21,10 +21,10 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/auth/login", handler.Login)
 
 		r.Post("/chat/create", handler.CreateChat)
-		r.Get("/chat/get/{chat_id}", handler.GetChat)
+		r.Get("/chat/get/{chat_id}", handler.GetChatMessages)
 		r.Delete("/chat/delete/{chat_id}", handler.DeleteChat)
-
-		r.Get("/websocket/chat/add", handler.AddChatWebsocket)
+		
+		r.Get("/websocket/chat/add/{chat_id}", handler.AddChatWebsocket)
 	})
 
 	return &Router{
