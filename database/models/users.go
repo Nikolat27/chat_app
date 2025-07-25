@@ -31,10 +31,6 @@ func NewUserModel(db *mongo.Database) *UserModel {
 			Keys:    bson.D{{Key: "username", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
-		{
-			Keys:    bson.D{{Key: "email", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
 	})
 
 	if err != nil {
