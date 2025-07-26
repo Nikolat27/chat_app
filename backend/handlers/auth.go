@@ -98,7 +98,9 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response = map[string]string{
-		"token": token,
+		"username": input.Username,
+		"user_id":  user.Id.Hex(),
+		"token":    token,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)
