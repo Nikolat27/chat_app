@@ -23,8 +23,10 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/register", handler.Register)
 		r.Post("/login", handler.Login)
 
+		r.Get("/user/search", handler.SearchUser)
 		r.Delete("/user/delete", handler.DeleteUser)
 		r.Post("/user/upload-avatar", handler.UploadAvatar)
+		r.Get("/user/get-chats", handler.GetUserChats)
 
 		r.Post("/chat/create", handler.CreateChat)
 		r.Post("/chat/upload/{chat_id}/{receiver_id}", handler.UploadChatImage)
@@ -63,6 +65,9 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 func CheckCorsOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+
 		if r.Method == "OPTIONS" {
 			return
 		}
