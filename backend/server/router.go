@@ -24,7 +24,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/login", handler.Login)
 
 		r.Delete("/user/delete", handler.DeleteUser)
-		r.Put("/user/upload-avatar", handler.UploadAvatar)
+		r.Post("/user/upload-avatar", handler.UploadAvatar)
 
 		r.Post("/chat/create", handler.CreateChat)
 		r.Post("/chat/upload/{chat_id}/{receiver_id}", handler.UploadChatImage)
