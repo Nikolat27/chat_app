@@ -6,6 +6,7 @@ type Models struct {
 	User    *UserModel
 	Chat    *ChatModel
 	Message *MessageModel
+	Group   *GroupModel
 }
 
 func New(db *mongo.Database) *Models {
@@ -13,5 +14,6 @@ func New(db *mongo.Database) *Models {
 		User:    NewUserModel(db),
 		Chat:    NewChatModel(db),
 		Message: NewMessageModel(db),
+		Group:   NewGroupModel(db),
 	}
 }
