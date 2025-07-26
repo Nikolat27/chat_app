@@ -6,11 +6,12 @@ import (
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 )
 
-func (handler *Handler) storeMsgToDB(chatId, senderId, receiverId string, payload []byte) error {
+func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, payload []byte) error {
 	chatObjectId, err := utils.ToObjectId(chatId)
 	if err != nil {
 		return errors.New(err.Type)
@@ -33,8 +34,34 @@ func (handler *Handler) storeMsgToDB(chatId, senderId, receiverId string, payloa
 
 	encodedCipher := hex.EncodeToString(ciphered)
 
-	if _, err := handler.Models.Message.Create(chatObjectId, senderObjectId, receiverObjectId, "text",
-		"", encodedCipher); err != nil {
+	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderObjectId, receiverObjectId,
+		"text", "", encodedCipher); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, payload []byte) error {
+	senderObjectId, err := utils.ToObjectId(senderId)
+	if err != nil {
+		return errors.New(err.Type)
+	}
+
+	ciphered, err2 := handler.Cipher.Encrypt(payload)
+	if err2 != nil {
+		return err2
+	}
+
+	encodedCipher := hex.EncodeToString(ciphered)
+
+	groupObjectId, err := utils.ToObjectId(groupId)
+	if err != nil {
+		return errors.New(err.Type)
+	}
+
+	if _, err := handler.Models.Message.Create(primitive.NilObjectID, groupObjectId, senderObjectId, primitive.NilObjectID,
+		"text", "", encodedCipher); err != nil {
 		return err
 	}
 

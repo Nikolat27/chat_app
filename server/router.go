@@ -29,7 +29,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/chat/upload/{chat_id}/{receiver_id}", handler.UploadChatImage)
 		r.Get("/chat/get/{chat_id}", handler.GetChatMessages)
 		r.Delete("/chat/delete/{chat_id}", handler.DeleteChat)
-
+		// chat websocket
 		r.Get("/websocket/chat/add/{chat_id}", handler.AddChatWebsocket)
 
 		r.Put("/message/update/{message_id}", handler.EditMessage)
@@ -41,7 +41,9 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
 		r.Delete("/group/remove-user/{group_id}/{user_id}", handler.RemoveUserFromGroup)
 		r.Delete("/group/delete/{group_id}", handler.DeleteGroup)
-		
+		// group websocket
+		r.Get("/websocket/group/add/{group_id}", handler.AddGroupWebsocket)
+
 	})
 
 	fs := http.FileServer(http.Dir("./uploads"))

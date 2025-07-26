@@ -223,10 +223,10 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	wsConn.Add(chatId, senderId, handler.WebSocket)
+	wsConn.AddChat(chatId, senderId, handler.WebSocket)
 
 	go func() {
-		if err := wsConn.HandleIncomingMessages(chatId, senderId, receiverId, handler.WebSocket, handler); err != nil {
+		if err := wsConn.HandleChatIncomingMsgs(chatId, senderId, receiverId, handler.WebSocket, handler); err != nil {
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()

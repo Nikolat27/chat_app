@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log/slog"
 	"net/http"
 	"slices"
 )
@@ -243,4 +244,32 @@ func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, "group deleted successfully")
+}
+
+func (handler *Handler) AddGroupWebsocket(w http.ResponseWriter, r *http.Request) {
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
+		return
+	}
+
+	senderId := r.URL.Query().Get("sender_id")
+	if senderId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "sender id is missing")
+		return
+	}
+
+	wsConn, err := WebsocketUpgrade(w, r)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "upgradingWebsocket", err)
+		return
+	}
+
+	wsConn.AddGroup(groupId, senderId, handler.WebSocket)
+
+	go func() {
+		if err := wsConn.HandleGroupIncomingMsgs(groupId, senderId, handler.WebSocket, handler); err != nil {
+			slog.Error("handling incoming ws messages", "error", err)
+		}
+	}()
 }
