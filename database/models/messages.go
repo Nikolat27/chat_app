@@ -22,6 +22,7 @@ func NewMessageModel(db *mongo.Database) *MessageModel {
 type Message struct {
 	Id         primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	ChatId     primitive.ObjectID `json:"chat_id" bson:"chat_id"`
+	GroupId    primitive.ObjectID `json:"group_id" bson:"group_id"`
 	SenderId   primitive.ObjectID `json:"sender_id" bson:"sender_id"`
 	ReceiverId primitive.ObjectID `json:"receiver_id" bson:"receiver_id"`
 	// text or image
@@ -35,7 +36,7 @@ type Message struct {
 	CreatedAt            time.Time  `json:"created_at" bson:"created_at"`
 }
 
-func (message *MessageModel) Create(chatId, senderId, receiverId primitive.ObjectID, contentType, contentAddress,
+func (message *MessageModel) Create(chatId, groupId, senderId, receiverId primitive.ObjectID, contentType, contentAddress,
 	content string) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -43,6 +44,7 @@ func (message *MessageModel) Create(chatId, senderId, receiverId primitive.Objec
 
 	var newUser = &Message{
 		ChatId:         chatId,
+		GroupId:        groupId,
 		SenderId:       senderId,
 		ReceiverId:     receiverId,
 		Content:        content,

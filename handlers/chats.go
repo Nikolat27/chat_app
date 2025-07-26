@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"chat_app/utils"
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -10,11 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 )
 
 func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
@@ -113,42 +109,18 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	file, header, err2 := r.FormFile("file")
-	if err2 != nil {
-		utils.WriteError(w, http.StatusBadRequest, "getFile", "failed to get form file")
-		return
-	}
-	defer file.Close()
-
-	if err := os.MkdirAll("uploads", 0755); err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "MkdirAll", "failed to create upload dir")
-		return
-	}
-
-	fileName := rand.Text() + header.Filename
-	path := filepath.Join("uploads", fileName)
-
-	dst, err2 := os.Create(path)
-	if err2 != nil {
-		utils.WriteError(w, http.StatusBadRequest, "createPath", err2)
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "saveFile", "failed to save file")
-		return
-	}
+	allowedFormats := []string{".jpg", ".jpeg", ".png", ".webp"}
+	avatarAddress, err := utils.UploadFile(r, "file", allowedFormats)
 
 	senderId := payload.UserId
-	if _, err := handler.Models.Message.Create(chatObjectId, senderId, receiverObjectId, "image",
-		fileName, ""); err != nil {
+	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderId, receiverObjectId, "image",
+		avatarAddress, ""); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createMsg", "failed to create message")
 		return
 	}
 
 	resp := map[string]string{
-		"url": fileName,
+		"url": avatarAddress,
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, resp)
