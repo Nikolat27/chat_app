@@ -18,6 +18,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 	// prefix api
 	routerInstance.Route("/api", func(r chi.Router) {
+
 		r.Post("/auth/register", handler.Register)
 		r.Post("/auth/login", handler.Login)
 
@@ -39,7 +40,8 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/group/create", handler.CreateGroup)
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
 		r.Delete("/group/remove-user/{group_id}/{user_id}", handler.RemoveUserFromGroup)
-
+		r.Delete("/group/delete/{group_id}", handler.DeleteGroup)
+		
 	})
 
 	fs := http.FileServer(http.Dir("./uploads"))

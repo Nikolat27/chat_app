@@ -77,3 +77,10 @@ func (group *GroupModel) Update(filter, updates bson.M) (*mongo.UpdateResult, er
 
 	return group.collection.UpdateOne(ctx, filter, update)
 }
+
+func (group *GroupModel) Delete(filter bson.M) (*mongo.DeleteResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	return group.collection.DeleteOne(ctx, filter)
+}
