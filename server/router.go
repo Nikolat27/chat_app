@@ -35,6 +35,10 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Delete("/message/delete/sender/{message_id}", handler.DeleteMessageForSender)
 		r.Delete("/message/delete/receiver/{message_id}", handler.DeleteMessageForReceiver)
 		r.Delete("/message/delete/all/{message_id}", handler.DeleteMessageForAll)
+
+		r.Post("/group/create", handler.CreateGroup)
+		r.Get("/group/join/{invite_link}", handler.JoinGroup)
+
 	})
 
 	fs := http.FileServer(http.Dir("./uploads"))
