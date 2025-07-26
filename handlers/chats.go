@@ -128,19 +128,30 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 
 // GetChatMessages -> Returns all the messages of the chat
 func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusUnauthorized, err.Type, err.Detail)
+	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	chatId := chi.URLParam(r, "chat_id")
+	if chatId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
+		return
+	}
+
+	chatObjectId, errResp := utils.ToObjectId(chatId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
 	filter := bson.M{
-		"sender_id": payload.UserId,
+		"chat_id": chatObjectId,
 	}
 
-	messages, err2 := handler.Models.Message.GetAll(filter, bson.M{}, 1, 10)
-	if err2 != nil {
-		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err2)
+	messages, err := handler.Models.Message.GetAll(filter, bson.M{}, 1, 10)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err)
 		return
 	}
 
