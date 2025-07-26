@@ -2,14 +2,19 @@ package handlers
 
 import (
 	"chat_app/utils"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +63,76 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, "chat created successfully")
+}
+
+func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) {
+	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "checkAuth", err)
+		return
+	}
+
+	chatId := chi.URLParam(r, "chat_id")
+	if chatId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
+		return
+	}
+
+	chatObjectId, err := utils.ToObjectId(chatId)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert chat id to objectId")
+		return
+	}
+
+	filter := bson.M{
+		"_id": chatObjectId,
+		"participants": bson.M{
+			"$in": []primitive.ObjectID{payload.UserId},
+		},
+	}
+
+	projection := bson.M{
+		"_id": 1,
+	}
+
+	if _, err := handler.Models.Chat.Get(filter, projection); err != nil {
+		fmt.Println(err)
+		utils.WriteError(w, http.StatusBadRequest, "getChat", "failed to get chat instance")
+		return
+	}
+
+	file, header, err2 := r.FormFile("file")
+	if err2 != nil {
+		utils.WriteError(w, http.StatusBadRequest, "getFile", "failed to get form file")
+		return
+	}
+	defer file.Close()
+
+	if err := os.MkdirAll("uploads", 0755); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "MkdirAll", "failed to create upload dir")
+		return
+	}
+
+	fileName := rand.Text() + header.Filename
+	path := filepath.Join("uploads", fileName)
+
+	dst, err2 := os.Create(path)
+	if err2 != nil {
+		utils.WriteError(w, http.StatusBadRequest, "createPath", err2)
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "saveFile", "failed to save file")
+		return
+	}
+
+	resp := map[string]string{
+		"url": fileName,
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // GetChatMessages -> Returns all the messages of the chat
