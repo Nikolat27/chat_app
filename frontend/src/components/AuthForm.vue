@@ -58,10 +58,12 @@ import { ref } from "vue";
 import axiosInstance from "../axiosInstance";
 import { showMessage, showError } from "../utils/toast";
 import { useUserStore } from "../stores/users";
+import { useRouter } from "vue-router";
 
 const registerForm = ref({ username: "", password: "" });
 const loginForm = ref({ username: "", password: "" });
 const message = ref("");
+const router = useRouter();
 
 const register = async () => {
     try {
@@ -87,9 +89,9 @@ const login = async () => {
             username: res.data.username,
             user_id: res.data.user_id,
         });
-
         showMessage("Login successful!");
         message.value = "";
+        router.push("/");
     } catch (err) {
         showError(err.response?.data?.detail || "Login failed.");
         message.value = "";

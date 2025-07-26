@@ -5,17 +5,26 @@ export const useUserStore = defineStore('user', {
     token: null,
     username: null,
     user_id: null,
+    tokenTimestamp: null,
   }),
   actions: {
     setUser({ token, username, user_id }) {
       this.token = token;
       this.username = username;
       this.user_id = user_id;
+      this.tokenTimestamp = Date.now();
     },
     clearUser() {
       this.token = null;
       this.username = null;
       this.user_id = null;
+      this.tokenTimestamp = null;
+    },
+    isTokenExpired() {
+      if (!this.tokenTimestamp) return true;
+      // 12 hours in ms
+      return Date.now() - this.tokenTimestamp > 12 * 60 * 60 * 1000;
     },
   },
+  persist: true,
 });
