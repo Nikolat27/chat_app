@@ -19,11 +19,11 @@ func VerifyHash(hash, salt, plainText []byte) bool {
 	return string(newHash[:]) == string(hash)
 }
 
-func GenerateSalt(size int64) (string, error) {
+func GenerateSalt(size int64) ([]byte, error) {
 	newBytes := make([]byte, size)
 	if _, err := rand.Read(newBytes); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(newBytes), nil
+	return newBytes, nil
 }

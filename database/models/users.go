@@ -17,7 +17,6 @@ type UserModel struct {
 type User struct {
 	Id             primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Username       string             `json:"username" bson:"username"`
-	Email          string             `json:"email" bson:"email"`
 	HashedPassword string             `json:"hashed_password" bson:"hashed_password"`
 	Salt           string             `json:"salt" bson:"salt"`
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
@@ -42,13 +41,12 @@ func NewUserModel(db *mongo.Database) *UserModel {
 	}
 }
 
-func (user *UserModel) Create(username, email, hashedPassword, salt string) (primitive.ObjectID, error) {
+func (user *UserModel) Create(username, hashedPassword, salt string) (primitive.ObjectID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var newUser = &User{
 		Username:       username,
-		Email:          email,
 		HashedPassword: hashedPassword,
 		Salt:           salt,
 		CreatedAt:      time.Now(),
@@ -76,4 +74,11 @@ func (user *UserModel) Get(filter bson.M, projection bson.M) (*User, error) {
 	}
 
 	return &userInstance, nil
+}
+
+func (user *UserModel) Delete(filter bson.M) (*mongo.DeleteResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return user.collection.DeleteOne(ctx, filter)
 }

@@ -13,7 +13,6 @@ import (
 func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Username    string `json:"username"`
-		Email       string `json:"email"`
 		RawPassword string `json:"password"`
 	}
 
@@ -35,19 +34,8 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	salt, err := utils.GenerateSalt(14)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "generatingSalt", err)
-		return
-	}
-
-	hashedPassword := utils.Hash([]byte(input.RawPassword), []byte(salt))
-
-	encodedHashedPassword := hex.EncodeToString(hashedPassword[:])
-	encodedSalt := hex.EncodeToString([]byte(salt))
-
-	if _, err := handler.Models.User.Create(input.Username, input.Email, encodedHashedPassword, encodedSalt); err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "creatingUserInstance", "failed to create user")
+	if err := handler.CreateUser(input.Username, []byte(input.RawPassword)); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
 	}
 
@@ -108,7 +96,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, "createPasetoToken", "failed to create paseto token")
 		return
 	}
-	
+
 	var response = map[string]string{
 		"token": token,
 	}
