@@ -14,13 +14,14 @@ type Router struct {
 func NewRouter(handler *handlers.Handler) *Router {
 	routerInstance := chi.NewRouter()
 
+	routerInstance.Use(CheckCorsOrigin)
 	routerInstance.Use(middleware.Logger)
 
 	// prefix api
 	routerInstance.Route("/api", func(r chi.Router) {
 
-		r.Post("/auth/register", handler.Register)
-		r.Post("/auth/login", handler.Login)
+		r.Post("/register", handler.Register)
+		r.Post("/login", handler.Login)
 
 		r.Delete("/user/delete", handler.DeleteUser)
 		r.Put("/user/upload-avatar", handler.UploadAvatar)
@@ -58,4 +59,14 @@ func NewRouter(handler *handlers.Handler) *Router {
 	return &Router{
 		CoreRouter: routerInstance,
 	}
+}
+
+func CheckCorsOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
