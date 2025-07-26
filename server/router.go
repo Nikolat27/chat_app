@@ -45,6 +45,11 @@ func NewRouter(handler *handlers.Handler) *Router {
 		// group websocket
 		r.Get("/websocket/group/add/{group_id}", handler.AddGroupWebsocket)
 
+		r.Post("/save-message/create", handler.CreateSaveMessage)
+		r.Get("/save-message/get", handler.GetSaveMessages)
+		r.Put("/save-message/update/{message_id}", handler.EditSaveMessage)
+		r.Delete("/save-message/delete", handler.DeleteSaveMessage)
+
 	})
 
 	fs := http.FileServer(http.Dir("./uploads"))
