@@ -39,7 +39,7 @@ func UploadFile(r *http.Request, keyName string, allowedFormats []string) (strin
 		return "", &ErrorResponse{Type: "ioCopy", Detail: err.Error()}
 	}
 
-	return dst.Name(), nil
+	return fileName, nil
 }
 
 func validateFileFormat(header *multipart.FileHeader, allowedFormats []string) error {
