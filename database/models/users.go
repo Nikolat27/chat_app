@@ -19,6 +19,7 @@ type User struct {
 	Username       string             `json:"username" bson:"username"`
 	HashedPassword string             `json:"hashed_password" bson:"hashed_password"`
 	Salt           string             `json:"salt" bson:"salt"`
+	AvatarUrl      string             `json:"avatar_url" bson:"avatar_url"`
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
 }
 
@@ -81,4 +82,15 @@ func (user *UserModel) Delete(filter bson.M) (*mongo.DeleteResult, error) {
 	defer cancel()
 
 	return user.collection.DeleteOne(ctx, filter)
+}
+
+func (user *UserModel) Update(filter bson.M, updates bson.M) (*mongo.UpdateResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$set": updates,
+	}
+
+	return user.collection.UpdateOne(ctx, filter, update)
 }

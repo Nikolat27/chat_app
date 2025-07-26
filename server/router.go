@@ -21,6 +21,9 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/auth/register", handler.Register)
 		r.Post("/auth/login", handler.Login)
 
+		r.Delete("/user/delete", handler.DeleteUser)
+		r.Put("/user/upload-avatar", handler.UploadAvatar)
+
 		r.Post("/chat/create", handler.CreateChat)
 		r.Post("/chat/upload/{chat_id}/{receiver_id}", handler.UploadChatImage)
 		r.Get("/chat/get/{chat_id}", handler.GetChatMessages)
@@ -32,7 +35,6 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Delete("/message/delete/sender/{message_id}", handler.DeleteMessageForSender)
 		r.Delete("/message/delete/receiver/{message_id}", handler.DeleteMessageForReceiver)
 		r.Delete("/message/delete/all/{message_id}", handler.DeleteMessageForAll)
-
 	})
 
 	fs := http.FileServer(http.Dir("./uploads"))
