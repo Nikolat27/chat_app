@@ -33,7 +33,8 @@ func (handler *Handler) storeMsgToDB(chatId, senderId, receiverId string, payloa
 
 	encodedCipher := hex.EncodeToString(ciphered)
 
-	if _, err := handler.Models.Message.Create(chatObjectId, senderObjectId, receiverObjectId, []byte(encodedCipher)); err != nil {
+	if _, err := handler.Models.Message.Create(chatObjectId, senderObjectId, receiverObjectId, "text",
+		"", encodedCipher); err != nil {
 		return err
 	}
 
@@ -221,7 +222,7 @@ func (handler *Handler) DeleteMessageForAll(w http.ResponseWriter, r *http.Reque
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
 	}
-	
+
 	filter := bson.M{
 		"_id": messageObjectId,
 		"$or": []bson.M{
