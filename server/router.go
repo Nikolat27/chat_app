@@ -38,6 +38,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 		r.Post("/group/create", handler.CreateGroup)
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
+		r.Delete("/group/remove-user/{group_id}/{user_id}", handler.RemoveUserFromGroup)
 
 	})
 
