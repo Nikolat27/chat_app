@@ -88,6 +88,7 @@ const login = async () => {
             token: res.data.token,
             username: res.data.username,
             user_id: res.data.user_id,
+            avatar_url: res.data.avatar_url,
         });
         showMessage("Login successful!");
         message.value = "";
