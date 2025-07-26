@@ -3,6 +3,7 @@ package handlers
 import (
 	"chat_app/utils"
 	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -272,4 +273,54 @@ func (handler *Handler) AddGroupWebsocket(w http.ResponseWriter, r *http.Request
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()
+}
+
+// GetGroupMessages -> Returns all the messages of the group
+func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request) {
+	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
+		return
+	}
+
+	groupObjectId, errResp := utils.ToObjectId(groupId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"group_id": groupObjectId,
+	}
+
+	messages, err := handler.Models.Message.GetAll(filter, bson.M{}, 1, 10)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err)
+		return
+	}
+
+	decryptedMessages := make([]string, 0, len(messages))
+
+	for idx, message := range messages {
+		decodedMessage, err := hex.DecodeString(message.Content)
+		if err != nil {
+			slog.Warn("failed to decode message", "err", err, "msgID", messages[idx].Id.Hex())
+			continue
+		}
+
+		decryptedMsg, err := handler.Cipher.Decrypt(decodedMessage)
+		if err != nil {
+			slog.Warn("failed to decrypt message", "err", err, "msgID", messages[idx].Id.Hex())
+			continue
+		}
+
+		decryptedMessages = append(decryptedMessages, string(decryptedMsg))
+	}
+
+	utils.WriteJSON(w, http.StatusOK, decryptedMessages)
 }
