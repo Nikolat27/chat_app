@@ -61,6 +61,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		"_id":             1,
 		"hashed_password": 1,
 		"salt":            1,
+		"avatar_url":      1,
 	}
 
 	user, err := handler.Models.User.Get(filter, projection)
@@ -98,9 +99,10 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response = map[string]string{
-		"username": input.Username,
-		"user_id":  user.Id.Hex(),
-		"token":    token,
+		"username":   input.Username,
+		"user_id":    user.Id.Hex(),
+		"token":      token,
+		"avatar_url": user.AvatarUrl,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)

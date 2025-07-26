@@ -2,15 +2,11 @@ package handlers
 
 import (
 	"chat_app/utils"
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 )
 
 func (handler *Handler) CreateUser(username string, rawPassword []byte) *utils.ErrorResponse {
@@ -44,30 +40,11 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, header, err2 := r.FormFile("file")
-	if err2 != nil {
-		utils.WriteError(w, http.StatusBadRequest, "getFile", err2)
-		return
-	}
-	defer file.Close()
+	allowedFormats := []string{".png", ".jpeg", ".jpg", ".webp"}
 
-	if err := os.MkdirAll("uploads", 0755); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "mkdirAll", err)
-		return
-	}
-
-	fileName := rand.Text() + header.Filename
-	path := filepath.Join("uploads", fileName)
-
-	dst, err2 := os.Create(path)
-	if err2 != nil {
-		utils.WriteError(w, http.StatusBadRequest, "openDir", err2)
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "copyFile", err)
+	avatarAddress, err := utils.UploadFile(r, "file", allowedFormats)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
 	}
 
@@ -76,7 +53,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updates := bson.M{
-		"avatar_url": fileName,
+		"avatar_url": avatarAddress,
 	}
 
 	if _, err := handler.Models.User.Update(filter, updates); err != nil {
@@ -84,7 +61,11 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, "user updated successfully")
+	response := map[string]string{
+		"avatar_url": avatarAddress,
+	}
+
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 func (handler *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
