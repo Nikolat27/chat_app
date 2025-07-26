@@ -84,6 +84,18 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	receiverId := chi.URLParam(r, "receiver_id")
+	if receiverId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "receiver id is missing")
+		return
+	}
+
+	receiverObjectId, err := utils.ToObjectId(receiverId)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert chat id to objectId")
+		return
+	}
+
 	filter := bson.M{
 		"_id": chatObjectId,
 		"participants": bson.M{
@@ -125,6 +137,13 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 
 	if _, err := io.Copy(dst, file); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "saveFile", "failed to save file")
+		return
+	}
+
+	senderId := payload.UserId
+	if _, err := handler.Models.Message.Create(chatObjectId, senderId, receiverObjectId, "image",
+		fileName, ""); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "createMsg", "failed to create message")
 		return
 	}
 
