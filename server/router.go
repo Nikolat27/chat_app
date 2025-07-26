@@ -22,7 +22,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/auth/login", handler.Login)
 
 		r.Post("/chat/create", handler.CreateChat)
-		r.Post("/chat/upload/{chat_id}", handler.UploadChatImage)
+		r.Post("/chat/upload/{chat_id}/{receiver_id}", handler.UploadChatImage)
 		r.Get("/chat/get/{chat_id}", handler.GetChatMessages)
 		r.Delete("/chat/delete/{chat_id}", handler.DeleteChat)
 
