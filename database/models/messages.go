@@ -35,19 +35,20 @@ type Message struct {
 	CreatedAt            time.Time  `json:"created_at" bson:"created_at"`
 }
 
-func (message *MessageModel) Create(chatId, senderId, receiverId primitive.ObjectID,
-	content []byte) (*mongo.InsertOneResult, error) {
+func (message *MessageModel) Create(chatId, senderId, receiverId primitive.ObjectID, contentType, contentAddress,
+	content string) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var newUser = &Message{
-		ChatId:     chatId,
-		SenderId:   senderId,
-		ReceiverId: receiverId,
-		Content:    string(content),
-		Type:       "text",
-		CreatedAt:  time.Now(),
+		ChatId:         chatId,
+		SenderId:       senderId,
+		ReceiverId:     receiverId,
+		Content:        content,
+		Type:           contentType,
+		ContentAddress: contentAddress,
+		CreatedAt:      time.Now(),
 	}
 
 	return message.collection.InsertOne(ctx, newUser)
