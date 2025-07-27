@@ -85,7 +85,7 @@
                             "
                             class="text-xs text-right mt-1"
                         >
-                            {{ formatTime(msg.created_at || msg.timestamp) }}
+                            {{ formatTime(msg.created_at) }}
                         </div>
 
                         <!-- Delete button (only for own messages with real IDs) -->
