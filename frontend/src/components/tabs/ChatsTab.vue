@@ -3,15 +3,15 @@
         <h2 class="text-lg font-bold text-green-600 mb-4">Chats</h2>
 
         <!-- Action Buttons -->
-        <div class="flex gap-2 mb-4">
+        <div class="flex gap-3 mb-6">
             <button
-                class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                class="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition duration-150 cursor-pointer"
                 @click="showCreateChat = true"
             >
                 Create Chat
             </button>
             <button
-                class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
+                class="bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition duration-150 cursor-pointer"
                 @click="showCreateSecretChat = true"
             >
                 Create Secret Chat
