@@ -27,6 +27,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Delete("/user/delete", handler.DeleteUser)
 		r.Post("/user/upload-avatar", handler.UploadAvatar)
 		r.Get("/user/get-chats", handler.GetUserChats)
+		r.Get("/user/get-secret-chats", handler.GetUserSecretChats)
 
 		r.Post("/chat/create", handler.CreateChat)
 		r.Post("/chat/upload/{chat_id}/{receiver_id}", handler.UploadChatImage)
@@ -51,6 +52,12 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Get("/save-message/get", handler.GetSaveMessages)
 		r.Put("/save-message/update/{message_id}", handler.EditSaveMessage)
 		r.Delete("/save-message/delete", handler.DeleteSaveMessage)
+
+		r.Post("/secret-chat/create", handler.CreateSecretChat)
+		r.Get("/secret-chat/get/{chat_id}/messages", handler.GetSecretChatMessages)
+		r.Delete("/secret-chat/delete/{chat_id}", handler.DeleteSecretChat)
+		// chat websocket
+		r.Get("/websocket/secret-chat/add/{chat_id}", handler.AddSecretChatWebsocket)
 
 	})
 
