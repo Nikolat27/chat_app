@@ -72,6 +72,48 @@ export function useMessagePagination() {
         }
     };
 
+    // Fetch secret chats
+    const loadSecretChats = async (userId, page = 1, limit = 20) => {
+        if (isLoading.value) return;
+        try {
+            isLoading.value = true;
+            error.value = null;
+            chatStore.setLoadingState(true);
+
+            // Adjust the endpoint as per your backend
+            const response = await axiosInstance.get(
+                `/api/user/get-secret-chats`,
+                {
+                    params: { user_id: userId, page, limit },
+                }
+            );
+
+            console.log(response);
+
+            const rawChats = response.data || [];
+            // Assign default avatar if not present
+            const chats = rawChats.map((chat) => {
+                if (!chat.avatar_url) {
+                    return {
+                        ...chat,
+                        avatar_url: "default-secret-chat-avatar.jpg",
+                    };
+                }
+                return chat;
+            });
+
+            // You may want to update the store or return the chats directly
+            // chatStore.setSecretChats(chats); // If you have such a method
+            return chats;
+        } catch (err) {
+            error.value = err.message || "Failed to load secret chats";
+            console.error("Error loading secret chats:", err);
+        } finally {
+            isLoading.value = false;
+            chatStore.setLoadingState(false);
+        }
+    };
+
     // Load next page
     const loadNextPage = async (chatId) => {
         if (!hasMoreMessages.value || isLoadingMessages.value) return;
@@ -121,6 +163,7 @@ export function useMessagePagination() {
         loadInitialMessages,
         refreshMessages,
         shouldLoadMore,
+        loadSecretChats,
 
         // Store methods (for direct access if needed)
         setMessages: chatStore.setMessages,

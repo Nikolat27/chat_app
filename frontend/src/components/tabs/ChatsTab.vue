@@ -11,8 +11,8 @@
                 Create Chat
             </button>
             <button
-                class="bg-gray-300 text-gray-700 px-3 py-1 rounded cursor-not-allowed"
-                disabled
+                class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
+                @click="showCreateSecretChat = true"
             >
                 Create Secret Chat
             </button>
@@ -24,6 +24,14 @@
             :backend-base-url="backendBaseUrl"
             @close="showCreateChat = false"
             @user-selected="handleUserSelected"
+        />
+
+        <!-- Secret Chat Creation Modal -->
+        <CreateSecretChatModal
+            v-if="showCreateSecretChat"
+            :backend-base-url="backendBaseUrl"
+            @close="showCreateSecretChat = false"
+            @user-selected="handleSecretUserSelected"
         />
 
         <!-- Chat List -->
@@ -41,7 +49,9 @@
 <script setup>
 import { ref } from "vue";
 import CreateChatModal from "./CreateChatModal.vue";
+import CreateSecretChatModal from "./CreateSecretChatModal.vue";
 import ChatList from "./ChatList.vue";
+import axiosInstance from '../../axiosInstance';
 
 const props = defineProps({
     chatStore: Object,
@@ -52,11 +62,29 @@ const props = defineProps({
 const emit = defineEmits(['open-chat']);
 
 const showCreateChat = ref(false);
+const showCreateSecretChat = ref(false);
 
 // Handle user selection from search results
 const handleUserSelected = (user) => {
     emit('open-chat', user);
     showCreateChat.value = false;
+};
+
+// Handle user selection for secret chat
+const handleSecretUserSelected = async (user) => {
+    // Call backend to create secret chat
+    try {
+        const response = await axiosInstance.post('/api/user/create-secret-chat', {
+            participant_id: user.id,
+        });
+        if (response.data?.chat) {
+            // Optionally update chatStore or emit event
+            emit('open-chat', user);
+        }
+    } catch (error) {
+        console.error('Failed to create secret chat:', error);
+    }
+    showCreateSecretChat.value = false;
 };
 
 // Handle clicking on existing chat

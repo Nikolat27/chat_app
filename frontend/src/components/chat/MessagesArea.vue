@@ -217,15 +217,6 @@ const messagesContainer = ref(null);
 // Scroll handler for infinite scroll
 const handleScroll = (event) => {
     const { scrollTop, scrollHeight, clientHeight } = event.target;
-
-    console.log(
-        `Scroll: top=${scrollTop}, height=${scrollHeight}, client=${clientHeight}, shouldLoad=${shouldLoadMore(
-            scrollTop,
-            scrollHeight,
-            clientHeight
-        )}`
-    );
-
     if (shouldLoadMore(scrollTop, scrollHeight, clientHeight)) {
         emit("load-more-messages");
     }
