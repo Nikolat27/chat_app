@@ -1,7 +1,7 @@
 <template>
     <div
         ref="messagesContainer"
-        class="flex-1 overflow-y-auto p-4 space-y-6"
+        class="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50"
         @scroll="handleScroll"
     >
         <!-- Loading indicator for older messages -->
@@ -22,12 +22,12 @@
                         r="10"
                         stroke="currentColor"
                         stroke-width="4"
-                    ></circle>
+                    />
                     <path
                         class="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
+                    />
                 </svg>
                 <span class="text-gray-600 text-sm font-medium"
                     >Loading messages...</span
@@ -36,7 +36,7 @@
         </div>
 
         <!-- Messages List -->
-        <div v-if="messages && messages.length">
+        <div v-if="messages && messages.length" class="space-y-1">
             <template v-for="msg in messages" :key="msg.id">
                 <div
                     v-if="msg.content !== '' || msg.content_address !== ''"
@@ -45,21 +45,14 @@
                             ? 'justify-end'
                             : 'justify-start'
                     "
-                    class="flex items-end mb-2 gap-2"
+                    class="flex items-end gap-2"
                 >
-                    <!-- Avatar (left for received, right for sent) -->
+                    <!-- Avatar for received messages -->
                     <template v-if="msg.sender_id !== currentUserId">
                         <img
-                            v-if="otherUserAvatar"
                             :src="getAvatarUrl(otherUserAvatar)"
-                            class="w-8 h-8 rounded-full object-cover border"
+                            class="w-9 h-9 rounded-full object-cover border shadow-sm"
                             alt="Avatar"
-                        />
-                        <img
-                            v-else
-                            src="/src/assets/default-avatar.jpeg"
-                            class="w-8 h-8 rounded-full object-cover border"
-                            alt="Default Avatar"
                         />
                     </template>
 
@@ -68,12 +61,12 @@
                         :class="
                             msg.sender_id === currentUserId
                                 ? 'bg-green-500 text-white'
-                                : 'bg-white text-gray-800 border'
+                                : 'bg-white text-gray-900 border border-gray-200'
                         "
-                        class="rounded-lg px-4 py-2 max-w-xs relative group"
+                        class="rounded-2xl px-4 py-2 max-w-xs sm:max-w-md shadow-md relative group"
                     >
                         <div
-                            class="text-base font-semibold break-words whitespace-pre-line"
+                            class="text-base break-words whitespace-pre-wrap leading-snug"
                         >
                             {{ msg.content }}
                         </div>
@@ -91,7 +84,7 @@
                             }}
                         </div>
 
-                        <!-- Delete button (only for own messages with real IDs) -->
+                        <!-- Delete button -->
                         <div
                             v-if="canDeleteMessage(msg.id, currentUserId)"
                             class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -99,7 +92,7 @@
                             <button
                                 @click="handleDeleteMessage(msg.id)"
                                 :disabled="isDeleting"
-                                class="cursor-pointer bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg"
+                                class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg"
                                 title="Delete message"
                             >
                                 ×
@@ -107,19 +100,12 @@
                         </div>
                     </div>
 
-                    <!-- Avatar for sent messages (right side) -->
+                    <!-- Avatar for sent messages -->
                     <template v-if="msg.sender_id === currentUserId">
                         <img
-                            v-if="userAvatar"
                             :src="getAvatarUrl(userAvatar)"
-                            class="w-8 h-8 rounded-full object-cover border"
+                            class="w-9 h-9 rounded-full object-cover border shadow-sm"
                             alt="Avatar"
-                        />
-                        <img
-                            v-else
-                            src="/src/assets/default-avatar.jpeg"
-                            class="w-8 h-8 rounded-full object-cover border"
-                            alt="Default Avatar"
                         />
                     </template>
                 </div>
@@ -127,7 +113,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else class="text-gray-400 text-center mt-10">
+        <div v-else class="text-gray-400 text-center mt-10 text-sm italic">
             No messages yet. Start the conversation!
         </div>
 
@@ -137,31 +123,29 @@
             class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
         >
             <div
-                class="bg-white rounded-xl shadow-xl w-72 p-6 space-y-4 text-center"
+                class="bg-white rounded-xl shadow-2xl w-80 p-6 space-y-4 text-center border border-gray-100"
             >
-                <h3 class="text-lg font-semibold text-gray-800">
-                    Delete Message
-                </h3>
-                <p class="text-sm text-gray-600">
+                <h3 class="text-lg font-bold text-gray-900">Delete Message</h3>
+                <p class="text-sm text-gray-600 leading-relaxed">
                     Do you want to delete this message just for yourself or for
                     everyone?
                 </p>
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-2 text-sm">
                     <button
                         @click="deleteForSender"
-                        class="cursor-pointer bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md font-medium"
                     >
                         Delete for me
                     </button>
                     <button
                         @click="deleteForAll"
-                        class="cursor-pointer bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md"
+                        class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md font-medium"
                     >
                         Delete for everyone
                     </button>
                     <button
                         @click="cancelDelete"
-                        class="cursor-pointer text-gray-500 hover:underline text-sm"
+                        class="text-gray-500 hover:underline text-xs"
                     >
                         Cancel
                     </button>
@@ -207,17 +191,11 @@ const props = defineProps({
 
 const emit = defineEmits(["load-more-messages", "remove-message"]);
 
-// Pagination composable
-const { isLoadingMessages, shouldLoadMore, loadNextPage } =
-    useMessagePagination();
-
-// Message deletion composable
+const { isLoadingMessages, shouldLoadMore } = useMessagePagination();
 const { isDeleting, deleteMessage, canDeleteMessage } = useMessageDeletion();
 
-// Template refs
 const messagesContainer = ref(null);
 
-// Scroll handler for infinite scroll
 const handleScroll = (event) => {
     const { scrollTop, scrollHeight, clientHeight } = event.target;
     if (shouldLoadMore(scrollTop, scrollHeight, clientHeight)) {
@@ -225,7 +203,6 @@ const handleScroll = (event) => {
     }
 };
 
-// Auto-scroll to bottom when new messages arrive
 const scrollToBottom = () => {
     if (messagesContainer.value) {
         messagesContainer.value.scrollTop =
@@ -233,51 +210,41 @@ const scrollToBottom = () => {
     }
 };
 
-// Watch for new messages and scroll to bottom
 watch(
     () => props.messages.length,
     () => {
-        // Use nextTick to ensure DOM is updated
         nextTick(() => {
             scrollToBottom();
         });
     }
 );
 
-// Scroll to bottom when component mounts
 onMounted(() => {
     nextTick(() => {
         scrollToBottom();
     });
 });
 
-// Handle message deletion
 const handleDeleteMessage = (messageId) => {
     messageToDeleteId.value = messageId;
     showDeleteModal.value = true;
 };
 
-// Get avatar URL with proper formatting
 const getAvatarUrl = (avatarUrl) => {
-    if (!avatarUrl) return null;
+    if (!avatarUrl) return "/src/assets/default-avatar.jpeg";
     return avatarUrl.startsWith("/")
         ? avatarUrl
         : `${props.backendBaseUrl}/static/${avatarUrl}`;
 };
 
-// Format timestamp
 const formatTime = (ts) => {
     if (!ts) return "";
-
-    // If ts is a number, treat as timestamp
     if (typeof ts === "number") {
         return new Date(ts).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
         });
     }
-
-    // If ts is a string (Go time.Time), try to parse
     if (typeof ts === "string") {
         const parsed = Date.parse(ts);
         if (!isNaN(parsed)) {
@@ -286,37 +253,31 @@ const formatTime = (ts) => {
                 minute: "2-digit",
             });
         }
-        // Fallback: show raw string
         return ts;
     }
-
     return "";
 };
 
 const showDeleteModal = ref(false);
 const messageToDeleteId = ref(null);
 
-// Cancel modal
 const cancelDelete = () => {
     showDeleteModal.value = false;
     messageToDeleteId.value = null;
 };
 
-// Delete for sender only
 const deleteForSender = async () => {
     if (messageToDeleteId.value && props.chatId) {
         await deleteMessageByType("sender");
     }
 };
 
-// Delete for all
 const deleteForAll = async () => {
     if (messageToDeleteId.value && props.chatId) {
         await deleteMessageByType("all");
     }
 };
 
-// Generic delete handler
 const deleteMessageByType = async (type) => {
     let url;
     switch (type) {
@@ -332,7 +293,6 @@ const deleteMessageByType = async (type) => {
 
     try {
         await axiosInstance.delete(url);
-
         showMessage("Message deleted successfully. Reload if you want");
         emit("remove-message", messageToDeleteId.value);
     } catch (err) {
