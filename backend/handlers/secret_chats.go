@@ -4,17 +4,19 @@ import (
 	"chat_app/database/models"
 	"chat_app/utils"
 	"encoding/hex"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"log/slog"
 	"net/http"
 )
 
 func (handler *Handler) CreateSecretChat(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusUnauthorized, "checkAuth", err)
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -27,9 +29,29 @@ func (handler *Handler) CreateSecretChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	targetUserObjectId, err := utils.ToObjectId(input.TargetUser)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", err)
+	targetUserObjectId, errResp := utils.ToObjectId(input.TargetUser)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"$or": []bson.M{
+			{"user_1": payload.UserId, "user_2": targetUserObjectId},
+			{"user_1": targetUserObjectId, "user_2": payload.UserId},
+		},
+	}
+
+	projection := bson.M{
+		"_id": 1,
+	}
+
+	_, err := handler.Models.SecretChat.Get(filter, projection)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		utils.WriteError(w, http.StatusBadRequest, "getSecretChat", err)
+		return
+	} else if err == nil {
+		utils.WriteError(w, http.StatusBadRequest, "getSecretChat", "You have a secret chat with these users already")
 		return
 	}
 
