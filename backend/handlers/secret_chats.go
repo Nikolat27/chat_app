@@ -70,7 +70,7 @@ func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	chatId := chi.URLParam(r, "chat_id")
+	chatId := chi.URLParam(r, "secret_chat_id")
 	if chatId == "" {
 		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
 		return
@@ -126,7 +126,7 @@ func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	chatId := chi.URLParam(r, "chat_id")
+	chatId := chi.URLParam(r, "secret_chat_id")
 	if chatId == "" {
 		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
 		return
@@ -153,8 +153,55 @@ func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusOK, "secret chat deleted successfully")
 }
 
+func (handler *Handler) UpdateSecretChat(w http.ResponseWriter, r *http.Request) {
+	if _, err := utils.CheckAuth(r.Header, handler.Paseto); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+		return
+	}
+
+	secretChatId := chi.URLParam(r, "secret_chat_id")
+	if secretChatId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
+		return
+	}
+
+	secretChatObjectId, err := utils.ToObjectId(secretChatId)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert secretChatId")
+		return
+	}
+
+	var input struct {
+		User2Accepted  bool   `json:"user_2_accepted"`
+		User1PublicKey string `json:"user_1_public_key"`
+		User2PublicKey string `json:"user_2_public_key"`
+	}
+
+	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "parseJson", err)
+		return
+	}
+
+	filter := bson.M{
+		"_id": secretChatObjectId,
+	}
+
+	updates := bson.M{
+		"user_2_accepted":   input.User2Accepted,
+		"user_1_public_key": input.User1PublicKey,
+		"user_2_public_key": input.User2PublicKey,
+	}
+
+	if _, err := handler.Models.SecretChat.Update(filter, updates); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "deleteSecretChat", err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, "secret chat updated successfully")
+}
+
 func (handler *Handler) AddSecretChatWebsocket(w http.ResponseWriter, r *http.Request) {
-	chatId := chi.URLParam(r, "chat_id")
+	chatId := chi.URLParam(r, "secret_chat_id")
 	if chatId == "" {
 		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
 		return

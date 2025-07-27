@@ -15,9 +15,9 @@ import (
 )
 
 func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusUnauthorized, "checkAuth", err)
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -29,10 +29,10 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusBadRequest, "parseJson", err)
 		return
 	}
-
-	targetUserObjectId, err := utils.ToObjectId(input.TargetUser)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", err)
+	
+	targetUserObjectId, errResp := utils.ToObjectId(input.TargetUser)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -49,7 +49,12 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// checking chat duplication
-	if _, err := handler.Models.Chat.Get(filter, projection); !errors.Is(err, mongo.ErrNoDocuments) {
+	_, err := handler.Models.Chat.Get(filter, projection)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		utils.WriteError(w, http.StatusInternalServerError, "getChat", err)
+		return
+	}
+	if err == nil {
 		utils.WriteError(w, http.StatusBadRequest, "createChat", "chat with these participants exists already")
 		return
 	}
