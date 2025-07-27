@@ -154,50 +154,107 @@ func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request)
 }
 
 func (handler *Handler) UpdateSecretChat(w http.ResponseWriter, r *http.Request) {
-	if _, err := utils.CheckAuth(r.Header, handler.Paseto); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
 	secretChatId := chi.URLParam(r, "secret_chat_id")
 	if secretChatId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "secret_chat_id is missing")
 		return
 	}
 
-	secretChatObjectId, err := utils.ToObjectId(secretChatId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert secretChatId")
+	secretChatObjectId, errResp := utils.ToObjectId(secretChatId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "invalid secret_chat_id")
 		return
 	}
 
 	var input struct {
-		User2Accepted  bool   `json:"user_2_accepted"`
-		User1PublicKey string `json:"user_1_public_key"`
-		User2PublicKey string `json:"user_2_public_key"`
+		PublicKey string `json:"public_key"`
 	}
-
 	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "parseJson", err)
 		return
 	}
 
-	filter := bson.M{
-		"_id": secretChatObjectId,
-	}
-
-	updates := bson.M{
-		"user_2_accepted":   input.User2Accepted,
-		"user_1_public_key": input.User1PublicKey,
-		"user_2_public_key": input.User2PublicKey,
-	}
-
-	if _, err := handler.Models.SecretChat.Update(filter, updates); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "deleteSecretChat", err)
+	if input.PublicKey == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missingPublicKey", "public key is required")
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, "secret chat updated successfully")
+	// Fetch the secret chat
+	filter := bson.M{"_id": secretChatObjectId}
+	secretChat, err := handler.Models.SecretChat.Get(filter, bson.M{})
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "getSecretChat", err)
+		return
+	}
+
+	// Check which user is making the request
+	isUser1 := secretChat.User1 == payload.UserId
+	isUser2 := secretChat.User2 == payload.UserId
+
+	if !isUser1 && !isUser2 {
+		utils.WriteError(w, http.StatusForbidden, "unAuthorized", "You are not a participant in this secret chat")
+		return
+	}
+
+	// Prevent overriding existing keys
+	if isUser1 && secretChat.User1PublicKey != "" {
+		utils.WriteError(w, http.StatusConflict, "keyExists", "User 1 public key already set")
+		return
+	}
+	if isUser2 && secretChat.User2PublicKey != "" {
+		utils.WriteError(w, http.StatusConflict, "keyExists", "User 2 public key already set")
+		return
+	}
+
+	// Prepare update
+	updates := bson.M{}
+	if isUser1 {
+		updates["user_1_public_key"] = input.PublicKey
+	}
+	if isUser2 {
+		updates["user_2_public_key"] = input.PublicKey
+	}
+
+	if _, err := handler.Models.SecretChat.Update(filter, updates); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "updateSecretChat", err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, "Public key saved successfully")
+}
+
+func (handler *Handler) ApproveSecretChat(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	chatID := chi.URLParam(r, "chat_id")
+
+	objectId, _ := primitive.ObjectIDFromHex(chatID)
+
+	filter := bson.M{
+		"_id":    objectId,
+		"user_2": payload.UserId,
+	}
+
+	update := bson.M{
+		"user_2_accepted": true,
+	}
+
+	if _, err := handler.Models.SecretChat.Update(filter, update); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "approveSecretChat", err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, "secret chat approved")
 }
 
 func (handler *Handler) AddSecretChatWebsocket(w http.ResponseWriter, r *http.Request) {

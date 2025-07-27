@@ -56,7 +56,8 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/secret-chat/create", handler.CreateSecretChat)
 		r.Get("/secret-chat/get/{secret_chat_id}/messages", handler.GetSecretChatMessages)
 		r.Delete("/secret-chat/delete/{secret_chat_id}", handler.DeleteSecretChat)
-		r.Put("/secret-chat/update/{secret_chat_id}", handler.DeleteSecretChat)
+		r.Put("/secret-chat/add-public-keys/{secret_chat_id}", handler.UpdateSecretChat)
+		r.Post("/secret-chat/approve/{chat_id}", handler.ApproveSecretChat)
 		// chat websocket
 		r.Get("/websocket/secret-chat/add/{chat_id}", handler.AddSecretChatWebsocket)
 
