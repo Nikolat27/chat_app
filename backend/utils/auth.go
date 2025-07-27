@@ -19,7 +19,7 @@ func CheckAuth(header http.Header, paseto *paseto.Maker) (*paseto.Payload, *Erro
 
 	payload, err := paseto.VerifyToken(authToken)
 	if err != nil {
-		return nil, &ErrorResponse{Type: TokenNotValid.Error(), Detail: err}
+		return nil, &ErrorResponse{Type: TokenNotValid.Error(), Detail: "can`t verify the token"}
 	}
 
 	return payload, nil
