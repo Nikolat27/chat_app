@@ -175,8 +175,8 @@ func (handler *Handler) GetUserSecretChats(w http.ResponseWriter, r *http.Reques
 
 	filter := bson.M{
 		"$or": []bson.M{
-			{"user1": payload.UserId},
-			{"user2": payload.UserId},
+			{"user_1": payload.UserId},
+			{"user_2": payload.UserId},
 		},
 	}
 
@@ -195,8 +195,8 @@ func (handler *Handler) GetUserSecretChats(w http.ResponseWriter, r *http.Reques
 	}
 
 	response := map[string]any{
-		"secret_chats": chats,
-		"usernames":    usernames,
+		"secret_chats":     chats,
+		"secret_usernames": usernames,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)
