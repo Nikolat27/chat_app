@@ -1,6 +1,9 @@
 <template>
-    <div class="min-h-screen flex items-center justify-center bg-green-50">
-        <div class="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
+    <div class="min-h-screen flex items-center justify-center bg-green-50 px-4">
+        <div
+            class="w-full max-w-md p-8 bg-white rounded-xl shadow-lg border border-gray-200"
+        >
+            <!-- Register -->
             <h2 class="text-2xl font-bold text-green-600 mb-6 text-center">
                 Register
             </h2>
@@ -9,22 +12,25 @@
                     v-model="registerForm.username"
                     type="text"
                     placeholder="Username"
-                    class="w-full mb-4 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                    class="w-full mb-4 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                 />
                 <input
                     v-model="registerForm.password"
                     type="password"
                     placeholder="Password"
-                    class="w-full mb-4 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                    class="w-full mb-4 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                 />
                 <button
                     type="submit"
-                    class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 cursor-pointer"
+                    class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg shadow-sm cursor-pointer transition"
                 >
                     Register
                 </button>
             </form>
-            <div class="my-6 border-t pt-6">
+
+            <!-- Divider -->
+            <div class="my-8 border-t border-gray-200 pt-6">
+                <!-- Login -->
                 <h2 class="text-2xl font-bold text-green-600 mb-6 text-center">
                     Login
                 </h2>
@@ -33,17 +39,17 @@
                         v-model="loginForm.username"
                         type="text"
                         placeholder="Username"
-                        class="w-full mb-4 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-full mb-4 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                     />
                     <input
                         v-model="loginForm.password"
                         type="password"
                         placeholder="Password"
-                        class="w-full mb-4 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-full mb-4 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                     />
                     <button
                         type="submit"
-                        class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 cursor-pointer"
+                        class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg shadow-sm cursor-pointer transition"
                     >
                         Login
                     </button>
