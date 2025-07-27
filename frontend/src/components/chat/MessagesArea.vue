@@ -120,32 +120,32 @@
         <!-- Delete Confirmation Modal -->
         <div
             v-if="showDeleteModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-gray-200 bg-opacity-60"
         >
             <div
-                class="bg-white rounded-xl shadow-2xl w-80 p-6 space-y-4 text-center border border-gray-100"
+                class="bg-white w-80 p-6 rounded-2xl shadow-2xl border border-gray-100 text-center space-y-5"
             >
-                <h3 class="text-lg font-bold text-gray-900">Delete Message</h3>
-                <p class="text-sm text-gray-600 leading-relaxed">
+                <h3 class="text-xl font-bold text-gray-800">Delete Message</h3>
+                <p class="text-base text-gray-600 leading-relaxed">
                     Do you want to delete this message just for yourself or for
                     everyone?
                 </p>
-                <div class="flex flex-col gap-2 text-sm">
+                <div class="flex flex-col gap-3 text-base">
                     <button
                         @click="deleteForSender"
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md font-medium"
+                        class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-4 rounded-md font-semibold"
                     >
                         Delete for me
                     </button>
                     <button
                         @click="deleteForAll"
-                        class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md font-medium"
+                        class="cursor-pointer bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md font-semibold"
                     >
                         Delete for everyone
                     </button>
                     <button
                         @click="cancelDelete"
-                        class="text-gray-500 hover:underline text-xs"
+                        class="cursor-pointer text-gray-500 hover:underline text-sm"
                     >
                         Cancel
                     </button>

@@ -1,6 +1,12 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap');
+@import url("https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap");
 
 body {
-    font-family: 'Roboto', Arial, sans-serif;
+    font-family: "Roboto", Arial, sans-serif;
+}
+
+*,
+::before,
+::after {
+    border-color: theme("colors.gray.200"); /* Uses Tailwind theme color */
 }
