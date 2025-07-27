@@ -37,7 +37,6 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 		r.Put("/message/update/{message_id}", handler.EditMessage)
 		r.Delete("/message/delete/sender/{message_id}", handler.DeleteMessageForSender)
-		r.Delete("/message/delete/receiver/{message_id}", handler.DeleteMessageForReceiver)
 		r.Delete("/message/delete/all/{message_id}", handler.DeleteMessageForAll)
 
 		r.Post("/group/create", handler.CreateGroup)
@@ -66,6 +65,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 func CheckCorsOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST,GET,DELETE,PUT")
 		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
 
 		if r.Method == "OPTIONS" {

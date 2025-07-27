@@ -29,11 +29,10 @@ type Message struct {
 	Type    string `json:"type" bson:"type"`
 	Content string `json:"content" bson:"content"`
 	// used for image addresses
-	ContentAddress       string     `json:"content_address" bson:"content_address"`
-	IsDeletedForSender   bool       `json:"is_deleted_for_sender" bson:"is_deleted_for_sender"`
-	IsDeletedForReceiver bool       `json:"is_deleted_for_receiver" bson:"is_deleted_for_receiver"`
-	EditedAt             *time.Time `json:"edited_at" bson:"edited_at"`
-	CreatedAt            time.Time  `json:"created_at" bson:"created_at"`
+	ContentAddress     string     `json:"content_address" bson:"content_address"`
+	IsDeletedForSender bool       `json:"is_deleted_for_sender" bson:"is_deleted_for_sender"`
+	EditedAt           *time.Time `json:"edited_at" bson:"edited_at"`
+	CreatedAt          time.Time  `json:"created_at" bson:"created_at"`
 }
 
 func (message *MessageModel) Create(chatId, groupId, senderId, receiverId primitive.ObjectID, contentType, contentAddress,
