@@ -30,5 +30,17 @@ export const useChatStore = defineStore("chat", {
         setUsernames(names) {
             this.usernames = names;
         },
+        updateUserData(userId, username, avatarUrl) {
+            if (userId) {
+                this.usernames[userId] = username;
+                this.avatarUrls[userId] = avatarUrl;
+            }
+        },
+        updateChatData(chatId, username, avatarUrl) {
+            if (chatId) {
+                this.usernames[chatId] = username;
+                this.avatarUrls[chatId] = avatarUrl;
+            }
+        },
     },
 });
