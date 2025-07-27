@@ -64,6 +64,9 @@ func (message *MessageModel) GetAll(filter, projection bson.M, page, pageLimit i
 	findOptions.SetProjection(projection)
 	findOptions.SetSkip((page - 1) * pageLimit)
 	findOptions.SetLimit(pageLimit)
+	findOptions.SetSort(bson.M{
+		"created_at": 1,
+	})
 
 	var messages []Message
 	cursor, err := message.collection.Find(ctx, filter, findOptions)
