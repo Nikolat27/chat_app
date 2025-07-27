@@ -1,7 +1,7 @@
 <template>
     <div>
         <h2 class="text-lg font-bold text-green-600 mb-4">Chats</h2>
-        
+
         <!-- Action Buttons -->
         <div class="flex gap-2 mb-4">
             <button
@@ -51,7 +51,8 @@ import { ref } from "vue";
 import CreateChatModal from "./CreateChatModal.vue";
 import CreateSecretChatModal from "./CreateSecretChatModal.vue";
 import ChatList from "./ChatList.vue";
-import axiosInstance from '../../axiosInstance';
+import axiosInstance from "../../axiosInstance";
+import { showError, showMessage } from "@/utils/toast";
 
 const props = defineProps({
     chatStore: Object,
@@ -59,14 +60,14 @@ const props = defineProps({
     backendBaseUrl: String,
 });
 
-const emit = defineEmits(['open-chat']);
+const emit = defineEmits(["open-chat"]);
 
 const showCreateChat = ref(false);
 const showCreateSecretChat = ref(false);
 
 // Handle user selection from search results
 const handleUserSelected = (user) => {
-    emit('open-chat', user);
+    emit("open-chat", user);
     showCreateChat.value = false;
 };
 
@@ -74,15 +75,16 @@ const handleUserSelected = (user) => {
 const handleSecretUserSelected = async (user) => {
     // Call backend to create secret chat
     try {
-        const response = await axiosInstance.post('/api/user/create-secret-chat', {
-            participant_id: user.id,
+        const response = await axiosInstance.post("/api/secret-chat/create", {
+            target_user: user.id,
         });
+        showMessage("Secret chat created successfully!");
         if (response.data?.chat) {
             // Optionally update chatStore or emit event
-            emit('open-chat', user);
+            emit("open-chat", user);
         }
     } catch (error) {
-        console.error('Failed to create secret chat:', error);
+        showError(error.response.data.detail);
     }
     showCreateSecretChat.value = false;
 };
@@ -94,16 +96,16 @@ const handleChatClick = (chat) => {
         return;
     }
 
-    const otherUserId = chat.participants.find(id => id !== currentUserId);
+    const otherUserId = chat.participants.find((id) => id !== currentUserId);
     if (!otherUserId) return;
 
     // Create user object from store data using chat.id (backend structure)
     const user = {
         id: otherUserId,
         username: props.chatStore.usernames[chat.id],
-        avatar_url: props.chatStore.avatarUrls[chat.id]
+        avatar_url: props.chatStore.avatarUrls[chat.id],
     };
 
-    emit('open-chat', user);
+    emit("open-chat", user);
 };
-</script> 
+</script>

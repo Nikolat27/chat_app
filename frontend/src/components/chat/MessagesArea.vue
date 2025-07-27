@@ -85,7 +85,10 @@
                             "
                             class="text-xs text-right mt-1"
                         >
-                            {{ formatTime(msg.created_at) }}
+                            {{
+                                formatTime(msg.created_at) ||
+                                formatTime(Date.now())
+                            }}
                         </div>
 
                         <!-- Delete button (only for own messages with real IDs) -->

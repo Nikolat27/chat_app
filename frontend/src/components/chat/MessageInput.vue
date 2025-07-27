@@ -18,16 +18,16 @@
 </template>
 
 <script setup>
-defineProps({
+const { modelValue } = defineProps({
     modelValue: {
         type: String,
-        default: ""
-    }
+        default: "",
+    },
 });
 
-const emit = defineEmits(['update:modelValue', 'send']);
+const emit = defineEmits(["update:modelValue", "send"]);
 
 const handleSend = () => {
-    emit('send');
+    emit("send");
 };
-</script> 
+</script>
