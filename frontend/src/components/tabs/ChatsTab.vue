@@ -43,6 +43,15 @@
             :current-user-id="userStore.user_id"
             @chat-clicked="handleChatClick"
         />
+
+        <!-- Secret Chat List -->
+        <SecretChatList
+            :secretChats="props.secretChats"
+            :secretUsernames="props.secretUsernames"
+            :backend-base-url="props.backendBaseUrl"
+            :current-user-id="props.userStore.user_id"
+            @chat-clicked="handleChatClick"
+        />
     </div>
 </template>
 
@@ -51,6 +60,7 @@ import { ref } from "vue";
 import CreateChatModal from "./CreateChatModal.vue";
 import CreateSecretChatModal from "./CreateSecretChatModal.vue";
 import ChatList from "./ChatList.vue";
+import SecretChatList from "./SecretChatList.vue";
 import axiosInstance from "../../axiosInstance";
 import { showError, showMessage } from "@/utils/toast";
 
@@ -58,8 +68,9 @@ const props = defineProps({
     chatStore: Object,
     userStore: Object,
     backendBaseUrl: String,
+    secretChats: Array,
+    secretUsernames: Object,
 });
-
 const emit = defineEmits(["open-chat"]);
 
 const showCreateChat = ref(false);

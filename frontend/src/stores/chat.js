@@ -5,8 +5,10 @@ export const useChatStore = defineStore("chat", {
         currentChatUser: null,
         messages: [],
         chats: [],
+        secretChats: [],
         avatarUrls: {},
         usernames: {},
+        secretUsernames: {},
         // Pagination state
         currentPage: 1,
         pageLimit: 20,
@@ -41,6 +43,13 @@ export const useChatStore = defineStore("chat", {
                 this.usernames[chatId] = username;
                 this.avatarUrls[chatId] = avatarUrl;
             }
+        },
+
+        setSecretChats(chats) {
+            this.secretChats = chats;
+        },
+        setSecretUsernames(names) {
+            this.secretUsernames = names;
         },
 
         // Pagination methods

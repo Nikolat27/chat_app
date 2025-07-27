@@ -6,6 +6,8 @@
                 :chat-store="chatStore"
                 :user-store="userStore"
                 :backend-base-url="backendBaseUrl"
+                :secret-chats="chatStore.secretChats"
+                :secret-usernames="chatStore.secretUsernames"
                 @open-chat="handleOpenChat"
             />
         </div>
@@ -23,7 +25,7 @@
 </template>
 
 <script setup>
-import { defineProps, onMounted } from "vue";
+import { defineProps, onMounted, ref } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
 import axiosInstance from "@/axiosInstance";
@@ -37,43 +39,58 @@ const chatStore = useChatStore();
 const userStore = useUserStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 
-// Message pagination
 const { loadInitialMessages } = useMessagePagination();
+const chatsLoaded = ref(false);
 
-// Load initial chat data
 onMounted(async () => {
+    try {
+        await fetchUserChats();
+        await fetchUserSecretChats();
+    } catch (error) {
+        console.error("Failed to fetch chats:", error);
+    } finally {
+        chatsLoaded.value = true;
+    }
+});
+
+async function fetchUserChats() {
     try {
         const response = await axiosInstance.get("/api/user/get-chats");
         chatStore.setChats(response.data.chats);
         chatStore.setAvatarUrls(response.data.avatar_urls);
         chatStore.setUsernames(response.data.usernames);
     } catch (error) {
-        console.error("Failed to fetch chats:", error);
+        console.error("Failed to fetch user chats:", error);
     }
-});
+}
 
-// Handle opening a chat (from existing chat or search result)
+async function fetchUserSecretChats() {
+    try {
+        const response = await axiosInstance.get("/api/user/get-secret-chats");
+        chatStore.setSecretChats(response.data.secret_chats);
+        chatStore.setSecretUsernames(response.data.secret_usernames);
+    } catch (error) {
+        console.error("Failed to fetch user secret chats:", error);
+    }
+}
+
 const handleOpenChat = async (user) => {
     chatStore.setChatUser(user);
 
-    // Update store with user data if available
     if (user.id && user.username) {
         chatStore.updateUserData(user.id, user.username, user.avatar_url);
     }
 
-    // Find existing chat or create new one
     const existingChat = findExistingChat(user.id);
 
     if (existingChat) {
         establishWebSocketConnection(existingChat, user.id);
-        // Load initial messages for existing chat
         await loadInitialMessages(existingChat.id);
     } else {
         await createNewChat(user);
     }
 };
 
-// Find existing chat between current user and target user
 const findExistingChat = (targetUserId) => {
     const currentUserId = userStore.user_id;
     return chatStore.chats?.find(
@@ -84,7 +101,6 @@ const findExistingChat = (targetUserId) => {
     );
 };
 
-// Create new chat with target user
 const createNewChat = async (user) => {
     try {
         const response = await axiosInstance.post("/api/chat/create", {
@@ -100,7 +116,6 @@ const createNewChat = async (user) => {
                 user.avatar_url
             );
             establishWebSocketConnection(newChat, user.id);
-            // Load initial messages for new chat (will be empty initially)
             await loadInitialMessages(newChat.id);
         }
     } catch (error) {
@@ -108,7 +123,6 @@ const createNewChat = async (user) => {
     }
 };
 
-// Establish WebSocket connection for chat
 const establishWebSocketConnection = (chat, targetUserId) => {
     const currentUserId = userStore.user_id;
     const senderId = currentUserId;
