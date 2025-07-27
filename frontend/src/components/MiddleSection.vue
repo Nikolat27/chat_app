@@ -27,6 +27,7 @@ import { defineProps, onMounted } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
 import axiosInstance from "@/axiosInstance";
+import { useMessagePagination } from "../composables/useMessagePagination";
 import ChatsTab from "./tabs/ChatsTab.vue";
 import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
@@ -35,6 +36,9 @@ const props = defineProps({ activeTab: String });
 const chatStore = useChatStore();
 const userStore = useUserStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+
+// Message pagination
+const { loadInitialMessages } = useMessagePagination();
 
 // Load initial chat data
 onMounted(async () => {
@@ -62,6 +66,8 @@ const handleOpenChat = async (user) => {
     
     if (existingChat) {
         establishWebSocketConnection(existingChat, user.id);
+        // Load initial messages for existing chat
+        await loadInitialMessages(existingChat.id);
     } else {
         await createNewChat(user);
     }
@@ -89,6 +95,8 @@ const createNewChat = async (user) => {
             chatStore.chats.push(newChat);
             chatStore.updateChatData(newChat.id, user.username, user.avatar_url);
             establishWebSocketConnection(newChat, user.id);
+            // Load initial messages for new chat (will be empty initially)
+            await loadInitialMessages(newChat.id);
         }
     } catch (error) {
         console.error("Failed to create chat:", error);

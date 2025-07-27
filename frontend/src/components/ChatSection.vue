@@ -18,6 +18,8 @@
             :backend-base-url="backendBaseUrl"
             :user-avatar="userStore.avatar_url"
             :other-user-avatar="chatStore.currentChatUser.avatar_url"
+            :chat-id="getCurrentChatId()"
+            @load-more-messages="handleLoadMoreMessages"
         />
 
         <!-- Message Input -->
@@ -38,6 +40,8 @@ import NoChatSelected from "./chat/NoChatSelected.vue";
 import MessagesArea from "./chat/MessagesArea.vue";
 import MessageInput from "./chat/MessageInput.vue";
 import { useWebSocket } from "../composables/useWebSocket";
+import { useMessagePagination } from "../composables/useMessagePagination";
+import { useMessageDeletion } from "../composables/useMessageDeletion";
 
 const chatStore = useChatStore();
 const userStore = useUserStore();
@@ -46,6 +50,12 @@ const newMessage = ref("");
 
 // WebSocket management
 const { establishConnection, sendMessage: sendWebSocketMessage } = useWebSocket();
+
+// Message pagination
+const { loadNextPage, loadInitialMessages } = useMessagePagination();
+
+// Message deletion
+const { updateMessageId } = useMessageDeletion();
 
 // Watch for chat user changes to manage WebSocket connections
 watch(
@@ -128,7 +138,11 @@ const sendMessage = () => {
     
     if (!chatData) return;
     
+    // Create temporary ID for immediate display
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     const messageData = {
+        id: tempId,
         chat_id: chatData.chatId,
         sender_id: chatData.senderId,
         receiver_id: chatData.receiverId,
@@ -136,8 +150,31 @@ const sendMessage = () => {
         timestamp: new Date().toISOString(),
     };
     
+    // Add message to store immediately with temp ID
+    chatStore.addMessage(messageData);
+    
+    // Send via WebSocket
     sendWebSocketMessage(messageData);
     newMessage.value = "";
+};
+
+// Get current chat ID
+const getCurrentChatId = () => {
+    const targetUserId = chatStore.currentChatUser?.id;
+    const chat = chatStore.chats?.find(c => 
+        c.participants && 
+        c.participants.includes(targetUserId) &&
+        c.participants.includes(userStore.user_id)
+    );
+    return chat?.id || null;
+};
+
+// Handle loading more messages
+const handleLoadMoreMessages = async () => {
+    const chatId = getCurrentChatId();
+    if (chatId) {
+        await loadNextPage(chatId);
+    }
 };
 </script>
 
