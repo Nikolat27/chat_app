@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"chat_app/database/models"
 	"chat_app/utils"
 	"encoding/hex"
 	"errors"
@@ -128,7 +129,8 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 
 // GetChatMessages -> Returns all the messages of the chat
 func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
-	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
@@ -162,6 +164,11 @@ func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) 
 	}
 
 	for idx := range messages {
+		if messages[idx].IsDeletedForSender && messages[idx].SenderId == payload.UserId {
+			messages[idx] = models.Message{} // skip it
+			continue
+		}
+
 		decodedMessage, err := hex.DecodeString(messages[idx].Content)
 		if err != nil {
 			utils.WriteError(w, http.StatusInternalServerError, "msgDecoding", "failed to decode the message")
