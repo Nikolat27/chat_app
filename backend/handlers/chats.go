@@ -115,7 +115,7 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 
 	senderId := payload.UserId
 	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderId, receiverObjectId, "image",
-		avatarAddress, ""); err != nil {
+		avatarAddress, "", false); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createMsg", "failed to create message")
 		return
 	}
@@ -249,7 +249,7 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 	wsConn.AddChat(chatId, senderId, handler.WebSocket)
 
 	go func() {
-		if err := wsConn.HandleChatIncomingMsgs(chatId, senderId, receiverId, handler.WebSocket, handler); err != nil {
+		if err := wsConn.HandleChatIncomingMsgs(chatId, senderId, receiverId, false, handler.WebSocket, handler); err != nil {
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()

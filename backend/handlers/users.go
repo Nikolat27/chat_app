@@ -166,6 +166,42 @@ func (handler *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, response)
 }
 
+func (handler *Handler) GetUserSecretChats(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"$or": []bson.M{
+			{"user1": payload.UserId},
+			{"user2": payload.UserId},
+		},
+	}
+
+	chats, err := handler.Models.SecretChat.GetAll(filter, bson.M{}, 1, 10)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		utils.WriteError(w, http.StatusBadRequest, "getChats", err)
+		return
+	}
+
+	usernames := make(map[string]string)
+	for _, chat := range chats {
+		otherUserId := getOtherUserId([]primitive.ObjectID{chat.User1, chat.User2}, payload.UserId)
+		username, _ := getUserUsername(otherUserId, handler)
+
+		usernames[chat.Id.Hex()] = username
+	}
+
+	response := map[string]any{
+		"secret_chats": chats,
+		"usernames":    usernames,
+	}
+
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
 func getOtherUserId(participants []primitive.ObjectID, userId primitive.ObjectID) primitive.ObjectID {
 	for _, participant := range participants {
 		if participant != userId {

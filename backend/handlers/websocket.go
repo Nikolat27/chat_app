@@ -76,7 +76,7 @@ type ChatMessage struct {
 	Content     string `json:"content"`
 }
 
-func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId string, wsInstance *WebSocket,
+func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId string, isSecret bool, wsInstance *WebSocket,
 	handler *Handler) error {
 
 	defer func() {
@@ -106,7 +106,7 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 		chatConnections := wsInstance.ChatConnections[chatId]
 
 		for userId, conn := range chatConnections {
-			if err := handler.storeChatMsgToDB(chatId, senderId, receiverId, payload); err != nil {
+			if err := handler.storeChatMsgToDB(chatId, senderId, receiverId, isSecret, payload); err != nil {
 				return fmt.Errorf("failed to store msg in the DB: %s", err)
 			}
 
@@ -128,7 +128,7 @@ type GroupMessage struct {
 	Content     string `json:"content"`
 }
 
-func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, wsInstance *WebSocket,
+func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, isSecret bool, wsInstance *WebSocket,
 	handler *Handler) error {
 
 	defer func() {
@@ -157,7 +157,7 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, ws
 		chatConnections := wsInstance.GroupConnections[groupId]
 
 		for userId, conn := range chatConnections {
-			if err := handler.storeGroupMsgToDB(groupId, senderId, payload); err != nil {
+			if err := handler.storeGroupMsgToDB(groupId, senderId, isSecret, payload); err != nil {
 				return fmt.Errorf("failed to store msg in the DB: %s", err)
 			}
 

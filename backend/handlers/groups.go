@@ -269,7 +269,7 @@ func (handler *Handler) AddGroupWebsocket(w http.ResponseWriter, r *http.Request
 	wsConn.AddGroup(groupId, senderId, handler.WebSocket)
 
 	go func() {
-		if err := wsConn.HandleGroupIncomingMsgs(groupId, senderId, handler.WebSocket, handler); err != nil {
+		if err := wsConn.HandleGroupIncomingMsgs(groupId, senderId, false, handler.WebSocket, handler); err != nil {
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()

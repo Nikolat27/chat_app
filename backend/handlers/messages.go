@@ -11,7 +11,7 @@ import (
 	"net/http"
 )
 
-func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, payload []byte) error {
+func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, isSecret bool, payload []byte) error {
 	chatObjectId, err := utils.ToObjectId(chatId)
 	if err != nil {
 		return errors.New(err.Type)
@@ -35,14 +35,14 @@ func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, pa
 	encodedCipher := hex.EncodeToString(ciphered)
 
 	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderObjectId, receiverObjectId,
-		"text", "", encodedCipher); err != nil {
+		"text", "", encodedCipher, isSecret); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, payload []byte) error {
+func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, isSecret bool, payload []byte) error {
 	senderObjectId, err := utils.ToObjectId(senderId)
 	if err != nil {
 		return errors.New(err.Type)
@@ -61,7 +61,7 @@ func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, payload []by
 	}
 
 	if _, err := handler.Models.Message.Create(primitive.NilObjectID, groupObjectId, senderObjectId, primitive.NilObjectID,
-		"text", "", encodedCipher); err != nil {
+		"text", "", encodedCipher, isSecret); err != nil {
 		return err
 	}
 
