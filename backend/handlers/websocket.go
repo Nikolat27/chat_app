@@ -110,6 +110,10 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 				return fmt.Errorf("failed to store msg in the DB: %s", err)
 			}
 
+			if userId == senderId {
+				continue
+			}
+
 			if err := conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
 				return fmt.Errorf("failed to send message to %s: %v\n", userId, err)
 			}
