@@ -30,13 +30,14 @@ type Message struct {
 	Content string `json:"content" bson:"content"`
 	// used for image addresses
 	ContentAddress     string     `json:"content_address" bson:"content_address"`
+	IsSecret           bool       `json:"is_secret" bson:"is_secret"`
 	IsDeletedForSender bool       `json:"is_deleted_for_sender" bson:"is_deleted_for_sender"`
 	EditedAt           *time.Time `json:"edited_at" bson:"edited_at"`
 	CreatedAt          time.Time  `json:"created_at" bson:"created_at"`
 }
 
 func (message *MessageModel) Create(chatId, groupId, senderId, receiverId primitive.ObjectID, contentType, contentAddress,
-	content string) (*mongo.InsertOneResult, error) {
+	content string, isSecret bool) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -49,6 +50,7 @@ func (message *MessageModel) Create(chatId, groupId, senderId, receiverId primit
 		Content:        content,
 		Type:           contentType,
 		ContentAddress: contentAddress,
+		IsSecret:       isSecret,
 		CreatedAt:      time.Now(),
 	}
 

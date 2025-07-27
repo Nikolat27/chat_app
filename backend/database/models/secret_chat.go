@@ -15,11 +15,14 @@ type SecretChatModel struct {
 
 // SecretChat -> This model is for e2ee 1 v 1 chat (direct)
 type SecretChat struct {
-	Id            primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
-	Participants  []primitive.ObjectID `json:"participants" bson:"participants"` // Must be length 2
-	LastMessageAt time.Time            `json:"last_message_at" bson:"last_message_at"`
-	ExpireAt      time.Time            `json:"expire_at" bson:"expire_at"`
-	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
+	Id             primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	User1          primitive.ObjectID `json:"user_1" bson:"user_1"`
+	User2          primitive.ObjectID `json:"user_2" bson:"user_2"`
+	User1PublicKey string             `json:"user_1_public_key" bson:"user_1_public_key"`
+	User2PublicKey string             `json:"user_2_public_key" bson:"user_2_public_key"`
+	User2Accepted  bool               `json:"user_2_accepted" bson:"user_2_accepted"`
+	ExpireAt       *time.Time         `json:"expire_at" bson:"expire_at"`
+	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
 }
 
 func NewSecretChatModel(db *mongo.Database) *SecretChatModel {
@@ -28,15 +31,14 @@ func NewSecretChatModel(db *mongo.Database) *SecretChatModel {
 	}
 }
 
-func (chat *SecretChatModel) Create(participants []primitive.ObjectID, expireAfter time.Duration) (primitive.ObjectID, error) {
+func (chat *SecretChatModel) Create(user1, user2 primitive.ObjectID) (primitive.ObjectID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	newChat := &SecretChat{
-		Participants:  participants,
-		LastMessageAt: time.Now(),
-		ExpireAt:      time.Now().Add(expireAfter),
-		CreatedAt:     time.Now(),
+		User1:     user1,
+		User2:     user2,
+		CreatedAt: time.Now(),
 	}
 
 	result, err := chat.collection.InsertOne(ctx, newChat)
