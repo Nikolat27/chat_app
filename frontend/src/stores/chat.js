@@ -50,6 +50,7 @@ export const useChatStore = defineStore("chat", {
                 this.currentPage = 1;
                 this.hasMoreMessages = true;
             } else {
+                // Add older messages to the beginning (for infinite scroll)
                 this.messages = [...messages, ...this.messages];
             }
         },

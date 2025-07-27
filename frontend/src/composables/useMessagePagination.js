@@ -31,28 +31,31 @@ export function useMessagePagination() {
                 }
             );
 
-                        console.log(response);
-            
+            console.log("Raw messages:", response.data);
+
             // Handle the response structure
             // The response is an array of JSON strings that need to be parsed
             const rawMessages = response.data || [];
-            
+
             // Parse each message from JSON string to object
-            const messages = rawMessages.map(msg => {
-                if (typeof msg === 'string') {
-                    try {
-                        return JSON.parse(msg);
-                    } catch (e) {
-                        console.error('Failed to parse message:', msg, e);
-                        return null;
+            const messages = rawMessages
+                .map((msg) => {
+                    if (typeof msg === "string") {
+                        try {
+                            const parsed = JSON.parse(msg);
+                            return parsed;
+                        } catch (e) {
+                            console.error("Failed to parse message:", msg, e);
+                            return null;
+                        }
                     }
-                }
-                return msg; // If it's already an object, return as is
-            }).filter(msg => msg !== null); // Remove any failed parses
-            
+                    return msg; // If it's already an object, return as is
+                })
+                .filter((msg) => msg !== null); // Remove any failed parses
+
             // For pagination, we'll assume there are more messages if we got a full page
             // You might need to adjust this based on your backend's actual pagination response
-            const hasMore = rawMessages.length === limit;
+            const hasMore = rawMessages.length >= limit;
             const totalPages = Math.ceil(rawMessages.length / limit) || 1;
 
             // Update store with new messages
@@ -80,7 +83,6 @@ export function useMessagePagination() {
     // Load initial messages
     const loadInitialMessages = async (chatId) => {
         chatStore.resetPagination();
-        console.log("hi");
         return await loadMessages(chatId, 1, pageLimit.value);
     };
 
@@ -98,7 +100,7 @@ export function useMessagePagination() {
         threshold = 100
     ) => {
         return (
-            scrollTop + clientHeight >= scrollHeight - threshold &&
+            scrollTop <= threshold &&
             hasMoreMessages.value &&
             !isLoadingMessages.value
         );

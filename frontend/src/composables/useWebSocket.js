@@ -63,7 +63,7 @@ export function useWebSocket() {
         }
 
         try {
-            currentSocket.send(JSON.stringify(messageData));
+            currentSocket.send(messageData);
             return true;
         } catch (error) {
             console.error("Error sending message:", error);
