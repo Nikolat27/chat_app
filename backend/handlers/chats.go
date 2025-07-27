@@ -161,9 +161,8 @@ func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	decryptedMessages := make([]string, 0, len(messages))
-	for _, message := range messages {
-		decodedMessage, err := hex.DecodeString(message.Content)
+	for idx := range messages {
+		decodedMessage, err := hex.DecodeString(messages[idx].Content)
 		if err != nil {
 			utils.WriteError(w, http.StatusInternalServerError, "msgDecoding", "failed to decode the message")
 			continue
@@ -175,10 +174,10 @@ func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		decryptedMessages = append(decryptedMessages, string(decryptedMsg))
+		messages[idx].Content = string(decryptedMsg)
 	}
 
-	utils.WriteJSON(w, http.StatusOK, decryptedMessages)
+	utils.WriteJSON(w, http.StatusOK, messages)
 }
 
 func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
