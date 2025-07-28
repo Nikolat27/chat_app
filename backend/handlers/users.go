@@ -127,6 +127,7 @@ func (handler *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, "user deleted successfully")
 }
 
+// GetUserChats -> Returns the chats themselves
 func (handler *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
 	if errResp != nil {
@@ -166,6 +167,7 @@ func (handler *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, response)
 }
 
+// GetUserSecretChats -> Returns the secret chats themselves
 func (handler *Handler) GetUserSecretChats(w http.ResponseWriter, r *http.Request) {
 	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
 	if errResp != nil {

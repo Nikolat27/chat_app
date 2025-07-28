@@ -90,6 +90,8 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
+		fmt.Println(string(payload))
+
 		// Wrap the payload with sender info
 		msg := ChatMessage{
 			MessageType: messageType,

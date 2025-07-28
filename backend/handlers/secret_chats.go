@@ -63,6 +63,7 @@ func (handler *Handler) CreateSecretChat(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusCreated, "secret chat created successfully")
 }
 
+// GetSecretChatMessages -> Returns the whole messages
 func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Request) {
 	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
 	if errResp != nil {
@@ -83,7 +84,8 @@ func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Req
 	}
 
 	filter := bson.M{
-		"chat_id": chatObjectId, "is_secret": true,
+		"chat_id":   chatObjectId,
+		"is_secret": true, // secret chat messages
 	}
 
 	page, limit, errResp := utils.ParsePageAndLimitQueryParams(r.URL)
@@ -103,16 +105,20 @@ func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Req
 			messages[idx] = models.Message{} // skip it
 			continue
 		}
+
 		decodedMessage, err := hex.DecodeString(messages[idx].Content)
 		if err != nil {
 			utils.WriteError(w, http.StatusInternalServerError, "msgDecoding", "failed to decode the message")
 			continue
 		}
+
 		decryptedMsg, err := handler.Cipher.Decrypt(decodedMessage)
 		if err != nil {
 			utils.WriteError(w, http.StatusInternalServerError, "msgDecryption", "failed to decrypt the message")
 			continue
 		}
+
+		// replace it with the decrypted version
 		messages[idx].Content = string(decryptedMsg)
 	}
 
@@ -236,7 +242,7 @@ func (handler *Handler) ApproveSecretChat(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	chatID := chi.URLParam(r, "chat_id")
+	chatID := chi.URLParam(r, "secret_chat_id")
 
 	objectId, _ := primitive.ObjectIDFromHex(chatID)
 
