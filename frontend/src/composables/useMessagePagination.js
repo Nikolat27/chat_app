@@ -31,8 +31,6 @@ export function useMessagePagination() {
                 }
             );
 
-            console.log("Raw messages:", response.data);
-
             // Handle the response structure
             // The response is an array of JSON strings that need to be parsed
             const rawMessages = response.data || [];

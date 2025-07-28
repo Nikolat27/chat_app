@@ -21,6 +21,7 @@ export const useChatStore = defineStore("chat", {
         },
         clearChatUser() {
             this.currentChatUser = null;
+            this.messages = []; // Clear messages when clearing chat user
         },
 
         setChats(chats) {
@@ -62,6 +63,13 @@ export const useChatStore = defineStore("chat", {
                 // Add older messages to the beginning (for infinite scroll)
                 this.messages = [...messages, ...this.messages];
             }
+        },
+
+        clearMessages() {
+            this.messages = [];
+            this.currentPage = 1;
+            this.hasMoreMessages = true;
+            this.isLoadingMessages = false;
         },
 
         addMessage(msg) {

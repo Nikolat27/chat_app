@@ -71,13 +71,13 @@
                                 : `${backendBaseUrl}/static/${users[0].avatar_url}`
                         "
                         alt="Avatar"
-                        class="w-12 h-12 rounded-full object-cover border border-green-200 shadow"
+                        class="w-12 h-12 rounded-full object-cover border border-green-200 shadow select-none pointer-events-none"
                     />
                     <img
                         v-else
-                        src="/src/assets/default-avatar.jpeg"
+                        src="/src/assets/default-avatar.jpg"
                         alt="Default Avatar"
-                        class="w-12 h-12 rounded-full object-cover border border-green-200 shadow"
+                        class="w-12 h-12 rounded-full object-cover border border-green-200 shadow select-none pointer-events-none"
                     />
                     <span class="font-bold text-green-700 text-lg">
                         {{ users[0].username }}

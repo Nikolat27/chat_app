@@ -10,3 +10,12 @@ body {
 ::after {
     border-color: theme("colors.gray.200"); /* Uses Tailwind theme color */
 }
+
+/* Make all images unselectable and not draggable by default */
+img {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    pointer-events: none;
+}

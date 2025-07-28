@@ -23,13 +23,13 @@
                             chat
                         )}`"
                         alt="Avatar"
-                        class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm"
+                        class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm select-none pointer-events-none"
                     />
                     <img
                         v-else
-                        src="/src/assets/default-avatar.jpeg"
+                        src="/src/assets/default-avatar.jpg"
                         alt="Default Avatar"
-                        class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm"
+                        class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm select-none pointer-events-none"
                     />
                     <div class="flex flex-col">
                         <span class="font-semibold text-gray-800">

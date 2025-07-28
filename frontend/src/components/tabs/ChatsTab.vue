@@ -5,15 +5,17 @@
         <!-- Action Buttons -->
         <div class="flex gap-3 mb-6">
             <button
-                class="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition duration-150 cursor-pointer"
+                class="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-2"
                 @click="showCreateChat = true"
             >
+                <span class="material-icons text-sm">chat</span>
                 Create Chat
             </button>
             <button
-                class="bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition duration-150 cursor-pointer"
+                class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-2"
                 @click="showCreateSecretChat = true"
             >
+                <span class="material-icons text-sm">lock</span>
                 Create Secret Chat
             </button>
         </div>
@@ -45,13 +47,15 @@
         />
 
         <!-- Secret Chat List -->
-        <SecretChatList
-            :secretChats="props.secretChats"
-            :secretUsernames="props.secretUsernames"
-            :backend-base-url="props.backendBaseUrl"
-            :current-user-id="props.userStore.user_id"
-            @chat-clicked="handleChatClick"
-        />
+        <div v-if="props.secretChats && props.secretChats.length > 0" class="mt-8">
+            <SecretChatList
+                :secretChats="props.secretChats"
+                :secretUsernames="props.secretUsernames"
+                :backend-base-url="props.backendBaseUrl"
+                :current-user-id="props.userStore.user_id"
+                @chat-clicked="handleChatClick"
+            />
+        </div>
     </div>
 </template>
 
@@ -71,6 +75,7 @@ const props = defineProps({
     secretChats: Array,
     secretUsernames: Object,
 });
+
 const emit = defineEmits(["open-chat"]);
 
 const showCreateChat = ref(false);
@@ -89,13 +94,13 @@ const handleSecretUserSelected = async (user) => {
         const response = await axiosInstance.post("/api/secret-chat/create", {
             target_user: user.id,
         });
-        showMessage("Secret chat created successfully!");
+        showMessage("Secret chat created successfully! Waiting for approval.");
         if (response.data?.chat) {
             // Optionally update chatStore or emit event
             emit("open-chat", user);
         }
     } catch (error) {
-        showError(error.response.data.detail);
+        showError(error.response?.data?.detail || "Failed to create secret chat. Please try again.");
     }
     showCreateSecretChat.value = false;
 };
@@ -103,6 +108,26 @@ const handleSecretUserSelected = async (user) => {
 // Handle clicking on existing chat
 const handleChatClick = (chat) => {
     const currentUserId = props.userStore.user_id;
+    
+    // Check if this is a secret chat
+    const isSecretChat = props.secretChats?.some(secretChat => 
+        secretChat.id === chat.id
+    );
+    
+    if (isSecretChat) {
+        // For secret chats, create a user object with the other user's ID
+        const otherUserId = chat.user_1 === currentUserId ? chat.user_2 : chat.user_1;
+        const user = {
+            id: otherUserId,
+            username: props.secretUsernames[chat.id] || "Unknown User",
+            avatar_url: null, // Secret chats use default avatar
+            secret_chat_id: chat.id,
+        };
+        emit("open-chat", user);
+        return;
+    }
+    
+    // Handle regular chats
     if (!chat.participants || chat.participants.length < 2 || !currentUserId) {
         return;
     }
@@ -120,3 +145,7 @@ const handleChatClick = (chat) => {
     emit("open-chat", user);
 };
 </script>
+
+<style scoped>
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
+</style>

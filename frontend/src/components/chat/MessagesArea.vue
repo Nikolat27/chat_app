@@ -51,7 +51,7 @@
                     <template v-if="msg.sender_id !== currentUserId">
                         <img
                             :src="getAvatarUrl(otherUserAvatar)"
-                            class="w-9 h-9 rounded-full object-cover border shadow-sm"
+                            class="w-9 h-9 rounded-full object-cover border shadow-sm select-none pointer-events-none"
                             alt="Avatar"
                         />
                     </template>
@@ -104,7 +104,7 @@
                     <template v-if="msg.sender_id === currentUserId">
                         <img
                             :src="getAvatarUrl(userAvatar)"
-                            class="w-9 h-9 rounded-full object-cover border shadow-sm"
+                            class="w-9 h-9 rounded-full object-cover border shadow-sm select-none pointer-events-none"
                             alt="Avatar"
                         />
                     </template>
@@ -231,7 +231,7 @@ const handleDeleteMessage = (messageId) => {
 };
 
 const getAvatarUrl = (avatarUrl) => {
-    if (!avatarUrl) return "/src/assets/default-avatar.jpeg";
+    if (!avatarUrl) return "/src/assets/default-avatar.jpg";
     return avatarUrl.startsWith("/")
         ? avatarUrl
         : `${props.backendBaseUrl}/static/${avatarUrl}`;

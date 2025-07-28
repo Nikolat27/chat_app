@@ -53,6 +53,8 @@ onMounted(async () => {
     }
 });
 
+
+
 async function fetchUserChats() {
     try {
         const response = await axiosInstance.get("/api/user/get-chats");
@@ -75,6 +77,9 @@ async function fetchUserSecretChats() {
 }
 
 const handleOpenChat = async (user) => {
+    // Clear previous messages before switching to new chat
+    chatStore.clearMessages();
+    
     chatStore.setChatUser(user);
 
     if (user.id && user.username) {
@@ -84,7 +89,6 @@ const handleOpenChat = async (user) => {
     const existingChat = findExistingChat(user.id);
 
     if (existingChat) {
-        establishWebSocketConnection(existingChat, user.id);
         await loadInitialMessages(existingChat.id);
     } else {
         await createNewChat(user);
@@ -115,7 +119,6 @@ const createNewChat = async (user) => {
                 user.username,
                 user.avatar_url
             );
-            establishWebSocketConnection(newChat, user.id);
             await loadInitialMessages(newChat.id);
         }
     } catch (error) {
@@ -123,39 +126,5 @@ const createNewChat = async (user) => {
     }
 };
 
-const establishWebSocketConnection = (chat, targetUserId) => {
-    const currentUserId = userStore.user_id;
-    const senderId = currentUserId;
-    const receiverId = targetUserId;
 
-    if (!chat.id || !senderId || !receiverId) {
-        console.error("Missing required IDs for WebSocket connection");
-        return;
-    }
-
-    const wsUrl = `${backendBaseUrl.replace(
-        /^http/,
-        "ws"
-    )}/api/websocket/chat/add/${
-        chat.id
-    }?sender_id=${senderId}&receiver_id=${receiverId}`;
-    const chatSocket = new WebSocket(wsUrl);
-
-    chatSocket.onopen = () => {
-        console.log("WebSocket connected for chat:", chat.id);
-    };
-
-    chatSocket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        chatStore.addMessage(data);
-    };
-
-    chatSocket.onclose = () => {
-        console.log("WebSocket closed for chat:", chat.id);
-    };
-
-    chatSocket.onerror = (error) => {
-        console.error("WebSocket error:", error);
-    };
-};
 </script>

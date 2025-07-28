@@ -20,7 +20,7 @@
             <img
                 :src="avatarUrl || defaultAvatar"
                 alt="Avatar Preview"
-                class="w-28 h-28 rounded-full object-cover border border-gray-200 shadow-sm"
+                class="w-28 h-28 rounded-full object-cover border border-gray-200 shadow-sm select-none pointer-events-none"
             />
         </div>
 

@@ -2,13 +2,20 @@
     <section class="flex flex-col h-full w-full bg-gray-50 font-roboto">
         <!-- Chat Header -->
         <ChatHeader
-            v-if="chatStore.currentChatUser"
+            v-if="chatStore.currentChatUser && !isCurrentChatSecret"
             :user="chatStore.currentChatUser"
             :backend-base-url="backendBaseUrl"
+            :is-secret-chat="false"
         />
-
-        <!-- No Chat Selected State -->
-        <NoChatSelected v-else />
+        
+        <!-- Secret Chat Header -->
+        <SecretChatHeader
+            v-if="currentSecretChat && isCurrentChatSecret"
+            :secret-chat="currentSecretChat"
+            :secret-usernames="chatStore.secretUsernames"
+            :backend-base-url="backendBaseUrl"
+            :current-user-id="userStore.user_id"
+        />
 
         <!-- Messages Area -->
         <MessagesArea
@@ -28,14 +35,18 @@
             v-model="newMessage"
             @send="sendMessage"
         />
+
+        <!-- No Chat Selected State -->
+        <NoChatSelected v-if="!chatStore.currentChatUser" />
     </section>
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
 import ChatHeader from "./chat/ChatHeader.vue";
+import SecretChatHeader from "./chat/SecretChatHeader.vue";
 import NoChatSelected from "./chat/NoChatSelected.vue";
 import MessagesArea from "./chat/MessagesArea.vue";
 import MessageInput from "./chat/MessageInput.vue";
@@ -47,6 +58,38 @@ const chatStore = useChatStore();
 const userStore = useUserStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 const newMessage = ref("");
+
+// Check if current chat is a secret chat
+const isCurrentChatSecret = computed(() => {
+    if (!chatStore.currentChatUser?.id) return false;
+    
+    // If the current chat user has a secret chat ID, it's a secret chat
+    if (chatStore.currentChatUser.secret_chat_id) {
+        return true;
+    }
+    
+    const currentUserId = userStore.user_id;
+    const targetUserId = chatStore.currentChatUser.id;
+    
+    // Check if this is a secret chat by looking in secret chats
+    return chatStore.secretChats?.some(chat => 
+        (chat.user_1 === currentUserId && chat.user_2 === targetUserId) ||
+        (chat.user_2 === currentUserId && chat.user_1 === targetUserId)
+    ) || false;
+});
+
+// Get the current secret chat object
+const currentSecretChat = computed(() => {
+    if (!isCurrentChatSecret.value || !chatStore.currentChatUser?.id) return null;
+    
+    const currentUserId = userStore.user_id;
+    const targetUserId = chatStore.currentChatUser.id;
+    
+    return chatStore.secretChats?.find(chat => 
+        (chat.user_1 === currentUserId && chat.user_2 === targetUserId) ||
+        (chat.user_2 === currentUserId && chat.user_1 === targetUserId)
+    ) || null;
+});
 
 // WebSocket management
 const { establishConnection, sendMessage: sendWebSocketMessage } =

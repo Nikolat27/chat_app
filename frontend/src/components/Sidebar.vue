@@ -42,7 +42,7 @@
                     : defaultAvatar
             "
             alt="User Avatar"
-            class="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm mb-2"
+            class="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm mb-2 select-none pointer-events-none"
         />
 
         <!-- Username -->
