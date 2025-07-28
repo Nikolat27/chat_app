@@ -51,7 +51,7 @@ func (handler *Handler) CreateSecretChat(w http.ResponseWriter, r *http.Request)
 		utils.WriteError(w, http.StatusBadRequest, "getSecretChat", err)
 		return
 	} else if err == nil {
-		utils.WriteError(w, http.StatusBadRequest, "getSecretChat", "You have a secret chat with these users already")
+		utils.WriteError(w, http.StatusBadRequest, "getSecretChat", "You have a secret chat with this user already")
 		return
 	}
 
