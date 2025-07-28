@@ -7,8 +7,11 @@ export function useWebSocket() {
 
     // Establish WebSocket connection
     const establishConnection = (chatData, onMessageCallback) => {
+        console.log("Establishing WebSocket connection with data:", chatData);
+        
         // Close existing connection if any
         if (currentSocket) {
+            console.log("Closing existing WebSocket connection");
             currentSocket.close();
             currentSocket = null;
         }
@@ -16,7 +19,7 @@ export function useWebSocket() {
         const { chatId, senderId, receiverId, backendBaseUrl } = chatData;
 
         if (!chatId || !senderId || !receiverId || !backendBaseUrl) {
-            console.error("Missing required data for WebSocket connection");
+            console.error("Missing required data for WebSocket connection:", { chatId, senderId, receiverId, backendBaseUrl });
             return;
         }
 
@@ -25,6 +28,7 @@ export function useWebSocket() {
             "ws"
         )}/api/websocket/chat/add/${chatId}?sender_id=${senderId}&receiver_id=${receiverId}`;
 
+        console.log("Creating WebSocket connection to:", wsUrl);
         currentSocket = new WebSocket(wsUrl);
 
         currentSocket.onopen = () => {
@@ -57,13 +61,17 @@ export function useWebSocket() {
 
     // Send message through WebSocket
     const sendMessage = (messageData) => {
+        console.log("Attempting to send message:", messageData);
+        console.log("WebSocket state:", currentSocket ? currentSocket.readyState : "null");
+        
         if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
-            console.error("WebSocket is not connected");
+            console.error("WebSocket is not connected. State:", currentSocket ? currentSocket.readyState : "null");
             return false;
         }
 
         try {
             currentSocket.send(messageData);
+            console.log("Message sent successfully");
             return true;
         } catch (error) {
             console.error("Error sending message:", error);

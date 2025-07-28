@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, nextTick } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
 import ChatHeader from "./chat/ChatHeader.vue";
@@ -92,7 +92,7 @@ const currentSecretChat = computed(() => {
 });
 
 // WebSocket management
-const { establishConnection, sendMessage: sendWebSocketMessage } =
+const { establishConnection, sendMessage: sendWebSocketMessage, closeConnection, getConnectionStatus } =
     useWebSocket();
 
 // Message pagination
@@ -104,16 +104,43 @@ const { updateMessageId } = useMessageDeletion();
 // Watch for chat user changes to manage WebSocket connections
 watch(
     () => chatStore.currentChatUser?.id,
-    (newUserId, oldUserId) => {
+    async (newUserId, oldUserId) => {
         if (oldUserId) {
-            // Close previous connection
-            // This is handled by the composable
+            // Close previous connection explicitly
+            closeConnection();
+            console.log("Closed previous WebSocket connection for user:", oldUserId);
         }
 
         if (newUserId) {
-            const chatData = getChatData(newUserId);
+            console.log("Setting up WebSocket for new user:", newUserId);
+            
+            // Add a small delay to ensure chat is properly added to store
+            await nextTick();
+            
+            // Try to get chat data with retries
+            let chatData = null;
+            let retries = 0;
+            const maxRetries = 3;
+            
+            while (!chatData && retries < maxRetries) {
+                chatData = getChatData(newUserId);
+                if (!chatData) {
+                    console.log(`Chat data not found, retry ${retries + 1}/${maxRetries}`);
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+                    retries++;
+                }
+            }
+            
             if (chatData) {
+                console.log("Establishing WebSocket connection for:", chatData);
                 establishConnection(chatData, handleIncomingMessage);
+                
+                // Wait a bit for connection to establish
+                await new Promise(resolve => setTimeout(resolve, 200));
+                console.log("WebSocket connection status:", getConnectionStatus());
+            } else {
+                console.log("No chat data found for user after retries:", newUserId);
+                console.log("Available chats:", chatStore.chats);
             }
         }
     }
@@ -121,19 +148,64 @@ watch(
 
 // Get chat data for WebSocket connection
 const getChatData = (targetUserId) => {
-    const chat = chatStore.chats?.find(
-        (c) =>
-            c.participants &&
-            c.participants.includes(targetUserId) &&
-            c.participants.includes(userStore.user_id)
+    console.log("Looking for chat data for user:", targetUserId);
+    console.log("Current user:", userStore.user_id);
+    console.log("All chats in store:", chatStore.chats);
+    console.log("Current chat user:", chatStore.currentChatUser);
+    
+    let chat = null;
+    
+    // Try to find by chat_id if available in currentChatUser
+    if (chatStore.currentChatUser?.chat_id) {
+        console.log("Trying to find chat by chat_id:", chatStore.currentChatUser.chat_id);
+        chat = chatStore.chats?.find((c) => c.id === chatStore.currentChatUser.chat_id);
+        if (chat) {
+            console.log("Found chat by chat_id:", chat);
+            const senderId = userStore.user_id;
+            // Find the other participant
+            const receiverId = chat.participants?.find((id) => id !== senderId) || targetUserId;
+            return {
+                chatId: chat.id,
+                senderId,
+                receiverId,
+                backendBaseUrl,
+            };
+        }
+    }
+
+    // Try to find by participants
+    console.log("Trying to find chat by participants");
+    chat = chatStore.chats?.find(
+        (c) => {
+            console.log("Checking chat:", c);
+            console.log("Chat participants:", c.participants);
+            console.log("Target user:", targetUserId, "Current user:", userStore.user_id);
+            
+            return c.participants &&
+                   c.participants.includes(targetUserId) &&
+                   c.participants.includes(userStore.user_id);
+        }
     );
 
-    if (!chat || !chat.participants || chat.participants.length < 2) {
+    if (!chat) {
+        console.log("Chat not found in store");
+        return null;
+    }
+
+    if (!chat.participants || chat.participants.length < 2) {
+        console.log("Invalid chat structure:", chat);
         return null;
     }
 
     const senderId = userStore.user_id;
     const receiverId = targetUserId;
+
+    console.log("Found chat for WebSocket:", {
+        chatId: chat.id,
+        senderId,
+        receiverId,
+        chat
+    });
 
     return {
         chatId: chat.id,
@@ -194,13 +266,38 @@ const parseIncomingMessage = (data) => {
 };
 
 // Send message
-const sendMessage = () => {
+const sendMessage = async () => {
     if (!newMessage.value.trim()) return;
 
     const targetUserId = chatStore.currentChatUser?.id;
+    console.log("Sending message to user:", targetUserId);
+    
     const chatData = getChatData(targetUserId);
 
-    if (!chatData) return;
+    if (!chatData) {
+        console.error("No chat data found for sending message");
+        return;
+    }
+
+    console.log("Sending message with chat data:", chatData);
+
+    // Check WebSocket connection status
+    const connectionStatus = getConnectionStatus();
+    console.log("Connection status before sending:", connectionStatus);
+    
+    if (!connectionStatus.isConnected) {
+        console.log("WebSocket not connected, attempting to reconnect...");
+        establishConnection(chatData, handleIncomingMessage);
+        
+        // Wait for connection
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const newStatus = getConnectionStatus();
+        if (!newStatus.isConnected) {
+            console.error("Failed to establish WebSocket connection");
+            return;
+        }
+    }
 
     // Create temporary ID for immediate display
     const tempId = `temp-${Date.now()}-${Math.random()
@@ -220,7 +317,9 @@ const sendMessage = () => {
     chatStore.addMessage(messageData);
 
     // Send via WebSocket
-    sendWebSocketMessage(messageData.content);
+    const success = sendWebSocketMessage(messageData.content);
+    console.log("WebSocket send result:", success);
+    
     newMessage.value = "";
 };
 

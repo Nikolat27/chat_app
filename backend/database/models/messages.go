@@ -104,6 +104,13 @@ func (message *MessageModel) Delete(filter bson.M) (*mongo.DeleteResult, error) 
 	return message.collection.DeleteOne(ctx, filter)
 }
 
+func (message *MessageModel) DeleteAll(filter bson.M) (*mongo.DeleteResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return message.collection.DeleteMany(ctx, filter)
+}
+
 func (message *MessageModel) Update(filter, updates bson.M) (*mongo.UpdateResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

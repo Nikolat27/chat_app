@@ -59,7 +59,7 @@
         <div class="flex items-center gap-2">
             <button 
                 v-if="isSecretChat"
-                class="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-colors duration-200"
+                class="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-colors duration-200 cursor-pointer"
                 title="Secret chat info"
                 @click="showSecretChatInfo = true"
             >
@@ -67,7 +67,7 @@
             </button>
             
             <button 
-                class="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                class="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200 cursor-pointer"
                 title="More options"
             >
                 <span class="material-icons text-lg">more_vert</span>

@@ -15,6 +15,18 @@
             </p>
         </div>
 
+        <!-- Confirmation Modal -->
+        <ConfirmModal
+            :is-visible="showDeleteModal"
+            title="Delete Secret Chat"
+            subtitle="This action cannot be undone"
+            :message="deleteModalMessage"
+            confirm-text="Delete Secret Chat"
+            :is-loading="isDeleting !== null"
+            @close="showDeleteModal = false"
+            @confirm="confirmDeleteSecretChat"
+        />
+
         <!-- Empty State -->
         <div
             v-if="!secretChats || secretChats.length === 0"
@@ -102,19 +114,32 @@
                             </div>
                         </div>
 
-                        <!-- Action Button -->
-                        <div class="flex items-center">
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-2">
                             <button
                                 v-if="shouldShowApprove(chat)"
                                 @click.stop="approveSecretChat(chat)"
                                 :disabled="isApproving === chat.id"
-                                class="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm px-4 py-2 rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                class="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm px-4 py-2 rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
                                 <span v-if="isApproving !== chat.id" class="material-icons text-sm">check</span>
                                 <div v-else class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                 {{ isApproving === chat.id ? 'Approving...' : 'Approve' }}
                             </button>
                             <span v-else class="material-icons text-gray-400 group-hover:text-purple-500 transition-colors duration-200">chevron_right</span>
+                            
+                            <!-- Delete Button -->
+                            <div class="flex items-center justify-center">
+                                <button
+                                    @click.stop="handleDeleteSecretChat(chat)"
+                                    :disabled="isDeleting === chat.id"
+                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 p-3 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md"
+                                    title="Delete secret chat"
+                                >
+                                    <span v-if="isDeleting !== chat.id" class="material-icons text-base">delete</span>
+                                    <div v-else class="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500"></div>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -149,6 +174,7 @@ import { ref } from "vue";
 import axiosInstance from "@/axiosInstance";
 import { showError, showMessage } from "@/utils/toast";
 import { useKeyPair } from "@/composables/useKeyPair";
+import ConfirmModal from "../ui/ConfirmModal.vue";
 
 const props = defineProps({
     secretChats: Array,
@@ -157,9 +183,13 @@ const props = defineProps({
     currentUserId: [String, Number],
 });
 
-const emit = defineEmits(["chat-clicked"]);
+const emit = defineEmits(["chat-clicked", "secret-chat-deleted"]);
 
 const isApproving = ref(null);
+const isDeleting = ref(null);
+const showDeleteModal = ref(false);
+const deleteModalMessage = ref("");
+const chatToDelete = ref(null);
 const { generateSecretChatKeyPair, hasSecretChatKeys } = useKeyPair();
 
 const shouldShowApprove = (chat) => {
@@ -231,6 +261,33 @@ const formatDate = (dateString) => {
         return `${diffDays - 1} days ago`;
     } else {
         return date.toLocaleDateString();
+    }
+};
+
+// Handle secret chat deletion
+const handleDeleteSecretChat = (chat) => {
+    chatToDelete.value = chat;
+    deleteModalMessage.value = `Are you sure you want to delete the secret chat with ${getOtherUsername(chat)}? This action cannot be undone.`;
+    showDeleteModal.value = true;
+};
+
+// Confirm secret chat deletion
+const confirmDeleteSecretChat = async () => {
+    if (!chatToDelete.value) return;
+    
+    isDeleting.value = chatToDelete.value.id;
+    
+    try {
+        await axiosInstance.delete(`/api/secret-chat/delete/${chatToDelete.value.id}`);
+        showMessage("Secret chat deleted successfully!");
+        emit("secret-chat-deleted", chatToDelete.value.id);
+        showDeleteModal.value = false;
+    } catch (error) {
+        console.error("Failed to delete secret chat:", error);
+        showError(error.response?.data?.detail || "Failed to delete secret chat. Please try again.");
+    } finally {
+        isDeleting.value = null;
+        chatToDelete.value = null;
     }
 };
 </script>

@@ -44,6 +44,7 @@
             :backend-base-url="backendBaseUrl"
             :current-user-id="userStore.user_id"
             @chat-clicked="handleChatClick"
+            @chat-deleted="handleChatDeleted"
         />
 
         <!-- Secret Chat List -->
@@ -54,6 +55,7 @@
                 :backend-base-url="props.backendBaseUrl"
                 :current-user-id="props.userStore.user_id"
                 @chat-clicked="handleChatClick"
+                @secret-chat-deleted="handleSecretChatDeleted"
             />
         </div>
     </div>
@@ -143,6 +145,31 @@ const handleChatClick = (chat) => {
     };
 
     emit("open-chat", user);
+};
+
+// Handle chat deletion
+const handleChatDeleted = (chatId) => {
+    // Remove the chat from the store
+    const chatIndex = props.chatStore.chats.findIndex(chat => chat.id === chatId);
+    if (chatIndex !== -1) {
+        props.chatStore.chats.splice(chatIndex, 1);
+    }
+    
+    // Remove associated data
+    delete props.chatStore.avatarUrls[chatId];
+    delete props.chatStore.usernames[chatId];
+};
+
+// Handle secret chat deletion
+const handleSecretChatDeleted = (chatId) => {
+    // Remove the secret chat from the store
+    const chatIndex = props.secretChats.findIndex(chat => chat.id === chatId);
+    if (chatIndex !== -1) {
+        props.secretChats.splice(chatIndex, 1);
+    }
+    
+    // Remove associated data
+    delete props.secretUsernames[chatId];
 };
 </script>
 

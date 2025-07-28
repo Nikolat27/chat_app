@@ -145,7 +145,6 @@ const searchUser = async () => {
             showError("Username is invalid or not found.");
         } else {
             users.value = [response.data];
-            showMessage("User found! You can start a chat.");
         }
     } catch (error) {
         users.value = [];

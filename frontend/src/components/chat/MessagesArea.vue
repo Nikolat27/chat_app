@@ -92,7 +92,7 @@
                             <button
                                 @click="handleDeleteMessage(msg.id)"
                                 :disabled="isDeleting"
-                                class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg"
+                                class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg cursor-pointer"
                                 title="Delete message"
                             >
                                 ×

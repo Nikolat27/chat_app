@@ -29,7 +29,7 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusBadRequest, "parseJson", err)
 		return
 	}
-	
+
 	targetUserObjectId, errResp := utils.ToObjectId(input.TargetUser)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
@@ -220,6 +220,15 @@ func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := handler.Models.Chat.Delete(filter); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "deleteChat", "failed to delete chat instance")
+		return
+	}
+
+	filter = bson.M{
+		"chat_id": chatObjectId,
+	}
+
+	if _, err := handler.Models.Message.DeleteAll(filter); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "deleteChatMessages", err)
 		return
 	}
 
