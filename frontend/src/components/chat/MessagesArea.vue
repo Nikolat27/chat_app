@@ -161,6 +161,7 @@ import { useMessagePagination } from "../../composables/useMessagePagination";
 import { useMessageDeletion } from "../../composables/useMessageDeletion";
 import axiosInstance from "../../axiosInstance";
 import { showError, showMessage } from "../../utils/toast";
+import { useChatStore } from "../../stores/chat";
 
 const props = defineProps({
     messages: {
@@ -291,12 +292,30 @@ const deleteMessageByType = async (type) => {
             return;
     }
 
+    // Store the message for potential restoration
+    const chatStore = useChatStore();
+    const messageToRestore = chatStore.messages.find(msg => msg.id === messageToDeleteId.value);
+    
+    // Immediately remove message from Vue array for better UX
+    const success = chatStore.deleteMessage(messageToDeleteId.value);
+    if (!success) {
+        showError("Failed to delete message from local store");
+        return;
+    }
+
     try {
         await axiosInstance.delete(url);
-        showMessage("Message deleted successfully. Reload if you want");
+        showMessage("Message deleted successfully");
         emit("remove-message", messageToDeleteId.value);
     } catch (err) {
         console.error("Delete failed:", err);
+        showError("Failed to delete message from server");
+        
+        // Restore the message if backend deletion failed
+        if (messageToRestore) {
+            chatStore.addMessage(messageToRestore);
+            showError("Message restored - deletion failed on server");
+        }
     } finally {
         showDeleteModal.value = false;
         messageToDeleteId.value = null;

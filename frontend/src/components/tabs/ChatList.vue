@@ -49,7 +49,6 @@
                         class="w-[48px] h-[48px] transition-all duration-200 p-3 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-300
                         group-hover:opacity-100 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 scale-100 hover:scale-110"
                         :aria-label="`Delete chat with ${getOtherUsername(chat)}`"
-                        v-tooltip="'Delete chat'"
                         title="Delete chat"
                     >
                         <span

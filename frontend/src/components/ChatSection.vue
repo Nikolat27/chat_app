@@ -6,6 +6,7 @@
             :user="chatStore.currentChatUser"
             :backend-base-url="backendBaseUrl"
             :is-secret-chat="false"
+            @delete-chat="handleDeleteChat"
         />
         
         <!-- Secret Chat Header -->
@@ -53,6 +54,8 @@ import MessageInput from "./chat/MessageInput.vue";
 import { useWebSocket } from "../composables/useWebSocket";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useMessageDeletion } from "../composables/useMessageDeletion";
+import axiosInstance from "../axiosInstance";
+import { showMessage, showError } from "../utils/toast";
 
 const chatStore = useChatStore();
 const userStore = useUserStore();
@@ -284,6 +287,39 @@ const handleLoadMoreMessages = async () => {
     const chatId = getCurrentChatId();
     if (chatId) {
         await loadNextPage(chatId);
+    }
+};
+
+// Handle chat deletion
+const handleDeleteChat = async (user) => {
+    try {
+        // Find the chat ID for this user
+        const chatId = getCurrentChatId();
+        if (!chatId) {
+            showError('No chat ID found for this user');
+            return;
+        }
+
+        // Delete the chat from backend
+        const response = await axiosInstance.delete(`/api/chat/delete/${chatId}`);
+        
+        if (response.status === 200) {
+            // Remove chat from store
+            const chatIndex = chatStore.chats.findIndex(chat => chat.id === chatId);
+            if (chatIndex !== -1) {
+                chatStore.chats.splice(chatIndex, 1);
+            }
+            
+            // Clear current chat user
+            chatStore.clearChatUser();
+            // Close WebSocket connection
+            closeConnection();
+            
+            showMessage('Chat deleted successfully');
+        }
+    } catch (error) {
+        console.error('Error deleting chat:', error);
+        showError('Failed to delete chat. Please try again.');
     }
 };
 </script>

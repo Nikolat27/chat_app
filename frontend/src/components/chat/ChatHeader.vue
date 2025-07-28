@@ -66,11 +66,13 @@
                 <span class="material-icons text-lg">info</span>
             </button>
             
+            <!-- Delete Chat Button -->
             <button 
-                class="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200 cursor-pointer"
-                title="More options"
+                @click="showDeleteModal = true"
+                class="w-10 h-10 text-red-500 hover:bg-red-50 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center"
+                title="Delete chat"
             >
-                <span class="material-icons text-lg">more_vert</span>
+                <span class="material-icons text-lg">delete</span>
             </button>
         </div>
     </div>
@@ -83,11 +85,24 @@
         :backend-base-url="backendBaseUrl"
         @close="showSecretChatInfo = false"
     />
+
+    <!-- Delete Chat Confirmation Modal -->
+    <ConfirmModal
+        :is-visible="showDeleteModal"
+        title="Delete Chat"
+        subtitle="This action cannot be undone"
+        :message="`Are you sure you want to delete the chat with ${user.username}? This action cannot be undone.`"
+        confirm-text="Delete Chat"
+        :is-loading="isDeleting"
+        @close="showDeleteModal = false"
+        @confirm="confirmDeleteChat"
+    />
 </template>
 
 <script setup>
 import { computed, ref } from "vue";
 import SecretChatInfoModal from "./SecretChatInfoModal.vue";
+import ConfirmModal from "../ui/ConfirmModal.vue";
 
 const props = defineProps({
     user: {
@@ -104,7 +119,25 @@ const props = defineProps({
     },
 });
 
+const emit = defineEmits(['delete-chat']);
+
 const showSecretChatInfo = ref(false);
+const showDeleteModal = ref(false);
+const isDeleting = ref(false);
+
+const handleDeleteChat = () => {
+    emit('delete-chat', props.user);
+};
+
+const confirmDeleteChat = async () => {
+    isDeleting.value = true;
+    try {
+        await handleDeleteChat();
+        showDeleteModal.value = false;
+    } finally {
+        isDeleting.value = false;
+    }
+};
 
 // You can add more computed properties here if needed
 </script>
