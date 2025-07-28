@@ -120,9 +120,9 @@ func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Req
 }
 
 func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -132,16 +132,17 @@ func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	chatObjectId, err := utils.ToObjectId(chatId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "strToObjectId", "failed to convert chatId")
+	chatObjectId, errResp := utils.ToObjectId(chatId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
 	filter := bson.M{
 		"_id": chatObjectId,
-		"participants": bson.M{
-			"$in": []primitive.ObjectID{payload.UserId},
+		"$or": []bson.M{
+			{"user_1": payload.UserId},
+			{"user_2": payload.UserId},
 		},
 	}
 
@@ -173,15 +174,16 @@ func (handler *Handler) UpdateSecretChat(w http.ResponseWriter, r *http.Request)
 	}
 
 	var input struct {
-		PublicKey string `json:"public_key"`
+		EncryptedSymmetricKey string `json:"encrypted_symmetric_key"`
 	}
+
 	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "parseJson", err)
 		return
 	}
 
-	if input.PublicKey == "" {
-		utils.WriteError(w, http.StatusBadRequest, "missingPublicKey", "public key is required")
+	if input.EncryptedSymmetricKey == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missingKey", "symmetric key is required")
 		return
 	}
 
@@ -203,11 +205,11 @@ func (handler *Handler) UpdateSecretChat(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Prevent overriding existing keys
-	if isUser1 && secretChat.User1PublicKey != "" {
+	if isUser1 && secretChat.User2EncryptedSymmetricKey != "" {
 		utils.WriteError(w, http.StatusConflict, "keyExists", "User 1 public key already set")
 		return
 	}
-	if isUser2 && secretChat.User2PublicKey != "" {
+	if isUser2 && secretChat.User1EncryptedSymmetricKey != "" {
 		utils.WriteError(w, http.StatusConflict, "keyExists", "User 2 public key already set")
 		return
 	}
@@ -215,10 +217,10 @@ func (handler *Handler) UpdateSecretChat(w http.ResponseWriter, r *http.Request)
 	// Prepare update
 	updates := bson.M{}
 	if isUser1 {
-		updates["user_1_public_key"] = input.PublicKey
+		updates["user_1_encrypted_symmetric_key"] = input.EncryptedSymmetricKey
 	}
 	if isUser2 {
-		updates["user_2_public_key"] = input.PublicKey
+		updates["user_2_encrypted_symmetric_key"] = input.EncryptedSymmetricKey
 	}
 
 	if _, err := handler.Models.SecretChat.Update(filter, updates); err != nil {
