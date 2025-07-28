@@ -75,7 +75,7 @@
                             <button
                                 @click="handleDeleteMessage(msg.id)"
                                 :disabled="isDeleting"
-                                class="bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl"
+                                class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl"
                                 title="Delete message"
                             >
                                 <span class="material-icons text-sm">delete</span>
@@ -97,8 +97,39 @@
             </template>
         </div>
 
+        <!-- Secret Chat Not Approved Warning -->
+        <div v-if="isSecretChat && !isSecretChatApproved" class="flex flex-col items-center justify-center h-full text-center py-12">
+            <div class="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                <span class="material-icons text-orange-500 text-4xl">lock</span>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">Secret Chat Pending Approval</h3>
+            <p class="text-gray-500 text-sm max-w-md mb-4">
+                This secret chat is waiting for the other user to approve it. You'll be able to send messages once it's approved.
+            </p>
+            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 max-w-md">
+                <div class="flex items-center gap-2 text-orange-700 mb-2">
+                    <span class="material-icons text-sm">info</span>
+                    <span class="text-sm font-medium">What happens next?</span>
+                </div>
+                <ul class="text-xs text-orange-600 space-y-1 text-left">
+                    <li class="flex items-center gap-2">
+                        <span class="material-icons text-xs">schedule</span>
+                        <span>The other user will receive a notification</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="material-icons text-xs">check_circle</span>
+                        <span>They need to approve the secret chat</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="material-icons text-xs">security</span>
+                        <span>Once approved, messages will be encrypted</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
         <!-- Empty State -->
-        <div v-else class="flex flex-col items-center justify-center h-full text-center py-12">
+        <div v-else-if="!messages || !messages.length" class="flex flex-col items-center justify-center h-full text-center py-12">
             <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6">
                 <span class="material-icons text-gray-400 text-4xl">chat</span>
             </div>
@@ -181,6 +212,14 @@ const props = defineProps({
     chatId: {
         type: String,
         default: null,
+    },
+    isSecretChat: {
+        type: Boolean,
+        default: false,
+    },
+    isSecretChatApproved: {
+        type: Boolean,
+        default: true,
     },
 });
 

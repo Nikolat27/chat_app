@@ -27,6 +27,8 @@
             :user-avatar="userStore.avatar_url"
             :other-user-avatar="chatStore.currentChatUser.avatar_url"
             :chat-id="getCurrentChatId()"
+            :is-secret-chat="isCurrentChatSecret"
+            :is-secret-chat-approved="isSecretChatApproved"
             @load-more-messages="handleLoadMoreMessages"
         />
 
@@ -34,6 +36,8 @@
         <MessageInput
             v-if="chatStore.currentChatUser"
             v-model="newMessage"
+            :is-secret-chat="isCurrentChatSecret"
+            :is-secret-chat-approved="isSecretChatApproved"
             @send="sendMessage"
         />
 
@@ -94,12 +98,22 @@ const currentSecretChat = computed(() => {
     ) || null;
 });
 
+// Check if the current secret chat is approved
+const isSecretChatApproved = computed(() => {
+    if (!isCurrentChatSecret.value) return true; // Not a secret chat, so "approved"
+    
+    const secretChat = currentSecretChat.value;
+    if (!secretChat) return false; // No secret chat found, not approved
+    
+    return secretChat.user_2_accepted === true;
+});
+
 // WebSocket management
 const { establishConnection, sendMessage: sendWebSocketMessage, closeConnection, getConnectionStatus } =
     useWebSocket();
 
 // Message pagination
-const { loadNextPage, loadInitialMessages } = useMessagePagination();
+const { loadNextPage, loadInitialMessages, loadInitialSecretChatMessages } = useMessagePagination();
 
 // Message deletion
 const { updateMessageId } = useMessageDeletion();
@@ -138,6 +152,19 @@ watch(
 
 // Get chat data for WebSocket connection
 const getChatData = (targetUserId) => {
+    // Check if this is a secret chat
+    if (chatStore.currentChatUser?.secret_chat_id) {
+        const senderId = userStore.user_id;
+        const receiverId = targetUserId;
+        return {
+            chatId: chatStore.currentChatUser.secret_chat_id,
+            senderId,
+            receiverId,
+            backendBaseUrl,
+            isSecretChat: true,
+        };
+    }
+
     let chat = null;
     // Try to find by chat_id if available in currentChatUser
     if (chatStore.currentChatUser?.chat_id) {
@@ -151,6 +178,7 @@ const getChatData = (targetUserId) => {
                 senderId,
                 receiverId,
                 backendBaseUrl,
+                isSecretChat: false,
             };
         }
     }
@@ -174,6 +202,7 @@ const getChatData = (targetUserId) => {
         senderId,
         receiverId,
         backendBaseUrl,
+        isSecretChat: false,
     };
 };
 
@@ -228,6 +257,12 @@ const parseIncomingMessage = (data) => {
 const sendMessage = async () => {
     if (!newMessage.value.trim()) return;
 
+    // Check if this is a secret chat that's not approved
+    if (isCurrentChatSecret.value && !isSecretChatApproved.value) {
+        showError('Cannot send messages in unapproved secret chat');
+        return;
+    }
+
     const targetUserId = chatStore.currentChatUser?.id;
     
     const chatData = getChatData(targetUserId);
@@ -272,6 +307,11 @@ const sendMessage = async () => {
 
 // Get current chat ID
 const getCurrentChatId = () => {
+    // Check if this is a secret chat
+    if (chatStore.currentChatUser?.secret_chat_id) {
+        return chatStore.currentChatUser.secret_chat_id;
+    }
+    
     const targetUserId = chatStore.currentChatUser?.id;
     const chat = chatStore.chats?.find(
         (c) =>
@@ -286,7 +326,14 @@ const getCurrentChatId = () => {
 const handleLoadMoreMessages = async () => {
     const chatId = getCurrentChatId();
     if (chatId) {
-        await loadNextPage(chatId);
+        // Check if this is a secret chat
+        if (chatStore.currentChatUser?.secret_chat_id) {
+            // For secret chats, we might need a different approach for pagination
+            // For now, we'll use the regular loadNextPage but with the secret chat ID
+            await loadNextPage(chatId);
+        } else {
+            await loadNextPage(chatId);
+        }
     }
 };
 

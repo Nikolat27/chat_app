@@ -133,7 +133,7 @@
                                 <button
                                     @click.stop="handleDeleteSecretChat(chat)"
                                     :disabled="isDeleting === chat.id"
-                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 p-3 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md"
+                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 w-10 h-10 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md flex items-center justify-center"
                                     title="Delete secret chat"
                                 >
                                     <span v-if="isDeleting !== chat.id" class="material-icons text-base">delete</span>
@@ -174,6 +174,7 @@ import { ref } from "vue";
 import axiosInstance from "@/axiosInstance";
 import { showError, showMessage } from "@/utils/toast";
 import { useKeyPair } from "@/composables/useKeyPair";
+import { useChatStore } from "@/stores/chat";
 import ConfirmModal from "../ui/ConfirmModal.vue";
 
 const props = defineProps({
@@ -204,6 +205,15 @@ async function approveSecretChat(chat) {
     try {
         await axiosInstance.post(`/api/secret-chat/approve/${chat.id}`);
         showMessage("Secret chat approved successfully! You can now start messaging.");
+        
+        // Refresh secret chats from backend to ensure UI is in sync
+        const secretChatsResponse = await axiosInstance.get("/api/user/get-secret-chats");
+        // Update the store with fresh data
+        const chatStore = useChatStore();
+        chatStore.setSecretChats(secretChatsResponse.data.secret_chats);
+        chatStore.setSecretUsernames(secretChatsResponse.data.secret_usernames);
+        
+        // Update local chat object
         chat.user_2_accepted = true;
     } catch (err) {
         showError("Failed to approve secret chat. Please try again.");

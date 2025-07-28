@@ -97,6 +97,12 @@ const handleSecretUserSelected = async (user) => {
             target_user: user.id,
         });
         showMessage("Secret chat created successfully! Waiting for approval.");
+        
+        // Refresh secret chats from backend to update the UI
+        const secretChatsResponse = await axiosInstance.get("/api/user/get-secret-chats");
+        props.chatStore.setSecretChats(secretChatsResponse.data.secret_chats);
+        props.chatStore.setSecretUsernames(secretChatsResponse.data.secret_usernames);
+        
         if (response.data?.chat) {
             // Optionally update chatStore or emit event
             emit("open-chat", user);

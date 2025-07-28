@@ -7,11 +7,11 @@
         >
             <!-- Close Button -->
             <button
-                class="absolute top-3 right-3 text-gray-400 hover:text-green-700 text-2xl transition-colors cursor-pointer"
+                class="absolute top-3 right-3 text-gray-400 hover:text-green-700 w-10 h-10 rounded-full transition-colors cursor-pointer flex items-center justify-center"
                 @click="$emit('close')"
                 aria-label="Close"
             >
-                <span class="material-icons">close</span>
+                <span class="material-icons text-xl">close</span>
             </button>
 
             <!-- Header -->

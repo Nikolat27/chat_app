@@ -39,7 +39,7 @@ const chatStore = useChatStore();
 const userStore = useUserStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 
-const { loadInitialMessages } = useMessagePagination();
+const { loadInitialMessages, loadInitialSecretChatMessages } = useMessagePagination();
 const chatsLoaded = ref(false);
 
 onMounted(async () => {
@@ -84,6 +84,13 @@ const handleOpenChat = async (user) => {
 
     if (user.id && user.username) {
         chatStore.updateUserData(user.id, user.username, user.avatar_url);
+    }
+
+    // Check if this is a secret chat
+    if (user.secret_chat_id) {
+        // For secret chats, load secret chat messages
+        await loadInitialSecretChatMessages(user.secret_chat_id);
+        return;
     }
 
     const existingChat = findExistingChat(user.id);

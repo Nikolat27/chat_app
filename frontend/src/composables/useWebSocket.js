@@ -16,17 +16,20 @@ export function useWebSocket() {
             currentSocket = null;
         }
 
-        const { chatId, senderId, receiverId, backendBaseUrl } = chatData;
+        const { chatId, senderId, receiverId, backendBaseUrl, isSecretChat } = chatData;
 
         if (!chatId || !senderId || !receiverId || !backendBaseUrl) {
             console.error("Missing required data for WebSocket connection:", { chatId, senderId, receiverId, backendBaseUrl });
             return;
         }
 
-        const wsUrl = `${backendBaseUrl.replace(
-            /^http/,
-            "ws"
-        )}/api/websocket/chat/add/${chatId}?sender_id=${senderId}&receiver_id=${receiverId}`;
+        // Use different WebSocket URL for secret chats
+        let wsUrl;
+        if (isSecretChat) {
+            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/secret-chat/add/${chatId}?sender_id=${senderId}&receiver_id=${receiverId}`;
+        } else {
+            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/chat/add/${chatId}?sender_id=${senderId}&receiver_id=${receiverId}`;
+        }
 
         console.log("Creating WebSocket connection to:", wsUrl);
         currentSocket = new WebSocket(wsUrl);
