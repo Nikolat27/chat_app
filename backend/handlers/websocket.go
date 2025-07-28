@@ -98,6 +98,8 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 			Content:     string(payload),
 		}
 
+		fmt.Println(string(payload))
+
 		msgBytes, err := json.Marshal(msg)
 		if err != nil {
 			return fmt.Errorf("failed to marshal message: %s", err)

@@ -236,7 +236,7 @@ func (handler *Handler) ApproveSecretChat(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	chatID := chi.URLParam(r, "chat_id")
+	chatID := chi.URLParam(r, "secret_chat_id")
 
 	objectId, _ := primitive.ObjectIDFromHex(chatID)
 
