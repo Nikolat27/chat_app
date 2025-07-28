@@ -58,6 +58,7 @@ import MessageInput from "./chat/MessageInput.vue";
 import { useWebSocket } from "../composables/useWebSocket";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useMessageDeletion } from "../composables/useMessageDeletion";
+import { useE2EE } from "../composables/useE2EE";
 import axiosInstance from "../axiosInstance";
 import { showMessage, showError } from "../utils/toast";
 
@@ -117,6 +118,9 @@ const { loadNextPage, loadInitialMessages, loadInitialSecretChatMessages } = use
 
 // Message deletion
 const { updateMessageId } = useMessageDeletion();
+
+// E2EE
+const { encryptMessage, decryptMessage, loadChatSymmetricKey } = useE2EE();
 
 // Watch for chat user changes to manage WebSocket connections
 watch(
@@ -207,24 +211,41 @@ const getChatData = (targetUserId) => {
 };
 
 // Handle incoming messages
-const handleIncomingMessage = (data) => {
+const handleIncomingMessage = async (data) => {
     const message = parseIncomingMessage(data);
+
+    // Decrypt message if this is a secret chat
+    let decryptedContent = message.content;
+    if (isCurrentChatSecret.value && message.content) {
+        try {
+            decryptedContent = await decryptMessage(message.content, message.chat_id);
+        } catch (error) {
+            console.error('Error decrypting message:', error);
+            // If decryption fails, show encrypted content or error message
+            decryptedContent = '[Encrypted message - decryption failed]';
+        }
+    }
+
+    const decryptedMessage = {
+        ...message,
+        content: decryptedContent
+    };
 
     // Check if this is a confirmation of a sent message (same content and sender)
     const existingMessage = chatStore.messages.find(
         (msg) =>
-            msg.content === message.content &&
-            msg.sender_id === message.sender_id &&
+            msg.content === decryptedMessage.content &&
+            msg.sender_id === decryptedMessage.sender_id &&
             msg.id &&
             msg.id.startsWith("temp-")
     );
 
-    if (existingMessage && message.id && !message.id.startsWith("temp-")) {
+    if (existingMessage && decryptedMessage.id && !decryptedMessage.id.startsWith("temp-")) {
         // Update the temp ID with the real ID from backend
-        chatStore.updateMessageId(existingMessage.id, message.id);
+        chatStore.updateMessageId(existingMessage.id, decryptedMessage.id);
     } else {
         // This is a new message from someone else
-        chatStore.addMessage(message);
+        chatStore.addMessage(decryptedMessage);
     }
 };
 
@@ -287,20 +308,36 @@ const sendMessage = async () => {
         .toString(36)
         .substr(2, 9)}`;
 
+    let messageContent = newMessage.value;
+    
+    // Encrypt message if this is a secret chat
+    if (isCurrentChatSecret.value) {
+        try {
+            messageContent = await encryptMessage(newMessage.value, chatData.chatId);
+        } catch (error) {
+            console.error('Error encrypting message:', error);
+            showError('Failed to encrypt message. Please try again.');
+            return;
+        }
+    }
+
     const messageData = {
         id: tempId,
         chat_id: chatData.chatId,
         sender_id: chatData.senderId,
         receiver_id: chatData.receiverId,
-        content: newMessage.value,
+        content: messageContent,
         created_at: new Date().toISOString(),
     };
 
-    // Add message to store immediately with temp ID
-    chatStore.addMessage(messageData);
+    // Add message to store immediately with temp ID (store decrypted content for display)
+    chatStore.addMessage({
+        ...messageData,
+        content: newMessage.value, // Store decrypted content for display
+    });
 
-    // Send via WebSocket
-    const success = sendWebSocketMessage(messageData.content);
+    // Send encrypted content via WebSocket
+    const success = sendWebSocketMessage(messageContent);
     
     newMessage.value = "";
 };

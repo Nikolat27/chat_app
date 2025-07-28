@@ -30,6 +30,7 @@ import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
 import axiosInstance from "@/axiosInstance";
 import { useMessagePagination } from "../composables/useMessagePagination";
+import { useE2EE } from "../composables/useE2EE";
 import ChatsTab from "./tabs/ChatsTab.vue";
 import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
@@ -40,6 +41,7 @@ const userStore = useUserStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 
 const { loadInitialMessages, loadInitialSecretChatMessages } = useMessagePagination();
+const { loadChatSymmetricKey } = useE2EE();
 const chatsLoaded = ref(false);
 
 onMounted(async () => {
@@ -88,7 +90,19 @@ const handleOpenChat = async (user) => {
 
     // Check if this is a secret chat
     if (user.secret_chat_id) {
-        // For secret chats, load secret chat messages
+        // For secret chats, load the symmetric key first
+        try {
+            // Get the encrypted symmetric key from backend
+            const response = await axiosInstance.get(`/api/secret-chat/${user.secret_chat_id}/symmetric-key`);
+            if (response.data?.encrypted_symmetric_key) {
+                await loadChatSymmetricKey(user.secret_chat_id, response.data.encrypted_symmetric_key);
+            }
+        } catch (error) {
+            console.error('Error loading symmetric key:', error);
+            // Continue without E2EE if key loading fails
+        }
+        
+        // Load secret chat messages
         await loadInitialSecretChatMessages(user.secret_chat_id);
         return;
     }

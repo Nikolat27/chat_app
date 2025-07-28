@@ -45,7 +45,7 @@ export function useSecretChatEncryption() {
             
             // Send public key to backend
             try {
-                const response = await axiosInstance.post(`/api/secret-chat/add-public-key/${secretChatId}`, {
+                const response = await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${secretChatId}`, {
                     public_key: publicKey
                 });
                 console.log('✅ Successfully uploaded public key, response:', response.data);

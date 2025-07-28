@@ -32,11 +32,13 @@ export function useKeyPair() {
     const generateSecretChatKeyPair = async (secretChatId) => {
         const keyPair = await window.crypto.subtle.generateKey(
             {
-                name: "ECDH",
-                namedCurve: "P-256",
+                name: "RSA-OAEP",
+                modulusLength: 2048,
+                publicExponent: new Uint8Array([1, 0, 1]),
+                hash: "SHA-256",
             },
             true,
-            ["deriveKey", "deriveBits"]
+            ["encrypt", "decrypt"]
         );
 
         const publicKey = await window.crypto.subtle.exportKey(
@@ -51,11 +53,8 @@ export function useKeyPair() {
         // Store private key with the specific secret chat ID
         await localforage.setItem(`secretChatPrivateKey_${secretChatId}`, privateKey);
         
-        // Base64 encode the public key for backend transmission
-        const publicKeyString = JSON.stringify(publicKey);
-        const base64PublicKey = btoa(publicKeyString);
-        
-        return base64PublicKey;
+        // Return the public key as JWK (not base64 encoded)
+        return publicKey;
     };
 
     const getPrivateKey = async () => {
@@ -105,11 +104,13 @@ export function useKeyPair() {
                 "jwk",
                 privateKey,
                 {
-                    name: "ECDH",
-                    namedCurve: "P-256",
+                    name: "RSA-OAEP",
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: "SHA-256",
                 },
                 true,
-                ["deriveKey", "deriveBits"]
+                ["encrypt", "decrypt"]
             );
             
             // Get the public key from the key pair
@@ -118,11 +119,7 @@ export function useKeyPair() {
                 cryptoKey.publicKey
             );
             
-            // Base64 encode the public key for backend transmission
-            const publicKeyString = JSON.stringify(publicKey);
-            const base64PublicKey = btoa(publicKeyString);
-            
-            return base64PublicKey;
+            return publicKey;
         }
         return null;
     };

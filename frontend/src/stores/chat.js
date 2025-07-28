@@ -53,6 +53,26 @@ export const useChatStore = defineStore("chat", {
             this.secretUsernames = names;
         },
 
+        // Remove a specific secret chat from the store
+        removeSecretChat(chatId) {
+            console.log('Removing secret chat from store:', chatId);
+            console.log('Current secret chats:', this.secretChats);
+            
+            const chatIndex = this.secretChats.findIndex(chat => chat.id === chatId);
+            console.log('Found chat at index:', chatIndex);
+            
+            if (chatIndex !== -1) {
+                this.secretChats.splice(chatIndex, 1);
+                console.log('Secret chat removed from store');
+            } else {
+                console.log('Secret chat not found in store');
+            }
+            
+            // Remove associated username
+            delete this.secretUsernames[chatId];
+            console.log('Secret chat username removed');
+        },
+
         // Pagination methods
         setMessages(messages, reset = false) {
             if (reset) {
