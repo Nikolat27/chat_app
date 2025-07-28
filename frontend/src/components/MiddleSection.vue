@@ -47,7 +47,7 @@ onMounted(async () => {
         await fetchUserChats();
         await fetchUserSecretChats();
     } catch (error) {
-        console.error("Failed to fetch chats:", error);
+        // console.error("Failed to fetch chats:", error);
     } finally {
         chatsLoaded.value = true;
     }
@@ -62,7 +62,7 @@ async function fetchUserChats() {
         chatStore.setAvatarUrls(response.data.avatar_urls);
         chatStore.setUsernames(response.data.usernames);
     } catch (error) {
-        console.error("Failed to fetch user chats:", error);
+        // console.error("Failed to fetch user chats:", error);
     }
 }
 
@@ -72,7 +72,7 @@ async function fetchUserSecretChats() {
         chatStore.setSecretChats(response.data.secret_chats);
         chatStore.setSecretUsernames(response.data.secret_usernames);
     } catch (error) {
-        console.error("Failed to fetch user secret chats:", error);
+        // console.error("Failed to fetch user secret chats:", error);
     }
 }
 
@@ -107,97 +107,61 @@ const findExistingChat = (targetUserId) => {
 
 // Helper function to add new chat to store and set up UI
 const addNewChatToStore = async (newChat, user) => {
-    console.log("Adding chat to store:", newChat);
-    console.log("Current chats before adding:", chatStore.chats.length);
-    
     // Force reactivity
     const updatedChats = [...chatStore.chats, newChat];
-    console.log("Updated chats array length:", updatedChats.length);
-    
     chatStore.setChats(updatedChats);
-    console.log("Chats after setChats:", chatStore.chats.length);
-    
     chatStore.updateChatData(
         newChat.id,
         user.username,
         user.avatar_url
     );
-    
     await setupNewChat(newChat, user);
 };
 
 // Helper function to set up UI for new chat (without adding to store)
 const setupNewChat = async (newChat, user) => {
-    console.log("Setting up new chat UI:", newChat);
-    
     // Update chat metadata
     chatStore.updateChatData(
         newChat.id,
         user.username,
         user.avatar_url
     );
-    
-    // Wait for reactivity to propagate
     await nextTick();
-
-    // Set currentChatUser to include chat_id for robust lookup
     chatStore.setChatUser({
         id: user.id,
         username: user.username,
         avatar_url: user.avatar_url,
         chat_id: newChat.id,
     });
-    
-    console.log("Chat UI setup complete. Total chats:", chatStore.chats.length);
-    console.log("All chats in store:", chatStore.chats);
-    
-    // Load initial messages
     await loadInitialMessages(newChat.id);
 };
 
 const createNewChat = async (user) => {
     try {
-        console.log("Creating new chat for user:", user);
-        
         const response = await axiosInstance.post("/api/chat/create", {
             target_user: user.id,
         });
-
-        console.log("Chat creation response:", response.data);
 
         // Check if response contains a chat object or if we need to fetch chats
         if (response.data?.chat) {
             // Backend returned the chat object directly
             const newChat = response.data.chat;
-            console.log("New chat created:", newChat);
-            
             // Add to store and continue
             await addNewChatToStore(newChat, user);
         } else if (response.data === "chat created successfully" || response.status === 200) {
             // Backend only returned success message, need to fetch the new chat
-            console.log("Chat created successfully, fetching updated chats...");
-            
             // Re-fetch all chats to get the new one
             await fetchUserChats();
-            
             // Find the new chat (it should be the one with the target user)
             const newChat = findExistingChat(user.id);
-            
             if (newChat) {
-                console.log("Found newly created chat:", newChat);
-                
                 // Don't add to store again (already added by fetchUserChats)
                 // Just set up the current chat user and load messages
                 await setupNewChat(newChat, user);
-            } else {
-                console.error("Could not find newly created chat after refresh");
             }
-        } else {
-            console.error("Unexpected response format:", response.data);
         }
     } catch (error) {
-        console.error("Failed to create chat:", error);
-        console.error("Error details:", error.response?.data);
+        // Optionally, show a toast error here
     }
 };
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen bg-green-50">
+  <div class="flex h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
     <Sidebar :activeTab="activeTab" @changeTab="activeTab = $event" @logout="logout" />
     <MiddleSection :activeTab="activeTab" />
     <ChatSection />
