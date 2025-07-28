@@ -8,7 +8,7 @@
         >
             <!-- Close Button -->
             <button
-                class="absolute top-4 right-4 text-gray-400 hover:text-purple-700 hover:bg-purple-50 p-2 rounded-full transition-all duration-200 cursor-pointer"
+                class="absolute top-4 right-4 text-gray-400 hover:text-purple-700 hover:bg-purple-50 w-10 h-10 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center"
                 @click="$emit('close')"
                 aria-label="Close"
             >

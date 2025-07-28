@@ -59,7 +59,7 @@
         <div class="flex items-center gap-2">
             <button 
                 v-if="isSecretChat"
-                class="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-colors duration-200 cursor-pointer"
+                class="w-10 h-10 text-purple-600 hover:bg-purple-50 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center"
                 title="Secret chat info"
                 @click="showSecretChatInfo = true"
             >

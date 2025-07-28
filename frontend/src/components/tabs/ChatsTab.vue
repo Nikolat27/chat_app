@@ -69,6 +69,8 @@ import ChatList from "./ChatList.vue";
 import SecretChatList from "./SecretChatList.vue";
 import axiosInstance from "../../axiosInstance";
 import { showError, showMessage } from "@/utils/toast";
+import { useE2EE } from "../../composables/useE2EE";
+import { useKeyPair } from "../../composables/useKeyPair";
 
 const props = defineProps({
     chatStore: Object,
@@ -82,6 +84,8 @@ const emit = defineEmits(["open-chat"]);
 
 const showCreateChat = ref(false);
 const showCreateSecretChat = ref(false);
+const { initializeChatE2EE, clearSymmetricKey } = useE2EE();
+const { generateSecretChatKeyPair, clearSecretChatKeys } = useKeyPair();
 
 // Handle user selection from search results
 const handleUserSelected = (user) => {
@@ -91,17 +95,43 @@ const handleUserSelected = (user) => {
 
 // Handle user selection for secret chat
 const handleSecretUserSelected = async (user) => {
-    // Call backend to create secret chat
     try {
+        // First create the secret chat
         const response = await axiosInstance.post("/api/secret-chat/create", {
             target_user: user.id,
         });
+        
+        if (response.data?.chat?.id) {
+            // Generate key pair for this specific secret chat
+            const publicKey = await generateSecretChatKeyPair(response.data.chat.id);
+            
+            // Send public key to backend
+            await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${response.data.chat.id}`, {
+                public_key: publicKey
+            });
+            
+            // Now initialize E2EE with the actual secret chat ID
+            const e2eeData = await initializeChatE2EE(response.data.chat.id, [user.id, props.userStore.user_id]);
+            
+            // Add symmetric key to the created secret chat
+            await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${response.data.chat.id}`, {
+                encrypted_symmetric_key: e2eeData.encryptedKey,
+            });
+        }
+        
         showMessage("Secret chat created successfully! Waiting for approval.");
+        
+        // Refresh secret chats from backend to update the UI
+        const secretChatsResponse = await axiosInstance.get("/api/user/get-secret-chats");
+        props.chatStore.setSecretChats(secretChatsResponse.data.secret_chats);
+        props.chatStore.setSecretUsernames(secretChatsResponse.data.secret_usernames);
+        
         if (response.data?.chat) {
             // Optionally update chatStore or emit event
             emit("open-chat", user);
         }
     } catch (error) {
+        console.error('Error creating secret chat:', error);
         showError(error.response?.data?.detail || "Failed to create secret chat. Please try again.");
     }
     showCreateSecretChat.value = false;
@@ -161,15 +191,22 @@ const handleChatDeleted = (chatId) => {
 };
 
 // Handle secret chat deletion
-const handleSecretChatDeleted = (chatId) => {
-    // Remove the secret chat from the store
-    const chatIndex = props.secretChats.findIndex(chat => chat.id === chatId);
-    if (chatIndex !== -1) {
-        props.secretChats.splice(chatIndex, 1);
+const handleSecretChatDeleted = async (chatId) => {
+    try {
+        // Clear E2EE keys for this chat
+        await clearSecretChatKeys(chatId);
+        clearSymmetricKey(chatId);
+        
+        // Remove the secret chat from the store
+        props.chatStore.removeSecretChat(chatId);
+        
+        // If this was the current chat, clear it
+        if (props.chatStore.currentChatUser?.secret_chat_id === chatId) {
+            props.chatStore.clearChatUser();
+        }
+    } catch (error) {
+        console.error("Error handling secret chat deletion:", error);
     }
-    
-    // Remove associated data
-    delete props.secretUsernames[chatId];
 };
 </script>
 

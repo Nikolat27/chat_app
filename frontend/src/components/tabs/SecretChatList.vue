@@ -133,7 +133,7 @@
                                 <button
                                     @click.stop="handleDeleteSecretChat(chat)"
                                     :disabled="isDeleting === chat.id"
-                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 p-3 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md"
+                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 w-10 h-10 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md flex items-center justify-center"
                                     title="Delete secret chat"
                                 >
                                     <span v-if="isDeleting !== chat.id" class="material-icons text-base">delete</span>
@@ -174,6 +174,8 @@ import { ref } from "vue";
 import axiosInstance from "@/axiosInstance";
 import { showError, showMessage } from "@/utils/toast";
 import { useKeyPair } from "@/composables/useKeyPair";
+import { useE2EE } from "@/composables/useE2EE";
+import { useChatStore } from "@/stores/chat";
 import ConfirmModal from "../ui/ConfirmModal.vue";
 
 const props = defineProps({
@@ -190,7 +192,8 @@ const isDeleting = ref(null);
 const showDeleteModal = ref(false);
 const deleteModalMessage = ref("");
 const chatToDelete = ref(null);
-const { generateSecretChatKeyPair, hasSecretChatKeys } = useKeyPair();
+const { generateSecretChatKeyPair, hasSecretChatKeys, clearSecretChatKeys } = useKeyPair();
+const { clearSymmetricKey } = useE2EE();
 
 const shouldShowApprove = (chat) => {
     return (
@@ -204,6 +207,15 @@ async function approveSecretChat(chat) {
     try {
         await axiosInstance.post(`/api/secret-chat/approve/${chat.id}`);
         showMessage("Secret chat approved successfully! You can now start messaging.");
+        
+        // Refresh secret chats from backend to ensure UI is in sync
+        const secretChatsResponse = await axiosInstance.get("/api/user/get-secret-chats");
+        // Update the store with fresh data
+        const chatStore = useChatStore();
+        chatStore.setSecretChats(secretChatsResponse.data.secret_chats);
+        chatStore.setSecretUsernames(secretChatsResponse.data.secret_usernames);
+        
+        // Update local chat object
         chat.user_2_accepted = true;
     } catch (err) {
         showError("Failed to approve secret chat. Please try again.");
@@ -223,7 +235,7 @@ const handleSecretChatClick = async (chat) => {
             const publicKey = await generateSecretChatKeyPair(chat.id);
             
             // Send public key to backend
-            await axiosInstance.post(`/api/secret-chat/add-public-key/${chat.id}`, {
+            await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${chat.id}`, {
                 public_key: publicKey
             });
             
@@ -278,12 +290,30 @@ const confirmDeleteSecretChat = async () => {
     isDeleting.value = chatToDelete.value.id;
     
     try {
-        await axiosInstance.delete(`/api/secret-chat/delete/${chatToDelete.value.id}`);
+        console.log('Attempting to delete secret chat:', chatToDelete.value.id);
+        
+        // Delete from backend
+        const response = await axiosInstance.delete(`/api/secret-chat/delete/${chatToDelete.value.id}`);
+        console.log('Backend deletion response:', response);
+        
+        // Clear E2EE keys locally
+        try {
+            await clearSecretChatKeys(chatToDelete.value.id);
+            clearSymmetricKey(chatToDelete.value.id);
+            console.log('E2EE keys cleared successfully');
+        } catch (error) {
+            console.error("Error clearing E2EE keys:", error);
+            // Continue even if key clearing fails
+        }
+        
         showMessage("Secret chat deleted successfully!");
         emit("secret-chat-deleted", chatToDelete.value.id);
         showDeleteModal.value = false;
     } catch (error) {
         console.error("Failed to delete secret chat:", error);
+        console.error("Error response:", error.response);
+        console.error("Error status:", error.response?.status);
+        console.error("Error data:", error.response?.data);
         showError(error.response?.data?.detail || "Failed to delete secret chat. Please try again.");
     } finally {
         isDeleting.value = null;

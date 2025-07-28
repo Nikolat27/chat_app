@@ -27,6 +27,8 @@
             :user-avatar="userStore.avatar_url"
             :other-user-avatar="chatStore.currentChatUser.avatar_url"
             :chat-id="getCurrentChatId()"
+            :is-secret-chat="isCurrentChatSecret"
+            :is-secret-chat-approved="isSecretChatApproved"
             @load-more-messages="handleLoadMoreMessages"
         />
 
@@ -34,6 +36,8 @@
         <MessageInput
             v-if="chatStore.currentChatUser"
             v-model="newMessage"
+            :is-secret-chat="isCurrentChatSecret"
+            :is-secret-chat-approved="isSecretChatApproved"
             @send="sendMessage"
         />
 
@@ -54,6 +58,7 @@ import MessageInput from "./chat/MessageInput.vue";
 import { useWebSocket } from "../composables/useWebSocket";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useMessageDeletion } from "../composables/useMessageDeletion";
+import { useE2EE } from "../composables/useE2EE";
 import axiosInstance from "../axiosInstance";
 import { showMessage, showError } from "../utils/toast";
 
@@ -94,15 +99,28 @@ const currentSecretChat = computed(() => {
     ) || null;
 });
 
+// Check if the current secret chat is approved
+const isSecretChatApproved = computed(() => {
+    if (!isCurrentChatSecret.value) return true; // Not a secret chat, so "approved"
+    
+    const secretChat = currentSecretChat.value;
+    if (!secretChat) return false; // No secret chat found, not approved
+    
+    return secretChat.user_2_accepted === true;
+});
+
 // WebSocket management
 const { establishConnection, sendMessage: sendWebSocketMessage, closeConnection, getConnectionStatus } =
     useWebSocket();
 
 // Message pagination
-const { loadNextPage, loadInitialMessages } = useMessagePagination();
+const { loadNextPage, loadInitialMessages, loadInitialSecretChatMessages } = useMessagePagination();
 
 // Message deletion
 const { updateMessageId } = useMessageDeletion();
+
+// E2EE
+const { encryptMessage, decryptMessage, loadChatSymmetricKey } = useE2EE();
 
 // Watch for chat user changes to manage WebSocket connections
 watch(
@@ -138,6 +156,19 @@ watch(
 
 // Get chat data for WebSocket connection
 const getChatData = (targetUserId) => {
+    // Check if this is a secret chat
+    if (chatStore.currentChatUser?.secret_chat_id) {
+        const senderId = userStore.user_id;
+        const receiverId = targetUserId;
+        return {
+            chatId: chatStore.currentChatUser.secret_chat_id,
+            senderId,
+            receiverId,
+            backendBaseUrl,
+            isSecretChat: true,
+        };
+    }
+
     let chat = null;
     // Try to find by chat_id if available in currentChatUser
     if (chatStore.currentChatUser?.chat_id) {
@@ -151,6 +182,7 @@ const getChatData = (targetUserId) => {
                 senderId,
                 receiverId,
                 backendBaseUrl,
+                isSecretChat: false,
             };
         }
     }
@@ -174,28 +206,46 @@ const getChatData = (targetUserId) => {
         senderId,
         receiverId,
         backendBaseUrl,
+        isSecretChat: false,
     };
 };
 
 // Handle incoming messages
-const handleIncomingMessage = (data) => {
+const handleIncomingMessage = async (data) => {
     const message = parseIncomingMessage(data);
+
+    // Decrypt message if this is a secret chat
+    let decryptedContent = message.content;
+    if (isCurrentChatSecret.value && message.content) {
+        try {
+            decryptedContent = await decryptMessage(message.content, message.chat_id);
+        } catch (error) {
+            console.error('Error decrypting message:', error);
+            // If decryption fails, show encrypted content or error message
+            decryptedContent = '[Encrypted message - decryption failed]';
+        }
+    }
+
+    const decryptedMessage = {
+        ...message,
+        content: decryptedContent
+    };
 
     // Check if this is a confirmation of a sent message (same content and sender)
     const existingMessage = chatStore.messages.find(
         (msg) =>
-            msg.content === message.content &&
-            msg.sender_id === message.sender_id &&
+            msg.content === decryptedMessage.content &&
+            msg.sender_id === decryptedMessage.sender_id &&
             msg.id &&
             msg.id.startsWith("temp-")
     );
 
-    if (existingMessage && message.id && !message.id.startsWith("temp-")) {
+    if (existingMessage && decryptedMessage.id && !decryptedMessage.id.startsWith("temp-")) {
         // Update the temp ID with the real ID from backend
-        chatStore.updateMessageId(existingMessage.id, message.id);
+        chatStore.updateMessageId(existingMessage.id, decryptedMessage.id);
     } else {
         // This is a new message from someone else
-        chatStore.addMessage(message);
+        chatStore.addMessage(decryptedMessage);
     }
 };
 
@@ -228,6 +278,12 @@ const parseIncomingMessage = (data) => {
 const sendMessage = async () => {
     if (!newMessage.value.trim()) return;
 
+    // Check if this is a secret chat that's not approved
+    if (isCurrentChatSecret.value && !isSecretChatApproved.value) {
+        showError('Cannot send messages in unapproved secret chat');
+        return;
+    }
+
     const targetUserId = chatStore.currentChatUser?.id;
     
     const chatData = getChatData(targetUserId);
@@ -252,26 +308,47 @@ const sendMessage = async () => {
         .toString(36)
         .substr(2, 9)}`;
 
+    let messageContent = newMessage.value;
+    
+    // Encrypt message if this is a secret chat
+    if (isCurrentChatSecret.value) {
+        try {
+            messageContent = await encryptMessage(newMessage.value, chatData.chatId);
+        } catch (error) {
+            console.error('Error encrypting message:', error);
+            showError('Failed to encrypt message. Please try again.');
+            return;
+        }
+    }
+
     const messageData = {
         id: tempId,
         chat_id: chatData.chatId,
         sender_id: chatData.senderId,
         receiver_id: chatData.receiverId,
-        content: newMessage.value,
+        content: messageContent,
         created_at: new Date().toISOString(),
     };
 
-    // Add message to store immediately with temp ID
-    chatStore.addMessage(messageData);
+    // Add message to store immediately with temp ID (store decrypted content for display)
+    chatStore.addMessage({
+        ...messageData,
+        content: newMessage.value, // Store decrypted content for display
+    });
 
-    // Send via WebSocket
-    const success = sendWebSocketMessage(messageData.content);
+    // Send encrypted content via WebSocket
+    const success = sendWebSocketMessage(messageContent);
     
     newMessage.value = "";
 };
 
 // Get current chat ID
 const getCurrentChatId = () => {
+    // Check if this is a secret chat
+    if (chatStore.currentChatUser?.secret_chat_id) {
+        return chatStore.currentChatUser.secret_chat_id;
+    }
+    
     const targetUserId = chatStore.currentChatUser?.id;
     const chat = chatStore.chats?.find(
         (c) =>
@@ -286,7 +363,14 @@ const getCurrentChatId = () => {
 const handleLoadMoreMessages = async () => {
     const chatId = getCurrentChatId();
     if (chatId) {
-        await loadNextPage(chatId);
+        // Check if this is a secret chat
+        if (chatStore.currentChatUser?.secret_chat_id) {
+            // For secret chats, we might need a different approach for pagination
+            // For now, we'll use the regular loadNextPage but with the secret chat ID
+            await loadNextPage(chatId);
+        } else {
+            await loadNextPage(chatId);
+        }
     }
 };
 

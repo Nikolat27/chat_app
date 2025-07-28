@@ -1,9 +1,11 @@
 import { ref, computed } from "vue";
 import { useChatStore } from "../stores/chat";
+import { useE2EE } from "./useE2EE";
 import axiosInstance from "../axiosInstance";
 
 export function useMessagePagination() {
     const chatStore = useChatStore();
+    const { decryptMessage } = useE2EE();
 
     // Reactive state
     const isLoading = ref(false);
@@ -126,6 +128,90 @@ export function useMessagePagination() {
         return await loadMessages(chatId, 1, pageLimit.value);
     };
 
+    // Load secret chat messages
+    const loadSecretChatMessages = async (secretChatId, page = 1, limit = 20) => {
+        if (isLoading.value) return;
+
+        try {
+            isLoading.value = true;
+            error.value = null;
+            chatStore.setLoadingState(true);
+
+            const response = await axiosInstance.get(
+                `/api/secret-chat/get/${secretChatId}/messages`,
+                {
+                    params: { page, limit },
+                }
+            );
+
+            // Handle the response structure for secret chat messages
+            const rawMessages = response.data || [];
+
+            // Parse each message from JSON string to object and decrypt if needed
+            const messages = await Promise.all(
+                rawMessages
+                    .map(async (msg) => {
+                        if (typeof msg === "string") {
+                            try {
+                                const parsed = JSON.parse(msg);
+                                return parsed;
+                            } catch (e) {
+                                console.error("Failed to parse secret chat message:", msg, e);
+                                return null;
+                            }
+                        }
+                        return msg; // If it's already an object, return as is
+                    })
+                    .filter((msg) => msg !== null)
+            );
+
+            // Decrypt messages if they are encrypted
+            const decryptedMessages = await Promise.all(
+                messages.map(async (msg) => {
+                    if (msg.content && typeof msg.content === 'string' && msg.content.length > 100) {
+                        // Likely encrypted content, try to decrypt
+                        try {
+                            const decryptedContent = await decryptMessage(msg.content, secretChatId);
+                            return {
+                                ...msg,
+                                content: decryptedContent
+                            };
+                        } catch (error) {
+                            console.error('Error decrypting message:', error);
+                            return {
+                                ...msg,
+                                content: '[Encrypted message - decryption failed]'
+                            };
+                        }
+                    }
+                    return msg; // Not encrypted or decryption failed
+                })
+            );
+
+            // For pagination, we'll assume there are more messages if we got a full page
+            const hasMore = rawMessages.length >= limit;
+            const totalPages = Math.ceil(rawMessages.length / limit) || 1;
+
+            // Update store with decrypted messages
+            chatStore.setMessages(decryptedMessages, page === 1);
+            chatStore.setPaginationState(page, hasMore, false);
+
+            return { messages: decryptedMessages, hasMore, totalPages };
+        } catch (err) {
+            error.value = err.message || "Failed to load secret chat messages";
+            console.error("Error loading secret chat messages:", err);
+        } finally {
+            isLoading.value = false;
+            chatStore.setLoadingState(false);
+        }
+    };
+
+    // Load initial secret chat messages
+    const loadInitialSecretChatMessages = async (secretChatId) => {
+        chatStore.resetPagination();
+        return await loadSecretChatMessages(secretChatId, 1, pageLimit.value);
+    };
+
     // Refresh messages (reset and load first page)
     const refreshMessages = async (chatId) => {
         chatStore.resetPagination();
@@ -159,6 +245,8 @@ export function useMessagePagination() {
         loadMessages,
         loadNextPage,
         loadInitialMessages,
+        loadSecretChatMessages,
+        loadInitialSecretChatMessages,
         refreshMessages,
         shouldLoadMore,
         loadSecretChats,

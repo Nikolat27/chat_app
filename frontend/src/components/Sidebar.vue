@@ -4,21 +4,21 @@
     >
         <!-- Navigation Buttons -->
         <button
-            class="mb-5 p-2 rounded-lg hover:bg-green-200 transition cursor-pointer"
+            class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'chats')"
             :class="{ 'bg-green-300': activeTab === 'chats' }"
         >
             <span class="material-icons text-gray-700">chat</span>
         </button>
         <button
-            class="mb-5 p-2 rounded-lg hover:bg-green-200 transition cursor-pointer"
+            class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'groups')"
             :class="{ 'bg-green-300': activeTab === 'groups' }"
         >
             <span class="material-icons text-gray-700">group</span>
         </button>
         <button
-            class="mb-5 p-2 rounded-lg hover:bg-green-200 transition cursor-pointer"
+            class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'settings')"
             :class="{ 'bg-green-300': activeTab === 'settings' }"
         >
@@ -28,7 +28,7 @@
         <!-- Logout Button -->
         <button
             v-if="userStore.token"
-            class="mt-auto mb-4 p-2 rounded-lg hover:bg-green-200 transition cursor-pointer"
+            class="mt-auto mb-4 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('logout')"
         >
             <span class="material-icons text-red-500">logout</span>

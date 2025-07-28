@@ -10,6 +10,8 @@
 import { ref, onMounted } from "vue";
 import { useUserStore } from "../stores/users";
 import { useRouter } from "vue-router";
+import { useKeyPair } from "../composables/useKeyPair";
+import { useE2EE } from "../composables/useE2EE";
 import Sidebar from "../components/Sidebar.vue";
 import MiddleSection from "../components/MiddleSection.vue";
 import ChatSection from "../components/ChatSection.vue";
@@ -17,6 +19,8 @@ import ChatSection from "../components/ChatSection.vue";
 const activeTab = ref("chats");
 const userStore = useUserStore();
 const router = useRouter();
+const { clearAllKeys } = useKeyPair();
+const { clearAllSymmetricKeys } = useE2EE();
 
 onMounted(() => {
   if (!userStore.token || userStore.isTokenExpired()) {
@@ -24,7 +28,15 @@ onMounted(() => {
   }
 });
 
-function logout() {
+async function logout() {
+  try {
+    // Clear all E2EE keys
+    await clearAllKeys();
+    clearAllSymmetricKeys();
+  } catch (error) {
+    console.error("Error clearing E2EE keys on logout:", error);
+  }
+  
   userStore.$reset();
   router.replace("/auth");
 }
