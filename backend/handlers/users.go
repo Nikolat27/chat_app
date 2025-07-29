@@ -229,7 +229,7 @@ func (handler *Handler) GetUserGroups(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusBadRequest, "getGroups", err.Error())
 		return
 	}
-	
+
 	response := map[string]any{
 		"groups": groups,
 	}

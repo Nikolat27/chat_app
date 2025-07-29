@@ -31,6 +31,7 @@
 import { defineProps, onMounted, ref, nextTick } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
+import { useGroupStore } from "../stores/groups";
 import axiosInstance from "@/axiosInstance";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useE2EE } from "../composables/useE2EE";
@@ -43,6 +44,7 @@ import SettingsTab from "./tabs/SettingsTab.vue";
 const props = defineProps({ activeTab: String });
 const chatStore = useChatStore();
 const userStore = useUserStore();
+const groupStore = useGroupStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 
 const { loadInitialMessages, loadInitialSecretChatMessages } = useMessagePagination();
@@ -87,6 +89,9 @@ async function fetchUserSecretChats() {
 const handleOpenChat = async (user) => {
     // Clear previous messages before switching to new chat
     chatStore.clearMessages();
+    
+    // Clear any existing group
+    groupStore.clearCurrentGroup();
     
     chatStore.setChatUser(user);
 
@@ -204,9 +209,16 @@ const createNewChat = async (user) => {
 
 const handleGroupClick = (group) => {
     console.log('Opening group chat:', group);
-    // TODO: Implement group chat functionality
-    // For now, just show a message
-    showMessage('Group chat functionality coming soon!');
+    
+    // Clear any existing chat user and group
+    chatStore.clearChatUser();
+    groupStore.clearCurrentGroup();
+    
+    // Set the current group
+    groupStore.setCurrentGroup(group);
+    
+    // Clear messages for the new group chat
+    chatStore.clearMessages();
 };
 
 </script>

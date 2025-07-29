@@ -14,18 +14,28 @@ export function useWebSocket() {
             console.log("Closing existing WebSocket connection");
             currentSocket.close();
             currentSocket = null;
+            // Wait a bit for the connection to close
+            setTimeout(() => {
+                createNewConnection(chatData, onMessageCallback);
+            }, 100);
+        } else {
+            createNewConnection(chatData, onMessageCallback);
         }
+    };
 
-        const { chatId, senderId, receiverId, backendBaseUrl, isSecretChat } = chatData;
+    const createNewConnection = (chatData, onMessageCallback) => {
+        const { chatId, senderId, receiverId, backendBaseUrl, isSecretChat, isGroupChat, groupId } = chatData;
 
-        if (!chatId || !senderId || !receiverId || !backendBaseUrl) {
-            console.error("Missing required data for WebSocket connection:", { chatId, senderId, receiverId, backendBaseUrl });
+        if (!chatId || !senderId || !backendBaseUrl) {
+            console.error("Missing required data for WebSocket connection:", { chatId, senderId, backendBaseUrl });
             return;
         }
 
-        // Use different WebSocket URL for secret chats
+        // Use different WebSocket URL based on chat type
         let wsUrl;
-        if (isSecretChat) {
+        if (isGroupChat && groupId) {
+            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/group/add/${groupId}?sender_id=${senderId}`;
+        } else if (isSecretChat) {
             wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/secret-chat/add/${chatId}?sender_id=${senderId}&receiver_id=${receiverId}`;
         } else {
             wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/chat/add/${chatId}?sender_id=${senderId}&receiver_id=${receiverId}`;
@@ -40,6 +50,7 @@ export function useWebSocket() {
         };
 
         currentSocket.onmessage = (event) => {
+            console.log("📨 Received WebSocket message:", event.data);
             try {
                 const data = JSON.parse(event.data);
                 if (onMessageCallback) {
@@ -47,11 +58,15 @@ export function useWebSocket() {
                 }
             } catch (error) {
                 console.error("Error parsing WebSocket message:", error);
+                // Try to handle as plain text if JSON parsing fails
+                if (onMessageCallback) {
+                    onMessageCallback({ content: event.data });
+                }
             }
         };
 
-        currentSocket.onclose = () => {
-            console.log("WebSocket closed for chat:", chatId);
+        currentSocket.onclose = (event) => {
+            console.log("WebSocket closed for chat:", chatId, "Code:", event.code, "Reason:", event.reason);
             isConnected.value = false;
             currentSocket = null;
         };
@@ -73,6 +88,7 @@ export function useWebSocket() {
         }
 
         try {
+            console.log("📤 Sending WebSocket message:", messageData);
             currentSocket.send(messageData);
             console.log("Message sent successfully");
             return true;

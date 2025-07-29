@@ -12,7 +12,9 @@
                         class="px-3 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center space-x-1"
                         title="View pending approvals"
                     >
-                        <span class="material-icons text-sm">pending_actions</span>
+                        <span class="material-icons text-sm"
+                            >pending_actions</span
+                        >
                         <span>Approvals</span>
                     </button>
                     <span
@@ -252,8 +254,12 @@
                 <!-- Header -->
                 <div class="mb-8 text-center">
                     <div class="mb-6">
-                        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-                            <span class="material-icons text-3xl text-white">group_add</span>
+                        <div
+                            class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg"
+                        >
+                            <span class="material-icons text-3xl text-white"
+                                >group_add</span
+                            >
                         </div>
                     </div>
                     <h3
@@ -279,7 +285,7 @@
                             Invite Link
                         </label>
                         <div class="relative">
-                                                                                <input
+                            <input
                                 v-model="joinGroupCode"
                                 type="text"
                                 placeholder="Enter invite link..."
@@ -348,8 +354,12 @@
                 <!-- Header -->
                 <div class="mb-8 text-center">
                     <div class="mb-6">
-                        <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-                            <span class="material-icons text-3xl text-white">add_circle</span>
+                        <div
+                            class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg"
+                        >
+                            <span class="material-icons text-3xl text-white"
+                                >add_circle</span
+                            >
                         </div>
                     </div>
                     <h3
@@ -546,8 +556,12 @@
                 <!-- Header -->
                 <div class="mb-8 text-center">
                     <div class="mb-6">
-                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-                            <span class="material-icons text-3xl text-white">lock</span>
+                        <div
+                            class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg"
+                        >
+                            <span class="material-icons text-3xl text-white"
+                                >lock</span
+                            >
                         </div>
                     </div>
                     <h3
@@ -676,7 +690,7 @@
         @close="handleDeleteModalClose"
         @action-completed="handleDeleteModalActionCompleted"
     />
-    
+
     <!-- Approval Modal -->
     <ApprovalModal
         :is-visible="showApprovalModal"
@@ -684,7 +698,7 @@
         @close="handleApprovalModalClose"
         @approval-submitted="handleApprovalSubmitted"
     />
-    
+
     <!-- Approvals Modal -->
     <ApprovalsModal
         :is-visible="showApprovalsModal"
@@ -826,10 +840,10 @@ const handleApprovalUpdated = () => {
 const handleCopyInviteLink = async (group) => {
     try {
         await navigator.clipboard.writeText(group.invite_link);
-        showMessage('Invite link copied to clipboard!');
+        showMessage("Invite link copied to clipboard!");
     } catch (error) {
-        console.error('Failed to copy invite link:', error);
-        showError('Failed to copy invite link. Please try again.');
+        console.error("Failed to copy invite link:", error);
+        showError("Failed to copy invite link. Please try again.");
     }
 };
 
@@ -839,47 +853,51 @@ const handleJoinGroup = async () => {
             showError("Please enter an invite link");
             return;
         }
-        
+
         isJoiningGroup.value = true;
-        
+
         // Extract invite link from input
         const inviteLink = joinGroupCode.value.trim();
-        
+
         // Join group using invite link
         const response = await groupStore.joinGroup(inviteLink);
-        
+
         showMessage("Successfully joined group!");
         showJoinGroupModal.value = false;
         joinGroupCode.value = "";
     } catch (error) {
         console.error("Failed to join group:", error);
-        
+
         // Handle approval-specific errors
         const errorType = error.response?.data?.type;
         const errorDetail = error.response?.data?.detail;
-        
+
         switch (errorType) {
-            case 'userApprovalNotFound':
+            case "userApprovalNotFound":
                 // Store the invite link for approval submission
                 approvalInviteLink.value = joinGroupCode.value.trim();
                 showApprovalModal.value = true;
                 break;
-            case 'userApprovalStatus':
-                if (errorDetail?.includes('pending')) {
-                    showError('Your approval is pending. Please wait for admin approval.');
-                } else if (errorDetail?.includes('rejected')) {
-                    showError('Your approval has been rejected. Please contact an administrator.');
+            case "userApprovalStatus":
+                if (errorDetail?.includes("pending")) {
+                    showError(
+                        "Your approval is pending. Please wait for admin approval."
+                    );
+                } else if (errorDetail?.includes("rejected")) {
+                    showError(
+                        "Your approval has been rejected. Please contact an administrator."
+                    );
                 } else {
-                    showError(errorDetail || 'Approval status error occurred.');
+                    showError(errorDetail || "Approval status error occurred.");
                 }
                 break;
-            case 'getUserApproval':
-                showError('Failed to check approval status. Please try again.');
+            case "getUserApproval":
+                showError("Failed to check approval status. Please try again.");
                 break;
             default:
                 showError(
                     errorDetail ||
-                    "Failed to join group. Please check the invite link and try again."
+                        "Failed to join group. Please check the invite link and try again."
                 );
         }
     } finally {

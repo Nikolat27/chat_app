@@ -2,7 +2,7 @@
     <section class="flex flex-col h-full w-full bg-gray-50 font-roboto">
         <!-- Chat Header -->
         <ChatHeader
-            v-if="chatStore.currentChatUser && !isCurrentChatSecret"
+            v-if="chatStore.currentChatUser && !isCurrentChatSecret && !isCurrentChatGroup"
             :user="chatStore.currentChatUser"
             :backend-base-url="backendBaseUrl"
             :is-secret-chat="false"
@@ -18,31 +18,62 @@
             :current-user-id="userStore.user_id"
         />
 
-        <!-- Messages Area -->
+        <!-- Group Chat Header -->
+        <GroupChatHeader
+            v-if="currentGroup && isCurrentChatGroup"
+            :group="currentGroup"
+            :backend-base-url="backendBaseUrl"
+            :current-user-id="userStore.user_id"
+            @leave-group="handleLeaveGroup"
+            @delete-group="handleDeleteGroup"
+            @show-group-info="handleShowGroupInfo"
+        />
+
+        <!-- Regular Chat Messages Area -->
         <MessagesArea
-            v-if="chatStore.currentChatUser"
+            v-if="chatStore.currentChatUser && !isCurrentChatGroup"
             :messages="chatStore.messages"
             :current-user-id="userStore.user_id"
             :backend-base-url="backendBaseUrl"
             :user-avatar="userStore.avatar_url"
-            :other-user-avatar="chatStore.currentChatUser.avatar_url"
+            :other-user-avatar="chatStore.currentChatUser?.avatar_url"
             :chat-id="getCurrentChatId()"
             :is-secret-chat="isCurrentChatSecret"
             :is-secret-chat-approved="isSecretChatApproved"
             @load-more-messages="handleLoadMoreMessages"
         />
 
-        <!-- Message Input -->
+        <!-- Group Chat Messages Area -->
+        <GroupMessagesArea
+            v-if="currentGroup && isCurrentChatGroup"
+            :messages="groupMessages"
+            :current-user-id="userStore.user_id"
+            :backend-base-url="backendBaseUrl"
+            :user-avatar="userStore.avatar_url"
+            :other-user-avatar="null"
+            :chat-id="currentGroup?.id"
+            :is-loading-messages="false"
+            @load-more-messages="handleLoadMoreGroupMessages"
+        />
+
+        <!-- Regular Chat Message Input -->
         <MessageInput
-            v-if="chatStore.currentChatUser"
+            v-if="chatStore.currentChatUser && !isCurrentChatGroup"
             v-model="newMessage"
             :is-secret-chat="isCurrentChatSecret"
             :is-secret-chat-approved="isSecretChatApproved"
             @send="sendMessage"
         />
 
+        <!-- Group Chat Message Input -->
+        <GroupMessageInput
+            v-if="currentGroup && isCurrentChatGroup"
+            v-model="newGroupMessage"
+            @send="sendGroupMessageHandler"
+        />
+
         <!-- No Chat Selected State -->
-        <NoChatSelected v-if="!chatStore.currentChatUser" />
+        <NoChatSelected v-if="!chatStore.currentChatUser && !currentGroup" />
     </section>
 </template>
 
@@ -50,12 +81,17 @@
 import { ref, watch, computed, nextTick } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useUserStore } from "../stores/users";
+import { useGroupStore } from "../stores/groups";
 import ChatHeader from "./chat/ChatHeader.vue";
 import SecretChatHeader from "./chat/SecretChatHeader.vue";
+import GroupChatHeader from "./chat/GroupChatHeader.vue";
 import NoChatSelected from "./chat/NoChatSelected.vue";
 import MessagesArea from "./chat/MessagesArea.vue";
 import MessageInput from "./chat/MessageInput.vue";
+import GroupMessagesArea from "./chat/GroupMessagesArea.vue";
+import GroupMessageInput from "./chat/GroupMessageInput.vue";
 import { useWebSocket } from "../composables/useWebSocket";
+import { useGroupChat } from "../composables/useGroupChat";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useMessageDeletion } from "../composables/useMessageDeletion";
 import { useE2EE } from "../composables/useE2EE";
@@ -65,8 +101,28 @@ import { showMessage, showError } from "../utils/toast";
 
 const chatStore = useChatStore();
 const userStore = useUserStore();
+const groupStore = useGroupStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 const newMessage = ref("");
+
+// Group chat composable
+const {
+    isGroupConnected,
+    groupMessages,
+    newGroupMessage,
+    groupUsers,
+    establishGroupConnection,
+    sendGroupMessage,
+    closeGroupConnection,
+    getGroupConnectionStatus,
+    addGroupMessage,
+    clearGroupMessages,
+    loadGroupUsers,
+    loadGroupMessages,
+    getUsernameBySenderId,
+    getAvatarBySenderId,
+    handleIncomingGroupMessage
+} = useGroupChat();
 
 // Check if current chat is a secret chat
 const isCurrentChatSecret = computed(() => {
@@ -99,6 +155,16 @@ const isSecretChatApproved = computed(() => {
     return secretChat.user_2_accepted === true;
 });
 
+// Check if current chat is a group chat
+const isCurrentChatGroup = computed(() => {
+    return groupStore.currentGroup !== null;
+});
+
+// Get the current group object
+const currentGroup = computed(() => {
+    return groupStore.currentGroup;
+});
+
 // WebSocket management
 const { establishConnection, sendMessage: sendWebSocketMessage, closeConnection, getConnectionStatus } =
     useWebSocket();
@@ -124,10 +190,12 @@ watch(
             isSecretChat: isCurrentChatSecret.value 
         });
         
-        if (oldUserId) {
-            // Close previous connection explicitly
-            console.log('🔌 Closing previous WebSocket connection');
+        // Only close previous connection if we're actually switching to a different user
+        if (oldUserId && oldUserId !== newUserId) {
+            console.log('🔌 Closing previous WebSocket connection due to user change');
             closeConnection();
+            // Wait for connection to close before establishing new one
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
 
         if (newUserId) {
@@ -136,11 +204,11 @@ watch(
             // Try to get chat data with retries
             let chatData = null;
             let retries = 0;
-            const maxRetries = 3;
+            const maxRetries = 5; // Increased retries
             while (!chatData && retries < maxRetries) {
                 chatData = getChatData(newUserId);
                 if (!chatData) {
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Increased wait time
                     retries++;
                 }
             }
@@ -148,7 +216,9 @@ watch(
                 console.log('🔌 Establishing WebSocket connection for chat:', chatData);
                 establishConnection(chatData, handleIncomingMessage);
                 // Wait a bit for connection to establish
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise(resolve => setTimeout(resolve, 500)); // Increased wait time
+            } else {
+                console.error('❌ Failed to get chat data after retries');
             }
         }
     }
@@ -160,6 +230,63 @@ watch(
     (newChatUser, oldChatUser) => {
         if (oldChatUser && !newChatUser) {
             console.log('🔄 Chat user cleared, closing WebSocket connection');
+            closeConnection();
+        }
+    }
+);
+
+// Watch for group changes to manage WebSocket connections
+watch(
+    () => groupStore.currentGroup?.id,
+    async (newGroupId, oldGroupId) => {
+        console.log('🔄 Group changed:', { oldGroupId, newGroupId, currentGroup: groupStore.currentGroup });
+        
+        // Clear group messages when switching groups
+        if (oldGroupId && oldGroupId !== newGroupId) {
+            console.log('🔌 Closing previous group WebSocket connection');
+            closeGroupConnection();
+            clearGroupMessages();
+            // Wait for connection to close before establishing new one
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        if (newGroupId) {
+            console.log('🔄 Starting group initialization for:', newGroupId);
+            
+            // Add a small delay to ensure group is properly set
+            await nextTick();
+            
+            // Load group users first (needed for usernames)
+            console.log('👥 About to load group users...');
+            console.log('👥 loadGroupUsers function:', typeof loadGroupUsers);
+            console.log('👥 Calling loadGroupUsers with groupId:', newGroupId);
+            await loadGroupUsers(newGroupId);
+            console.log('👥 Group users loaded successfully');
+            
+            // Load existing group messages
+            console.log('📥 About to load group messages...');
+            await loadGroupMessages(newGroupId);
+            console.log('📥 Group messages loaded successfully');
+            
+            const groupData = getGroupChatData(newGroupId);
+            if (groupData) {
+                console.log('🔌 Establishing group WebSocket connection:', groupData);
+                establishGroupConnection(groupData, handleIncomingGroupMessage);
+                // Wait a bit for connection to establish
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else {
+                console.error('❌ Failed to get group chat data');
+            }
+        }
+    }
+);
+
+// Watch for when currentGroup becomes null to close WebSocket
+watch(
+    () => groupStore.currentGroup,
+    (newGroup, oldGroup) => {
+        if (oldGroup && !newGroup) {
+            console.log('🔄 Group cleared, closing WebSocket connection');
             closeConnection();
         }
     }
@@ -218,6 +345,23 @@ const getChatData = (targetUserId) => {
         receiverId,
         backendBaseUrl,
         isSecretChat: false,
+    };
+};
+
+// Get group chat data for WebSocket connection
+const getGroupChatData = (groupId) => {
+    if (!groupId || !userStore.user_id) {
+        return null;
+    }
+    
+    return {
+        chatId: groupId, // Use groupId as chatId for group chats
+        senderId: userStore.user_id,
+        receiverId: null, // Not needed for group chats
+        backendBaseUrl,
+        isSecretChat: false,
+        isGroupChat: true,
+        groupId: groupId,
     };
 };
 
@@ -333,6 +477,8 @@ const handleIncomingMessage = async (data) => {
     }
 };
 
+
+
 // Parse incoming message data
 const parseIncomingMessage = (data) => {
     // If the backend sends the message object directly
@@ -368,6 +514,12 @@ const sendMessage = async () => {
         return;
     }
 
+    // Handle group chat
+    if (isCurrentChatGroup.value) {
+        await sendGroupMessage();
+        return;
+    }
+
     const targetUserId = chatStore.currentChatUser?.id;
     
     const chatData = getChatData(targetUserId);
@@ -380,11 +532,21 @@ const sendMessage = async () => {
     const connectionStatus = getConnectionStatus();
     
     if (!connectionStatus.isConnected) {
+        console.log('🔌 WebSocket not connected, establishing connection...');
         establishConnection(chatData, handleIncomingMessage);
         
-        // Wait for connection
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for connection with retries
+        let retries = 0;
+        const maxRetries = 5;
+        while (!getConnectionStatus().isConnected && retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            retries++;
+        }
         
+        if (!getConnectionStatus().isConnected) {
+            showError('Failed to establish WebSocket connection. Please try again.');
+            return;
+        }
     }
 
     // Create temporary ID for immediate display
@@ -432,6 +594,74 @@ const sendMessage = async () => {
     const success = sendWebSocketMessage(messageContent);
     
     newMessage.value = "";
+};
+
+// Send group message handler
+const sendGroupMessageHandler = async () => {
+    if (!groupStore.currentGroup?.id) {
+        showError('No group selected');
+        return;
+    }
+
+    if (!newGroupMessage.value.trim()) return;
+
+    // Check group WebSocket connection status
+    const connectionStatus = getGroupConnectionStatus();
+    
+    if (!connectionStatus.isConnected) {
+        console.log('🔌 Group WebSocket not connected, establishing connection...');
+        const groupData = getGroupChatData(groupStore.currentGroup.id);
+        if (groupData) {
+            establishGroupConnection(groupData, handleIncomingGroupMessage);
+            
+            // Wait for connection with retries
+            let retries = 0;
+            const maxRetries = 5;
+            while (!getGroupConnectionStatus().isConnected && retries < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                retries++;
+            }
+            
+            if (!getGroupConnectionStatus().isConnected) {
+                showError('Failed to establish group WebSocket connection. Please try again.');
+                return;
+            }
+        }
+    }
+
+    // Create temporary ID for immediate display
+    const tempId = `temp-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
+    const messageData = {
+        id: tempId,
+        sender_id: userStore.user_id,
+        content: newGroupMessage.value,
+        message_type: 1, // Text message
+        created_at: new Date().toISOString(),
+        sender_name: userStore.username || 'Unknown User',
+        sender_avatar: userStore.avatar_url || null
+    };
+
+    // Add message to group messages immediately with temp ID
+    addGroupMessage(messageData);
+
+    // Send message via group WebSocket
+    const success = sendGroupMessage(newGroupMessage.value);
+    
+    if (!success) {
+        showError('Failed to send group message. Please try again.');
+        return;
+    }
+    
+    newGroupMessage.value = "";
+};
+
+// Handle load more group messages
+const handleLoadMoreGroupMessages = async () => {
+    // TODO: Implement group message pagination if needed
+    console.log('Load more group messages - not implemented yet');
 };
 
 // Get current chat ID
@@ -497,6 +727,51 @@ const handleDeleteChat = async (user) => {
         console.error('Error deleting chat:', error);
         showError('Failed to delete chat. Please try again.');
     }
+};
+
+// Handle group leave
+const handleLeaveGroup = async (group) => {
+    try {
+        const confirmed = confirm(`Are you sure you want to leave "${group.name}"?`);
+        if (!confirmed) return;
+
+        await groupStore.leaveGroup(group.id);
+        showMessage('Successfully left group');
+        
+        // Clear current group and chat user
+        groupStore.clearCurrentGroup();
+        chatStore.clearChatUser();
+        closeConnection();
+    } catch (error) {
+        console.error('Failed to leave group:', error);
+        showError('Failed to leave group. Please try again.');
+    }
+};
+
+// Handle group delete
+const handleDeleteGroup = async (group) => {
+    try {
+        const confirmed = confirm(`Are you sure you want to delete "${group.name}"? This action cannot be undone.`);
+        if (!confirmed) return;
+
+        await groupStore.deleteGroup(group.id);
+        showMessage('Group deleted successfully');
+        
+        // Clear current group and chat user
+        groupStore.clearCurrentGroup();
+        chatStore.clearChatUser();
+        closeConnection();
+    } catch (error) {
+        console.error('Failed to delete group:', error);
+        showError('Failed to delete group. Please try again.');
+    }
+};
+
+// Handle show group info
+const handleShowGroupInfo = (group) => {
+    // For now, just show a simple alert with group info
+    // You can implement a proper modal later
+    alert(`Group: ${group.name}\nDescription: ${group.description || 'No description'}\nType: ${group.type}\nMembers: ${group.member_count || 0}`);
 };
 </script>
 

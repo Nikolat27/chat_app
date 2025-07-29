@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -321,10 +322,8 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	decryptedMessages := make([]string, 0, len(messages))
-
-	for idx, message := range messages {
-		decodedMessage, err := hex.DecodeString(message.Content)
+	for idx := range messages {
+		decodedMessage, err := hex.DecodeString(messages[idx].Content)
 		if err != nil {
 			slog.Warn("failed to decode message", "err", err, "msgID", messages[idx].Id.Hex())
 			continue
@@ -336,10 +335,63 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 
-		decryptedMessages = append(decryptedMessages, string(decryptedMsg))
+		messages[idx].Content = string(decryptedMsg)
 	}
 
-	utils.WriteJSON(w, http.StatusOK, decryptedMessages)
+	resp := map[string]any{
+		"messages": messages,
+	}
+
+	utils.WriteJSON(w, http.StatusOK, resp)
+}
+
+// GetGroupUsers -> Returns all the users of the group
+func (handler *Handler) GetGroupUsers(w http.ResponseWriter, r *http.Request) {
+	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
+		return
+	}
+
+	groupObjectId, errResp := utils.ToObjectId(groupId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"_id": groupObjectId,
+	}
+
+	projection := bson.M{
+		"users": 1,
+	}
+
+	groupInstance, err := handler.Models.Group.Get(filter, projection)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err)
+		return
+	}
+
+	users := make(map[string]map[string]string)
+	for _, userId := range groupInstance.Users {
+		username, _ := getUserUsername(userId, handler)
+		avatarUrl, _ := getUserAvatarUrl(userId, handler)
+
+		users[userId.Hex()] = map[string]string{
+			"username":   username,
+			"avatar_url": avatarUrl,
+		}
+	}
+
+	fmt.Println(users)
+
+	utils.WriteJSON(w, http.StatusOK, users)
 }
 
 func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
