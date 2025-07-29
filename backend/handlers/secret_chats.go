@@ -194,7 +194,17 @@ func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, "secret chat deleted successfully")
+	filter = bson.M{
+		"chat_id":   chatObjectId,
+		"is_secret": true,
+	}
+
+	if _, err := handler.Models.Message.DeleteAll(filter); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "deleteSecretChatMessages", err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, "secret chat deleted successfully + its messages")
 }
 
 func (handler *Handler) UploadSecretChatPublicKey(w http.ResponseWriter, r *http.Request) {
@@ -328,7 +338,7 @@ func (handler *Handler) UploadSecretChatSymmetricKey(w http.ResponseWriter, r *h
 		utils.WriteError(w, http.StatusBadRequest, "missingPublicKeys", "Both public keys must be uploaded before setting encrypted symmetric key")
 		return
 	}
-	
+
 	updates := bson.M{
 		"user_1_encrypted_symmetric_key": input.User1EncryptedSymmetricKey,
 		"user_2_encrypted_symmetric_key": input.User2EncryptedSymmetricKey,
