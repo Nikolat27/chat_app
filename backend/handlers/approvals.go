@@ -6,6 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"time"
 )
 
 func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +103,8 @@ func (handler *Handler) EditApprovalStatus(w http.ResponseWriter, r *http.Reques
 	}
 
 	updates := bson.M{
-		"status": input.Status,
+		"status":      input.Status,
+		"reviewed_at": time.Now(),
 	}
 
 	if _, err := handler.Models.Approval.Update(filter, updates); err != nil {
