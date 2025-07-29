@@ -14,7 +14,10 @@
 
         <!-- Groups Tab -->
         <div v-else-if="activeTab === 'groups'">
-            <GroupsTab />
+            <GroupsTab 
+                :backend-base-url="backendBaseUrl"
+                @group-clicked="handleGroupClick" 
+            />
         </div>
 
         <!-- Settings Tab -->
@@ -32,6 +35,7 @@ import axiosInstance from "@/axiosInstance";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useE2EE } from "../composables/useE2EE";
 import { useSecretChatEncryption } from "../composables/useSecretChatEncryption";
+import { showMessage } from "../utils/toast";
 import ChatsTab from "./tabs/ChatsTab.vue";
 import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
@@ -198,7 +202,11 @@ const createNewChat = async (user) => {
     }
 };
 
-
-
+const handleGroupClick = (group) => {
+    console.log('Opening group chat:', group);
+    // TODO: Implement group chat functionality
+    // For now, just show a message
+    showMessage('Group chat functionality coming soon!');
+};
 
 </script>

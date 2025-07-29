@@ -20,7 +20,7 @@
             <!-- Join Group Button -->
             <button
                 @click="showJoinGroupModal = true"
-                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] cursor-pointer"
             >
                 <span class="material-icons text-lg">group_add</span>
                 <span>Join Group</span>
@@ -29,7 +29,7 @@
             <!-- Create Group Button -->
             <button
                 @click="showCreateGroupModal = true"
-                class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] cursor-pointer"
             >
                 <span class="material-icons text-lg">add_circle</span>
                 <span>Create Group</span>
@@ -38,15 +38,21 @@
             <!-- Create Secret Group Button -->
             <button
                 @click="showCreateSecretGroupModal = true"
-                class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] cursor-pointer"
             >
                 <span class="material-icons text-lg">lock</span>
                 <span>Create Secret Group</span>
             </button>
         </div>
 
+        <!-- Loading State -->
+        <div v-if="isLoading" class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+            <span class="ml-3 text-gray-600">Loading groups...</span>
+        </div>
+
         <!-- Groups List -->
-        <div v-if="groups && groups.length > 0" class="space-y-3">
+        <div v-else-if="groups && groups.length > 0" class="space-y-3">
             <h4 class="text-sm font-semibold text-gray-700 mb-3">Your Groups</h4>
             <div
                 v-for="group in groups"
@@ -58,7 +64,7 @@
                         <!-- Group Avatar -->
                         <div class="relative">
                             <img
-                                :src="group.avatar_url || '/src/assets/default-group-avatar.jpg'"
+                                :src="group.avatar_url ? `${backendBaseUrl}/static/${group.avatar_url}` : '/src/assets/default-avatar.jpg'"
                                 alt="Group Avatar"
                                 class="w-12 h-12 rounded-full object-cover border-2 border-green-300 shadow-sm group-hover:border-green-400 transition-colors duration-200 select-none pointer-events-none"
                             />
@@ -76,13 +82,15 @@
                                 <div 
                                     :class="group.is_secret 
                                         ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                                        : group.type === 'private'
+                                        ? 'bg-orange-100 text-orange-700 border-orange-200'
                                         : 'bg-green-100 text-green-700 border-green-200'"
                                     class="px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1"
                                 >
                                     <span class="material-icons text-xs">
-                                        {{ group.is_secret ? 'lock' : 'group' }}
+                                        {{ group.is_secret ? 'lock' : group.type === 'private' ? 'lock_outline' : 'group' }}
                                     </span>
-                                    {{ group.is_secret ? 'Secret' : 'Public' }}
+                                    {{ group.is_secret ? 'Secret' : group.type === 'private' ? 'Private' : 'Public' }}
                                 </div>
                             </div>
                             <p class="text-sm text-gray-600 truncate">
@@ -155,123 +163,298 @@
             </div>
         </div>
 
-        <!-- Modals will be added here later -->
         <!-- Join Group Modal -->
-        <div v-if="showJoinGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-2xl p-6 w-96 max-w-[90vw]">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Join Group</h3>
-                <p class="text-sm text-gray-600 mb-4">Enter the group code or name to join an existing group.</p>
-                <input
-                    v-model="joinGroupCode"
-                    type="text"
-                    placeholder="Enter group code or name"
-                    class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <div class="flex gap-3">
+        <div v-if="showJoinGroupModal" class="fixed inset-0 bg-gradient-to-br from-blue-100 via-white to-blue-200 bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 w-96 max-w-[90vw] transform transition-all duration-300 scale-100">
+                <!-- Close Button -->
+                <button
+                    class="absolute top-4 right-4 text-gray-400 hover:text-blue-700 hover:bg-blue-50 w-10 h-10 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center"
+                    @click="showJoinGroupModal = false"
+                    aria-label="Close"
+                >
+                    <span class="material-icons text-xl">close</span>
+                </button>
+
+                <!-- Header -->
+                <div class="mb-8 text-center">
+                    <div class="mb-4">
+                        <span class="material-icons text-4xl text-blue-500 mb-3">group_add</span>
+                    </div>
+                    <h3 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 mb-3 tracking-tight">
+                        Join Group
+                    </h3>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        Enter the group code or name to join an existing group.
+                    </p>
+                </div>
+
+                <!-- Join Form -->
+                <div class="space-y-6">
+                    <div>
+                        <label class="block mb-3 text-blue-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">key</span>
+                            Group Code or Name
+                        </label>
+                        <div class="relative">
+                            <input
+                                v-model="joinGroupCode"
+                                type="text"
+                                placeholder="Enter group code or name..."
+                                class="w-full border-2 border-blue-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-200 text-gray-700"
+                                @keyup.enter="handleJoinGroup"
+                                :disabled="isJoiningGroup"
+                            />
+                            <div v-if="isJoiningGroup" class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 mt-8">
                     <button
                         @click="showJoinGroupModal = false"
-                        class="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        class="flex-1 px-6 py-3 text-gray-600 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
                     >
                         Cancel
                     </button>
                     <button
                         @click="handleJoinGroup"
-                        class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        :disabled="isJoiningGroup || !joinGroupCode.trim()"
+                        class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
-                        Join Group
+                        <span v-if="!isJoiningGroup" class="material-icons align-middle mr-2 text-base">group_add</span>
+                        <span v-else class="material-icons align-middle mr-2 text-base animate-spin">hourglass_empty</span>
+                        {{ isJoiningGroup ? 'Joining...' : 'Join Group' }}
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Create Group Modal -->
-        <div v-if="showCreateGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-2xl p-6 w-96 max-w-[90vw]">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Create Group</h3>
-                <div class="space-y-4">
+        <div v-if="showCreateGroupModal" class="fixed inset-0 bg-gradient-to-br from-green-100 via-white to-green-200 bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100">
+                <!-- Close Button -->
+                <button
+                    class="absolute top-4 right-4 text-gray-400 hover:text-green-700 hover:bg-green-50 w-10 h-10 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center"
+                    @click="showCreateGroupModal = false"
+                    aria-label="Close"
+                >
+                    <span class="material-icons text-xl">close</span>
+                </button>
+
+                <!-- Header -->
+                <div class="mb-8 text-center">
+                    <div class="mb-4">
+                        <span class="material-icons text-4xl text-green-500 mb-3">add_circle</span>
+                    </div>
+                    <h3 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-500 mb-3 tracking-tight">
+                        Create Group
+                    </h3>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        Create a new group for collaborative conversations.
+                    </p>
+                </div>
+
+                <!-- Create Group Form -->
+                <div class="space-y-6">
+                    <!-- Group Avatar Upload -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
+                        <label class="block mb-3 text-green-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">photo_camera</span>
+                            Group Avatar (Optional)
+                        </label>
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <img
+                                    :src="newGroup.avatar_url || '/src/assets/default-avatar.jpg'"
+                                    alt="Group Avatar Preview"
+                                    class="w-16 h-16 rounded-full object-cover border-2 border-green-300 shadow-sm"
+                                />
+                                <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span class="material-icons text-white text-xs">group</span>
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <input
+                                    ref="avatarInput"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.webp"
+                                    @change="handleAvatarUpload"
+                                    class="hidden"
+                                />
+                                <button
+                                    @click="$refs.avatarInput.click()"
+                                    class="w-full px-4 py-2 border-2 border-green-200 rounded-xl hover:border-green-300 transition-all duration-200 text-green-700 font-medium"
+                                >
+                                    <span class="material-icons align-middle mr-1 text-sm">upload</span>
+                                    Choose Avatar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Group Name -->
+                    <div>
+                        <label class="block mb-3 text-green-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">edit</span>
+                            Group Name *
+                        </label>
                         <input
                             v-model="newGroup.name"
                             type="text"
-                            placeholder="Enter group name"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            placeholder="Enter group name..."
+                            class="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400 transition-all duration-200 text-gray-700"
                         />
                     </div>
+
+                    <!-- Group Description -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                        <label class="block mb-3 text-green-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">description</span>
+                            Description (Optional)
+                        </label>
                         <textarea
                             v-model="newGroup.description"
-                            placeholder="Enter group description"
+                            placeholder="Enter group description..."
                             rows="3"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            class="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400 transition-all duration-200 text-gray-700 resize-none"
                         ></textarea>
                     </div>
+
+                    <!-- Group Type -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Group Type</label>
+                        <label class="block mb-3 text-green-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">security</span>
+                            Group Type
+                        </label>
                         <select
                             v-model="newGroup.type"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            class="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400 transition-all duration-200 text-gray-700"
                         >
                             <option value="public">Public (Anyone can join)</option>
                             <option value="private">Private (Invite only)</option>
                         </select>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <span v-if="newGroup.type === 'public'">
+                                <span class="material-icons text-green-500 text-xs align-middle mr-1">public</span>
+                                Public groups are visible to everyone and can be joined without invitation.
+                            </span>
+                            <span v-else>
+                                <span class="material-icons text-orange-500 text-xs align-middle mr-1">lock_outline</span>
+                                Private groups require an invite code to join and are not publicly visible.
+                            </span>
+                        </p>
                     </div>
                 </div>
-                <div class="flex gap-3 mt-6">
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 mt-8">
                     <button
                         @click="showCreateGroupModal = false"
-                        class="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        class="flex-1 px-6 py-3 text-gray-600 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
                     >
                         Cancel
                     </button>
                     <button
                         @click="handleCreateGroup"
-                        class="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                        :disabled="isCreatingGroup || !newGroup.name.trim()"
+                        class="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
-                        Create Group
+                        <span v-if="!isCreatingGroup" class="material-icons align-middle mr-2 text-base">add_circle</span>
+                        <span v-else class="material-icons align-middle mr-2 text-base animate-spin">hourglass_empty</span>
+                        {{ isCreatingGroup ? 'Creating...' : 'Create Group' }}
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Create Secret Group Modal -->
-        <div v-if="showCreateSecretGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-2xl p-6 w-96 max-w-[90vw]">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Create Secret Group</h3>
-                <p class="text-sm text-gray-600 mb-4">Create an end-to-end encrypted group chat for maximum privacy.</p>
-                <div class="space-y-4">
+        <div v-if="showCreateSecretGroupModal" class="fixed inset-0 bg-gradient-to-br from-purple-100 via-white to-purple-200 bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100">
+                <!-- Close Button -->
+                <button
+                    class="absolute top-4 right-4 text-gray-400 hover:text-purple-700 hover:bg-purple-50 w-10 h-10 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center"
+                    @click="showCreateSecretGroupModal = false"
+                    aria-label="Close"
+                >
+                    <span class="material-icons text-xl">close</span>
+                </button>
+
+                <!-- Header -->
+                <div class="mb-8 text-center">
+                    <div class="mb-4">
+                        <span class="material-icons text-4xl text-purple-500 mb-3">lock</span>
+                    </div>
+                    <h3 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 mb-3 tracking-tight">
+                        Create Secret Group
+                    </h3>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        Create an end-to-end encrypted group chat for maximum privacy.
+                    </p>
+                </div>
+
+                <!-- Create Secret Group Form -->
+                <div class="space-y-6">
+
+                    <!-- Group Name -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
+                        <label class="block mb-3 text-purple-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">edit</span>
+                            Group Name *
+                        </label>
                         <input
                             v-model="newSecretGroup.name"
                             type="text"
-                            placeholder="Enter secret group name"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="Enter secret group name..."
+                            class="w-full border-2 border-purple-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all duration-200 text-gray-700"
                         />
                     </div>
+
+                    <!-- Group Description -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                        <label class="block mb-3 text-purple-700 font-semibold text-sm">
+                            <span class="material-icons align-middle mr-1 text-base">description</span>
+                            Description (Optional)
+                        </label>
                         <textarea
                             v-model="newSecretGroup.description"
-                            placeholder="Enter group description"
+                            placeholder="Enter group description..."
                             rows="3"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            class="w-full border-2 border-purple-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all duration-200 text-gray-700 resize-none"
                         ></textarea>
                     </div>
+
+                    <!-- Security Info -->
+                    <div class="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-icons text-purple-600 text-sm">security</span>
+                            <span class="text-sm font-semibold text-purple-700">End-to-End Encrypted</span>
+                        </div>
+                        <p class="text-xs text-purple-600 leading-relaxed">
+                            All messages in this group will be encrypted with unique keys for each member. 
+                            Only group members can decrypt the messages.
+                        </p>
+                    </div>
                 </div>
-                <div class="flex gap-3 mt-6">
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 mt-8">
                     <button
                         @click="showCreateSecretGroupModal = false"
-                        class="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        class="flex-1 px-6 py-3 text-gray-600 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
                     >
                         Cancel
                     </button>
                     <button
                         @click="handleCreateSecretGroup"
-                        class="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                        :disabled="isCreatingSecretGroup || !newSecretGroup.name.trim()"
+                        class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
-                        Create Secret Group
+                        <span v-if="!isCreatingSecretGroup" class="material-icons align-middle mr-2 text-base">lock</span>
+                        <span v-else class="material-icons align-middle mr-2 text-base animate-spin">hourglass_empty</span>
+                        {{ isCreatingSecretGroup ? 'Creating...' : 'Create Secret Group' }}
                     </button>
                 </div>
             </div>
@@ -280,21 +463,42 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { showMessage, showError } from '../../utils/toast';
+import { useGroupStore } from '../../stores/groups';
+
+// Props
+const props = defineProps({
+    backendBaseUrl: {
+        type: String,
+        default: import.meta.env.VITE_BACKEND_BASE_URL
+    }
+});
+
+// Store
+const groupStore = useGroupStore();
+
+// Emits
+const emit = defineEmits(['group-clicked']);
 
 // Reactive state
-const groups = ref([]); // Will be populated from backend
+const isLoading = computed(() => groupStore.isLoading);
+const groups = computed(() => groupStore.getUserGroups);
 const showJoinGroupModal = ref(false);
 const showCreateGroupModal = ref(false);
 const showCreateSecretGroupModal = ref(false);
 const joinGroupCode = ref('');
+const isJoiningGroup = ref(false);
+const isCreatingGroup = ref(false);
+const isCreatingSecretGroup = ref(false);
 
 // Form data
 const newGroup = reactive({
     name: '',
     description: '',
-    type: 'public'
+    type: 'public',
+    avatar_url: '',
+    avatar_file: null
 });
 
 const newSecretGroup = reactive({
@@ -302,20 +506,39 @@ const newSecretGroup = reactive({
     description: ''
 });
 
-// Event handlers
+// Load user groups on component mount
+onMounted(async () => {
+    await loadUserGroups();
+});
+
+// API Functions
+const loadUserGroups = async () => {
+    try {
+        await groupStore.loadUserGroups();
+    } catch (error) {
+        console.error('Failed to load groups:', error);
+        showError('Failed to load groups. Please try again.');
+    }
+};
+
 const handleGroupClick = (group) => {
     console.log('Opening group:', group);
-    // TODO: Implement group chat opening
-    showMessage('Group chat functionality coming soon!');
+    // Set the current group in the store
+    groupStore.setCurrentGroup(group);
+    // Emit event to parent to open group chat
+    emit('group-clicked', group);
 };
 
 const handleLeaveGroup = async (group) => {
     try {
-        console.log('Leaving group:', group);
-        // TODO: Implement leave group API call
-        showMessage('Leave group functionality coming soon!');
+        const confirmed = confirm(`Are you sure you want to leave "${group.name}"?`);
+        if (!confirmed) return;
+
+        await groupStore.leaveGroup(group.id);
+        showMessage('Successfully left group');
     } catch (error) {
-        showError('Failed to leave group');
+        console.error('Failed to leave group:', error);
+        showError('Failed to leave group. Please try again.');
     }
 };
 
@@ -326,13 +549,42 @@ const handleJoinGroup = async () => {
             return;
         }
         
-        console.log('Joining group with code:', joinGroupCode.value);
-        // TODO: Implement join group API call
-        showMessage('Join group functionality coming soon!');
+        isJoiningGroup.value = true;
+        
+        // Try to join by invite code first, then by group name
+        let response;
+        try {
+            response = await groupStore.joinGroup({
+                invite_code: joinGroupCode.value.trim()
+            });
+        } catch (error) {
+            // If invite code fails, try searching for group by name
+            try {
+                const foundGroups = await groupStore.searchGroups(joinGroupCode.value.trim());
+                const foundGroup = foundGroups.find(g => g.type === 'public' && !g.is_member);
+                
+                if (foundGroup) {
+                    response = await groupStore.joinGroup({
+                        group_id: foundGroup.id
+                    });
+                } else {
+                    throw new Error('Group not found or you are already a member');
+                }
+            } catch (searchError) {
+                // If search also fails, show a helpful message
+                showError('Join group functionality not yet implemented on backend. Please try creating a group instead.');
+                return;
+            }
+        }
+        
+        showMessage('Successfully joined group!');
         showJoinGroupModal.value = false;
         joinGroupCode.value = '';
     } catch (error) {
-        showError('Failed to join group');
+        console.error('Failed to join group:', error);
+        showError(error.response?.data?.detail || 'Failed to join group. Please check the code and try again.');
+    } finally {
+        isJoiningGroup.value = false;
     }
 };
 
@@ -343,17 +595,61 @@ const handleCreateGroup = async () => {
             return;
         }
         
-        console.log('Creating group:', newGroup);
-        // TODO: Implement create group API call
-        showMessage('Create group functionality coming soon!');
+        isCreatingGroup.value = true;
+        
+        // Create FormData for multipart/form-data
+        const formData = new FormData();
+        formData.append('name', newGroup.name.trim());
+        formData.append('description', newGroup.description.trim());
+        formData.append('group_type', newGroup.type);
+        
+        // Add file if selected
+        if (newGroup.avatar_file) {
+            formData.append('file', newGroup.avatar_file);
+        }
+        
+        console.log('Creating group with FormData:', {
+            name: newGroup.name.trim(),
+            description: newGroup.description.trim(),
+            group_type: newGroup.type,
+            hasFile: !!newGroup.avatar_file
+        });
+        
+        const createdGroup = await groupStore.createGroup(formData);
+        
+        // Show success message from backend or default
+        const successMessage = createdGroup.message || 'Group created successfully!';
+        showMessage(successMessage);
+        
+        // If there's an invite link, show it
+        if (createdGroup.invite_link) {
+            console.log('Group invite link:', createdGroup.invite_link);
+            // You could show this in a modal or copy to clipboard
+        }
+        
         showCreateGroupModal.value = false;
         
         // Reset form
         newGroup.name = '';
         newGroup.description = '';
         newGroup.type = 'public';
+        newGroup.avatar_file = null;
+        newGroup.avatar_url = '';
     } catch (error) {
-        showError('Failed to create group');
+        console.error('Failed to create group:', error);
+        let errorMessage = 'Failed to create group. Please try again.';
+        
+        if (error.response?.data?.detail) {
+            errorMessage = error.response.data.detail;
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showError(errorMessage);
+    } finally {
+        isCreatingGroup.value = false;
     }
 };
 
@@ -364,16 +660,83 @@ const handleCreateSecretGroup = async () => {
             return;
         }
         
-        console.log('Creating secret group:', newSecretGroup);
-        // TODO: Implement create secret group API call
-        showMessage('Create secret group functionality coming soon!');
+        isCreatingSecretGroup.value = true;
+        
+        // Create FormData for multipart/form-data
+        const formData = new FormData();
+        formData.append('name', newSecretGroup.name.trim());
+        formData.append('description', newSecretGroup.description.trim());
+        formData.append('group_type', 'secret');
+        
+        console.log('Creating secret group with FormData:', {
+            name: newSecretGroup.name.trim(),
+            description: newSecretGroup.description.trim(),
+            group_type: 'secret'
+        });
+        
+        const createdGroup = await groupStore.createSecretGroup(formData);
+        
+        // Show success message from backend or default
+        const successMessage = createdGroup.message || 'Secret group created successfully!';
+        showMessage(successMessage);
+        
+        // If there's an invite link, show it
+        if (createdGroup.invite_link) {
+            console.log('Secret group invite link:', createdGroup.invite_link);
+            // You could show this in a modal or copy to clipboard
+        }
+        
         showCreateSecretGroupModal.value = false;
         
         // Reset form
         newSecretGroup.name = '';
         newSecretGroup.description = '';
     } catch (error) {
-        showError('Failed to create secret group');
+        console.error('Failed to create secret group:', error);
+        let errorMessage = 'Failed to create secret group. Please try again.';
+        
+        if (error.response?.data?.detail) {
+            errorMessage = error.response.data.detail;
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showError(errorMessage);
+    } finally {
+        isCreatingSecretGroup.value = false;
+    }
+};
+
+// Avatar upload functions
+const handleAvatarUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        // Check file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+            showError('Avatar file size must be less than 5MB');
+            return;
+        }
+        
+        // Check file format
+        const allowedFormats = ['.jpg', '.jpeg', '.png', '.webp'];
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedFormats.includes(fileExtension)) {
+            showError('Only JPG, JPEG, PNG, and WebP formats are allowed');
+            return;
+        }
+        
+        // Store the file for FormData
+        newGroup.avatar_file = file;
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            newGroup.avatar_url = e.target.result;
+        };
+        reader.readAsDataURL(file);
     }
 };
 </script>
