@@ -36,7 +36,7 @@ func (handler *Handler) CreateUser(username string, rawPassword []byte) *utils.E
 
 func (handler *Handler) SearchUser(w http.ResponseWriter, r *http.Request) {
 	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
-		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (handler *Handler) SearchUser(w http.ResponseWriter, r *http.Request) {
 func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
 	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+		utils.WriteError(w, http.StatusUnauthorized, err.Type, err.Detail)
 		return
 	}
 
@@ -97,7 +97,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 func (handler *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
 	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+		utils.WriteError(w, http.StatusUnauthorized, err.Type, err.Detail)
 		return
 	}
 
@@ -131,7 +131,7 @@ func (handler *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (handler *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
 	if errResp != nil {
-		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (handler *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 func (handler *Handler) GetUserSecretChats(w http.ResponseWriter, r *http.Request) {
 	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
 	if errResp != nil {
-		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -199,6 +199,39 @@ func (handler *Handler) GetUserSecretChats(w http.ResponseWriter, r *http.Reques
 	response := map[string]any{
 		"secret_chats":     chats,
 		"secret_usernames": usernames,
+	}
+
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+// GetUserGroups -> Returns the chats themselves
+func (handler *Handler) GetUserGroups(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"users": bson.M{
+			"$in": []primitive.ObjectID{payload.UserId},
+		},
+	}
+
+	page, pageLimit, errResp := utils.ParsePageAndLimitQueryParams(r.URL)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groups, err := handler.Models.Group.GetAll(filter, bson.M{}, page, pageLimit)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		utils.WriteError(w, http.StatusBadRequest, "getGroups", err.Error())
+		return
+	}
+
+	response := map[string]any{
+		"groups": groups,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)
