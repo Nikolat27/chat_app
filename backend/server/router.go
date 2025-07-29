@@ -75,8 +75,8 @@ func NewRouter(handler *handlers.Handler) *Router {
 		// Approvals
 		r.Get("/received-approvals/get/", handler.GetReceivedApprovals)
 		r.Get("/sent-approvals/get/", handler.GetSentApprovals)
-		r.Post("/approvals/create/{group_id}", handler.CreateApproval)
-		r.Put("/approvals/edit-status", handler.EditApprovalStatus)
+		r.Post("/approvals/submit/{invite_link}", handler.CreateApproval)
+		r.Put("/approvals/edit-status/{approval_id}", handler.EditApprovalStatus)
 		r.Delete("/approvals/delete/{approval_id}", handler.DeleteApproval)
 
 	})
