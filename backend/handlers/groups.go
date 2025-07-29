@@ -438,3 +438,24 @@ func checkUserApproval(groupId, userId primitive.ObjectID, handler *Handler) *ut
 
 	return nil
 }
+
+func (handler *Handler) getIdByInviteLink(inviteLink string) (primitive.ObjectID, error) {
+	filter := bson.M{
+		"invite_link": inviteLink,
+	}
+
+	projection := bson.M{
+		"_id": 1,
+	}
+
+	groupInstance, err := handler.Models.Group.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return primitive.NilObjectID, errors.New("group with this id does not exist")
+		}
+
+		return primitive.NilObjectID, errors.New(err.Error())
+	}
+
+	return groupInstance.Id, nil
+}
