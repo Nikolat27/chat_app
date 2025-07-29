@@ -207,7 +207,7 @@ const createNewChat = async (user) => {
     }
 };
 
-const handleGroupClick = (group) => {
+const handleGroupClick = async (group) => {
     console.log('Opening group chat:', group);
     
     // Clear any existing chat user and group
@@ -219,6 +219,22 @@ const handleGroupClick = (group) => {
     
     // Clear messages for the new group chat
     chatStore.clearMessages();
+    
+    // Load group users and messages
+    try {
+        console.log('👥 Loading group users for group:', group.id);
+        const response = await axiosInstance.get(`/api/group/get/${group.id}/users`);
+        console.log('👥 Group users response:', response.data);
+        
+        // Store group users in the group store or a reactive variable
+        // For now, we'll store it in the group store
+        groupStore.setGroupUsers(response.data);
+        
+        console.log('✅ Loaded', Object.keys(response.data).length, 'group users');
+    } catch (error) {
+        console.error('❌ Failed to load group users:', error);
+        console.error('❌ Error details:', error.response?.data);
+    }
 };
 
 </script>
