@@ -32,7 +32,7 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		description = "no description"
 	}
 
-	groupType := r.FormValue("name")
+	groupType := r.FormValue("group_type")
 	if groupType == "" {
 		groupType = "public"
 	}
@@ -56,6 +56,7 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{
 		"message":     "group created successfully",
 		"invite_link": inviteLink,
+		"avatar_url":  avatarUrl,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)
@@ -328,4 +329,67 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 	}
 
 	utils.WriteJSON(w, http.StatusOK, decryptedMessages)
+}
+
+func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
+		return
+	}
+
+	groupObjectId, errResp := utils.ToObjectId(groupId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"_id": groupObjectId,
+	}
+
+	projection := bson.M{
+		"users":    1,
+		"owner_id": 1,
+	}
+
+	groupInstance, err := handler.Models.Group.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			utils.WriteError(w, http.StatusBadRequest, "getGroup", "group with this id does not exist")
+			return
+		}
+
+		utils.WriteError(w, http.StatusBadRequest, "getGroup", err.Error())
+		return
+	}
+
+	if payload.UserId == groupInstance.OwnerId {
+		utils.WriteError(w, http.StatusBadRequest, "leaveGroup", "group owner can`t leave it. You can Delete it")
+		return
+	}
+
+	if !slices.Contains(groupInstance.Users, payload.UserId) {
+		utils.WriteError(w, http.StatusBadRequest, "leaveGroup", "you are not a memeber of this group")
+		return
+	}
+
+	newUsers := utils.DeleteElementFromSlice(groupInstance.Users, payload.UserId)
+
+	updates := bson.M{
+		"users": newUsers,
+	}
+
+	if _, err := handler.Models.Group.Update(filter, updates); err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "updatingGroup", err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, "you left the group successfully")
 }
