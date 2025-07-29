@@ -38,9 +38,9 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	allowedFormats := []string{".jpg", ".jpeg", ".png", ".webp"}
-	avatarUrl, err := utils.UploadFile(r, "file", allowedFormats)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+	avatarUrl, errResp := utils.UploadFile(r, "file", allowedFormats)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -48,13 +48,16 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	users := []primitive.ObjectID{payload.UserId}
 
-	if _, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, users); err != nil {
+	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, users)
+	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createGroup", "failed to create group")
 		return
 	}
 
 	response := map[string]string{
 		"message":     "group created successfully",
+		"group_id":    result.InsertedID.(primitive.ObjectID).Hex(),
+		"owner_id":    payload.UserId.Hex(),
 		"invite_link": inviteLink,
 		"avatar_url":  avatarUrl,
 	}
