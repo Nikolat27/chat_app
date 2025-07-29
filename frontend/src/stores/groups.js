@@ -155,7 +155,55 @@ export const useGroupStore = defineStore('groups', {
                 
                 const joinedGroup = response.data.group || response.data;
                 
-                // Check if group already exists in our list
+                // After joining, fetch the complete group data to get name, avatar_url, etc.
+                try {
+                    const groupDetailsResponse = await axiosInstance.get('/api/user/get-groups');
+                    console.log('Updated groups response after joining:', groupDetailsResponse.data);
+                    
+                    let groupsData = groupDetailsResponse.data.groups || groupDetailsResponse.data || [];
+                    
+                    // Ensure groupsData is an array
+                    if (!Array.isArray(groupsData)) {
+                        groupsData = [];
+                    }
+                    
+                    // Find the newly joined group in the updated list
+                    const updatedGroup = groupsData.find(group => 
+                        group.id === joinedGroup.id || group._id === joinedGroup.id
+                    );
+                    
+                    if (updatedGroup) {
+                        // Replace the basic joined group with complete data
+                        const completeGroup = {
+                            id: updatedGroup.id || updatedGroup._id,
+                            name: updatedGroup.name,
+                            description: updatedGroup.description,
+                            type: updatedGroup.type,
+                            avatar_url: updatedGroup.avatar_url,
+                            invite_link: updatedGroup.invite_link,
+                            owner_id: updatedGroup.owner_id,
+                            created_at: updatedGroup.created_at,
+                            member_count: updatedGroup.users?.length || updatedGroup.member_count || 1,
+                            role: updatedGroup.role || 'member'
+                        };
+                        
+                        // Check if group already exists in our list
+                        const existingIndex = this.groups.findIndex(g => g.id === completeGroup.id);
+                        if (existingIndex === -1) {
+                            this.groups.push(completeGroup);
+                        } else {
+                            // Update existing group with complete data
+                            this.groups[existingIndex] = completeGroup;
+                        }
+                        
+                        return completeGroup;
+                    }
+                } catch (detailsError) {
+                    console.error('Failed to fetch complete group details:', detailsError);
+                    // Fallback to the basic joined group data
+                }
+                
+                // Fallback: use the basic joined group data
                 const existingIndex = this.groups.findIndex(g => g.id === joinedGroup.id);
                 if (existingIndex === -1) {
                     this.groups.push(joinedGroup);
