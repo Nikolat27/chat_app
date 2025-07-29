@@ -204,6 +204,11 @@ const handleChatDeleted = (chatId) => {
     // Remove associated data
     delete props.chatStore.avatarUrls[chatId];
     delete props.chatStore.usernames[chatId];
+    
+    // If this was the current chat, clear it
+    if (props.chatStore.currentChatUser?.chat_id === chatId) {
+        props.chatStore.clearChatUser();
+    }
 };
 
 // Handle secret chat deletion

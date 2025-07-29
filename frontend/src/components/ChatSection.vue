@@ -152,6 +152,17 @@ watch(
     }
 );
 
+// Watch for when currentChatUser becomes null to close WebSocket
+watch(
+    () => chatStore.currentChatUser,
+    (newChatUser, oldChatUser) => {
+        if (oldChatUser && !newChatUser) {
+            console.log('🔄 Chat user cleared, closing WebSocket connection');
+            closeConnection();
+        }
+    }
+);
+
 // Get chat data for WebSocket connection
 const getChatData = (targetUserId) => {
     // Check if this is a secret chat
