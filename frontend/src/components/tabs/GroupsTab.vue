@@ -6,11 +6,21 @@
                 <span class="material-icons text-green-600 text-xl">group</span>
                 <h3 class="text-lg font-bold text-gray-800">Groups</h3>
                 <div class="flex-1"></div>
-                <span
-                    class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
-                >
-                    {{ groups ? groups.length : 0 }} groups
-                </span>
+                <div class="flex items-center space-x-3">
+                    <button
+                        @click="handleOpenApprovals"
+                        class="px-3 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center space-x-1"
+                        title="View pending approvals"
+                    >
+                        <span class="material-icons text-sm">pending_actions</span>
+                        <span>Approvals</span>
+                    </button>
+                    <span
+                        class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
+                    >
+                        {{ groups ? groups.length : 0 }} groups
+                    </span>
+                </div>
             </div>
             <p class="text-sm text-gray-600">
                 Create and join group conversations with multiple participants
@@ -147,16 +157,6 @@
                                 title="Open group chat"
                             >
                                 <span class="material-icons text-sm">chat</span>
-                            </button>
-                            <button
-                                v-if="group.owner_id !== userStore.user_id"
-                                @click.stop="handleLeaveGroup(group)"
-                                class="w-8 h-8 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
-                                title="Leave group"
-                            >
-                                <span class="material-icons text-sm"
-                                    >exit_to_app</span
-                                >
                             </button>
                             <button
                                 v-if="group.invite_link"
@@ -676,6 +676,21 @@
         @close="handleDeleteModalClose"
         @action-completed="handleDeleteModalActionCompleted"
     />
+    
+    <!-- Approval Modal -->
+    <ApprovalModal
+        :is-visible="showApprovalModal"
+        :invite-link="approvalInviteLink"
+        @close="handleApprovalModalClose"
+        @approval-submitted="handleApprovalSubmitted"
+    />
+    
+    <!-- Approvals Modal -->
+    <ApprovalsModal
+        :is-visible="showApprovalsModal"
+        @close="handleApprovalsModalClose"
+        @approval-updated="handleApprovalUpdated"
+    />
 </template>
 
 <script setup>
@@ -684,6 +699,8 @@ import { showMessage, showError } from "../../utils/toast";
 import { useGroupStore } from "../../stores/groups";
 import { useUserStore } from "../../stores/users";
 import LeaveGroupModal from "../ui/LeaveGroupModal.vue";
+import ApprovalModal from "../ui/ApprovalModal.vue";
+import ApprovalsModal from "../ui/ApprovalsModal.vue";
 
 // Props
 const props = defineProps({
@@ -708,7 +725,10 @@ const showCreateGroupModal = ref(false);
 const showCreateSecretGroupModal = ref(false);
 const showLeaveModal = ref(false);
 const showDeleteModal = ref(false);
+const showApprovalModal = ref(false);
+const showApprovalsModal = ref(false);
 const selectedGroup = ref(null);
+const approvalInviteLink = ref(null);
 const joinGroupCode = ref("");
 const isJoiningGroup = ref(false);
 const isCreatingGroup = ref(false);
@@ -781,6 +801,28 @@ const handleDeleteModalActionCompleted = () => {
     // The store already updated the groups list
 };
 
+const handleApprovalModalClose = () => {
+    showApprovalModal.value = false;
+    approvalInviteLink.value = null;
+};
+
+const handleApprovalSubmitted = () => {
+    // This function is no longer needed since we show the toast directly in the modal
+};
+
+const handleOpenApprovals = () => {
+    showApprovalsModal.value = true;
+};
+
+const handleApprovalsModalClose = () => {
+    showApprovalsModal.value = false;
+};
+
+const handleApprovalUpdated = () => {
+    // Refresh groups list after approval action
+    loadUserGroups();
+};
+
 const handleCopyInviteLink = async (group) => {
     try {
         await navigator.clipboard.writeText(group.invite_link);
@@ -818,7 +860,9 @@ const handleJoinGroup = async () => {
         
         switch (errorType) {
             case 'userApprovalNotFound':
-                showError('You need to submit an approval request first before joining this group.');
+                // Store the invite link for approval submission
+                approvalInviteLink.value = joinGroupCode.value.trim();
+                showApprovalModal.value = true;
                 break;
             case 'userApprovalStatus':
                 if (errorDetail?.includes('pending')) {
