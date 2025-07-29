@@ -18,9 +18,12 @@ type SecretChat struct {
 	Id                         primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	User1                      primitive.ObjectID `json:"user_1" bson:"user_1"`
 	User2                      primitive.ObjectID `json:"user_2" bson:"user_2"`
+	User1PublicKey             string             `json:"user_1_public_key" bson:"user_1_public_key"`
+	User2PublicKey             string             `json:"user_2_public_key" bson:"user_2_public_key"`
 	User1EncryptedSymmetricKey string             `json:"user_1_encrypted_symmetric_key" bson:"user_1_encrypted_symmetric_key"`
 	User2EncryptedSymmetricKey string             `json:"user_2_encrypted_symmetric_key" bson:"user_2_encrypted_symmetric_key"`
 	User2Accepted              bool               `json:"user_2_accepted" bson:"user_2_accepted"`
+	KeyFinalized               bool               `json:"key_finalized" bson:"key_finalized"`
 	ExpireAt                   *time.Time         `json:"expire_at" bson:"expire_at"`
 	CreatedAt                  time.Time          `json:"created_at" bson:"created_at"`
 }

@@ -53,14 +53,12 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Put("/save-message/update/{message_id}", handler.EditSaveMessage)
 		r.Delete("/save-message/delete", handler.DeleteSaveMessage)
 
+		r.Get("/secret-chat/get/{secret_chat_id}", handler.GetSecretChat)
 		r.Post("/secret-chat/create", handler.CreateSecretChat)
 		r.Get("/secret-chat/get/{secret_chat_id}/messages", handler.GetSecretChatMessages)
 		r.Delete("/secret-chat/delete/{secret_chat_id}", handler.DeleteSecretChat)
-<<<<<<< HEAD
-		r.Post("/secret-chat/add-public-key/{secret_chat_id}", handler.UpdateSecretChat)
-=======
-		r.Post("/secret-chat/add-symmetric-key/{secret_chat_id}", handler.UpdateSecretChat)
->>>>>>> testBranch2
+		r.Post("/secret-chat/add-public-key/{secret_chat_id}", handler.UploadSecretChatPublicKey)
+		r.Post("/secret-chat/add-symmetric-key/{secret_chat_id}", handler.UploadSecretChatSymmetricKey)
 		r.Post("/secret-chat/approve/{secret_chat_id}", handler.ApproveSecretChat)
 		// chat websocket
 		r.Get("/websocket/secret-chat/add/{secret_chat_id}", handler.AddSecretChatWebsocket)
