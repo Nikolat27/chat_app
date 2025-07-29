@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"chat_app/utils"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"time"
 )
@@ -16,15 +18,15 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groupId := chi.URLParam(r, "group_id")
-	if groupId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "urlParam", "group id is missing")
+	inviteLink := chi.URLParam(r, "invite_link")
+	if inviteLink == "" {
+		utils.WriteError(w, http.StatusBadRequest, "urlParam", "invite-link is missing")
 		return
 	}
 
-	groupObjectId, errResp := utils.ToObjectId(groupId)
-	if errResp != nil {
-		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+	groupId, err := handler.getIdByInviteLink(inviteLink)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "getIdByInviteLink", err.Error())
 		return
 	}
 
@@ -33,10 +35,33 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filter := bson.M{
-		"_id": groupObjectId,
+		"group_id":     groupId,
+		"requester_id": payload.UserId,
 	}
 
 	projection := bson.M{
+		"_id": 1,
+	}
+
+	approvalInstance, err := handler.Models.Approval.Get(filter, projection)
+	if err != nil {
+		if !errors.Is(err, mongo.ErrNoDocuments) {
+			utils.WriteError(w, http.StatusBadRequest, "getApproval", "app")
+			return
+		}
+	}
+
+	// block duplicate approvals
+	if approvalInstance.Id != primitive.NilObjectID {
+		utils.WriteError(w, http.StatusBadRequest, "getApproval", "You only can create one approval per group")
+		return
+	}
+
+	filter = bson.M{
+		"_id": groupId,
+	}
+
+	projection = bson.M{
 		"owner_id": 1,
 	}
 
@@ -51,7 +76,7 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newApproval, err := handler.Models.Approval.Create(groupObjectId, groupInstance.OwnerId, payload.UserId, input.Reason)
+	newApproval, err := handler.Models.Approval.Create(groupId, groupInstance.OwnerId, payload.UserId, input.Reason)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createApproval", err.Error())
 		return
