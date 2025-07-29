@@ -49,7 +49,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/group/create", handler.CreateGroup)
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
 		r.Get("/group/get/{group_id}", handler.GetGroupMessages)
-		r.Get("/group/leave/{group_id}", handler.LeaveGroup)
+		r.Delete("/group/leave/{group_id}", handler.LeaveGroup)
 		r.Delete("/group/remove-user/{group_id}/{user_id}", handler.RemoveUserFromGroup)
 		r.Delete("/group/delete/{group_id}", handler.DeleteGroup)
 		// group websocket
