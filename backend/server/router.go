@@ -30,6 +30,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/user/upload-avatar", handler.UploadAvatar)
 		r.Get("/user/get-chats", handler.GetUserChats)
 		r.Get("/user/get-secret-chats", handler.GetUserSecretChats)
+		r.Get("/user/get-groups", handler.GetUserGroups)
 
 		// Chats
 		r.Post("/chat/create", handler.CreateChat)
@@ -48,6 +49,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/group/create", handler.CreateGroup)
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
 		r.Get("/group/get/{group_id}", handler.GetGroupMessages)
+		r.Get("/group/leave/{group_id}", handler.LeaveGroup)
 		r.Delete("/group/remove-user/{group_id}/{user_id}", handler.RemoveUserFromGroup)
 		r.Delete("/group/delete/{group_id}", handler.DeleteGroup)
 		// group websocket
