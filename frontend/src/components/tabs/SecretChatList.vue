@@ -175,6 +175,7 @@ import axiosInstance from "@/axiosInstance";
 import { showError, showMessage } from "@/utils/toast";
 import { useKeyPair } from "@/composables/useKeyPair";
 import { useE2EE } from "@/composables/useE2EE";
+import { useSecretChatEncryption } from "@/composables/useSecretChatEncryption";
 import { useChatStore } from "@/stores/chat";
 import ConfirmModal from "../ui/ConfirmModal.vue";
 
@@ -194,6 +195,7 @@ const deleteModalMessage = ref("");
 const chatToDelete = ref(null);
 const { generateSecretChatKeyPair, hasSecretChatKeys, clearSecretChatKeys } = useKeyPair();
 const { clearSymmetricKey } = useE2EE();
+const { initializeSecretChatEncryption, handleUserBApprovalForSecretChat } = useSecretChatEncryption();
 
 const shouldShowApprove = (chat) => {
     return (
@@ -205,8 +207,21 @@ async function approveSecretChat(chat) {
     isApproving.value = chat.id;
     
     try {
+        console.log('🔐 Approving secret chat:', chat.id);
+        
+        // First approve the chat
         await axiosInstance.post(`/api/secret-chat/approve/${chat.id}`);
-        showMessage("Secret chat approved successfully! You can now start messaging.");
+        console.log('✅ Chat approved successfully');
+        
+        // Initialize encryption (generate key pair and upload public key)
+        await initializeSecretChatEncryption(chat.id);
+        console.log('✅ Public key uploaded');
+        
+        // Handle User B approval (generate symmetric key)
+        await handleUserBApprovalForSecretChat(chat.id);
+        console.log('✅ Symmetric key generated and uploaded');
+        
+        showMessage("Secret chat approved successfully! Symmetric key generated. You can now start messaging.");
         
         // Refresh secret chats from backend to ensure UI is in sync
         const secretChatsResponse = await axiosInstance.get("/api/user/get-secret-chats");
@@ -218,6 +233,7 @@ async function approveSecretChat(chat) {
         // Update local chat object
         chat.user_2_accepted = true;
     } catch (err) {
+        console.error('❌ Error approving secret chat:', err);
         showError("Failed to approve secret chat. Please try again.");
     } finally {
         isApproving.value = null;
@@ -231,15 +247,9 @@ const handleSecretChatClick = async (chat) => {
         const hasKeys = await hasSecretChatKeys(chat.id);
         
         if (!hasKeys) {
-            // Generate new key pair for this secret chat
-            const publicKey = await generateSecretChatKeyPair(chat.id);
-            
-            // Send public key to backend
-            await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${chat.id}`, {
-                public_key: publicKey
-            });
-            
-            showMessage("Encryption keys generated and exchanged successfully!");
+            // Initialize encryption for this secret chat (upload public key)
+            await initializeSecretChatEncryption(chat.id);
+            showMessage("Public key uploaded successfully!");
         }
         
         // Emit the chat click event

@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { useChatStore } from "../stores/chat";
 import { useE2EE } from "./useE2EE";
+import { useSecretChatEncryption } from "./useSecretChatEncryption";
 import axiosInstance from "../axiosInstance";
 
 export function useMessagePagination() {
@@ -129,7 +130,11 @@ export function useMessagePagination() {
     };
 
     // Load secret chat messages
-    const loadSecretChatMessages = async (secretChatId, page = 1, limit = 20) => {
+    const loadSecretChatMessages = async (
+        secretChatId,
+        page = 1,
+        limit = 20
+    ) => {
         if (isLoading.value) return;
 
         try {
@@ -147,6 +152,8 @@ export function useMessagePagination() {
             // Handle the response structure for secret chat messages
             const rawMessages = response.data || [];
 
+            console.log(response.data);
+
             // Parse each message from JSON string to object and decrypt if needed
             const messages = await Promise.all(
                 rawMessages
@@ -156,7 +163,11 @@ export function useMessagePagination() {
                                 const parsed = JSON.parse(msg);
                                 return parsed;
                             } catch (e) {
-                                console.error("Failed to parse secret chat message:", msg, e);
+                                console.error(
+                                    "Failed to parse secret chat message:",
+                                    msg,
+                                    e
+                                );
                                 return null;
                             }
                         }
@@ -168,23 +179,82 @@ export function useMessagePagination() {
             // Decrypt messages if they are encrypted
             const decryptedMessages = await Promise.all(
                 messages.map(async (msg) => {
-                    if (msg.content && typeof msg.content === 'string' && msg.content.length > 100) {
-                        // Likely encrypted content, try to decrypt
-                        try {
-                            const decryptedContent = await decryptMessage(msg.content, secretChatId);
-                            return {
-                                ...msg,
-                                content: decryptedContent
-                            };
-                        } catch (error) {
-                            console.error('Error decrypting message:', error);
-                            return {
-                                ...msg,
-                                content: '[Encrypted message - decryption failed]'
-                            };
+                    if (msg.content && typeof msg.content === "string") {
+                        console.log(
+                            "🔍 Checking message for encryption:",
+                            msg.id,
+                            "Content length:",
+                            msg.content.length,
+                            "Is secret:",
+                            msg.is_secret
+                        );
+
+                        // For secret chat messages, always try to decrypt if they have encrypted content
+                        const shouldDecrypt = msg.is_secret === true && 
+                            msg.content.length > 20 && 
+                            /^[A-Za-z0-9+/=]+$/.test(msg.content) && // Base64 pattern
+                            msg.content.length % 4 === 0; // Base64 length check
+
+                        console.log("🔍 Message encryption check:", {
+                            id: msg.id,
+                            length: msg.content.length,
+                            isSecret: msg.is_secret,
+                            isBase64: /^[A-Za-z0-9+/=]+$/.test(msg.content),
+                            lengthMod4: msg.content.length % 4 === 0,
+                            shouldDecrypt,
+                        });
+
+                        if (shouldDecrypt) {
+                            try {
+                                console.log(
+                                    "🔐 Attempting to decrypt message:",
+                                    msg.id
+                                );
+                                
+                                // Ensure we have the symmetric key loaded
+                                const { hasSymmetricKey } = useE2EE();
+                                const { loadSecretChatSymmetricKey } = useSecretChatEncryption();
+                                const keyAvailable = await hasSymmetricKey(secretChatId);
+                                
+                                if (!keyAvailable) {
+                                    console.log('🔐 Symmetric key not found, attempting to load...');
+                                    await loadSecretChatSymmetricKey(secretChatId);
+                                }
+                                
+                                const decryptedContent = await decryptMessage(
+                                    msg.content,
+                                    secretChatId
+                                );
+                                console.log(
+                                    "✅ Successfully decrypted message:",
+                                    msg.id,
+                                    "Content:",
+                                    decryptedContent
+                                );
+                                return {
+                                    ...msg,
+                                    content: decryptedContent,
+                                };
+                            } catch (error) {
+                                console.error(
+                                    "❌ Error decrypting message:",
+                                    msg.id,
+                                    error
+                                );
+                                // If decryption fails, return the encrypted content with a note
+                                return {
+                                    ...msg,
+                                    content: '[Encrypted message - decryption failed]',
+                                };
+                            }
+                        } else {
+                            console.log(
+                                "🔍 Message appears to be plaintext or not encrypted:",
+                                msg.id
+                            );
                         }
                     }
-                    return msg; // Not encrypted or decryption failed
+                    return msg; // Not encrypted, return as is
                 })
             );
 

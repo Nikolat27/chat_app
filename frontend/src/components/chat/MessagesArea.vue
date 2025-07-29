@@ -9,7 +9,9 @@
             <div
                 class="inline-flex items-center px-6 py-3 bg-white rounded-full shadow-lg border border-gray-200"
             >
-                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"></div>
+                <div
+                    class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"
+                ></div>
                 <span class="text-gray-700 text-sm font-medium"
                     >Loading messages...</span
                 >
@@ -32,7 +34,7 @@
                     <template v-if="msg.sender_id !== currentUserId">
                         <div class="flex-shrink-0">
                             <img
-                                :src="getAvatarUrl(otherUserAvatar)"
+                                :src="isSecretChat ? '/src/assets/default-secret-chat-avatar.jpg' : getAvatarUrl(otherUserAvatar)"
                                 class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md select-none pointer-events-none"
                                 alt="Avatar"
                             />
@@ -78,7 +80,9 @@
                                 class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl"
                                 title="Delete message"
                             >
-                                <span class="material-icons text-sm">delete</span>
+                                <span class="material-icons text-sm"
+                                    >delete</span
+                                >
                             </button>
                         </div>
                     </div>
@@ -98,15 +102,27 @@
         </div>
 
         <!-- Secret Chat Not Approved Warning -->
-        <div v-if="isSecretChat && !isSecretChatApproved" class="flex flex-col items-center justify-center h-full text-center py-12">
-            <div class="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                <span class="material-icons text-orange-500 text-4xl">lock</span>
+        <div
+            v-if="isSecretChat && !isSecretChatApproved"
+            class="flex flex-col items-center justify-center h-full text-center py-12"
+        >
+            <div
+                class="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6"
+            >
+                <span class="material-icons text-orange-500 text-4xl"
+                    >lock</span
+                >
             </div>
-            <h3 class="text-xl font-semibold text-gray-700 mb-2">Secret Chat Pending Approval</h3>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">
+                Secret Chat Pending Approval
+            </h3>
             <p class="text-gray-500 text-sm max-w-md mb-4">
-                This secret chat is waiting for the other user to approve it. You'll be able to send messages once it's approved.
+                This secret chat is waiting for the other user to approve it.
+                You'll be able to send messages once it's approved.
             </p>
-            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 max-w-md">
+            <div
+                class="bg-orange-50 border border-orange-200 rounded-lg p-4 max-w-md"
+            >
                 <div class="flex items-center gap-2 text-orange-700 mb-2">
                     <span class="material-icons text-sm">info</span>
                     <span class="text-sm font-medium">What happens next?</span>
@@ -129,11 +145,18 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!messages || !messages.length" class="flex flex-col items-center justify-center h-full text-center py-12">
-            <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6">
+        <div
+            v-else-if="!messages || !messages.length"
+            class="flex flex-col items-center justify-center h-full text-center py-12"
+        >
+            <div
+                class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6"
+            >
                 <span class="material-icons text-gray-400 text-4xl">chat</span>
             </div>
-            <h3 class="text-xl font-semibold text-gray-700 mb-2">No messages yet</h3>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">
+                No messages yet
+            </h3>
             <p class="text-gray-500 text-sm max-w-md">
                 Start the conversation by sending your first message!
             </p>
@@ -147,8 +170,12 @@
             <div
                 class="bg-white w-96 p-8 rounded-2xl shadow-2xl border border-gray-100 text-center space-y-6"
             >
-                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span class="material-icons text-red-600 text-2xl">delete</span>
+                <div
+                    class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                >
+                    <span class="material-icons text-red-600 text-2xl"
+                        >delete</span
+                    >
                 </div>
                 <h3 class="text-xl font-bold text-gray-800">Delete Message</h3>
                 <p class="text-base text-gray-600 leading-relaxed">
@@ -327,8 +354,10 @@ const deleteMessageByType = async (type) => {
 
     // Store the message for potential restoration
     const chatStore = useChatStore();
-    const messageToRestore = chatStore.messages.find(msg => msg.id === messageToDeleteId.value);
-    
+    const messageToRestore = chatStore.messages.find(
+        (msg) => msg.id === messageToDeleteId.value
+    );
+
     // Immediately remove message from Vue array for better UX
     const success = chatStore.deleteMessage(messageToDeleteId.value);
     if (!success) {
@@ -343,7 +372,7 @@ const deleteMessageByType = async (type) => {
     } catch (err) {
         console.error("Delete failed:", err);
         showError("Failed to delete message from server");
-        
+
         // Restore the message if backend deletion failed
         if (messageToRestore) {
             chatStore.addMessage(messageToRestore);

@@ -59,6 +59,7 @@ import { useWebSocket } from "../composables/useWebSocket";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useMessageDeletion } from "../composables/useMessageDeletion";
 import { useE2EE } from "../composables/useE2EE";
+import { useSecretChatEncryption } from "../composables/useSecretChatEncryption";
 import axiosInstance from "../axiosInstance";
 import { showMessage, showError } from "../utils/toast";
 
@@ -76,27 +77,16 @@ const isCurrentChatSecret = computed(() => {
         return true;
     }
     
-    const currentUserId = userStore.user_id;
-    const targetUserId = chatStore.currentChatUser.id;
-    
-    // Check if this is a secret chat by looking in secret chats
-    return chatStore.secretChats?.some(chat => 
-        (chat.user_1 === currentUserId && chat.user_2 === targetUserId) ||
-        (chat.user_2 === currentUserId && chat.user_1 === targetUserId)
-    ) || false;
+    // If no secret_chat_id is present, it's definitely not a secret chat
+    return false;
 });
 
 // Get the current secret chat object
 const currentSecretChat = computed(() => {
-    if (!isCurrentChatSecret.value || !chatStore.currentChatUser?.id) return null;
+    if (!isCurrentChatSecret.value || !chatStore.currentChatUser?.secret_chat_id) return null;
     
-    const currentUserId = userStore.user_id;
-    const targetUserId = chatStore.currentChatUser.id;
-    
-    return chatStore.secretChats?.find(chat => 
-        (chat.user_1 === currentUserId && chat.user_2 === targetUserId) ||
-        (chat.user_2 === currentUserId && chat.user_1 === targetUserId)
-    ) || null;
+    // Find the secret chat by its ID
+    return chatStore.secretChats?.find(chat => chat.id === chatStore.currentChatUser.secret_chat_id) || null;
 });
 
 // Check if the current secret chat is approved
@@ -121,11 +111,19 @@ const { updateMessageId } = useMessageDeletion();
 
 // E2EE
 const { encryptMessage, decryptMessage, loadChatSymmetricKey } = useE2EE();
+const { loadSecretChatSymmetricKey, validateSecretChatForEncryption, encryptMessageForSending } = useSecretChatEncryption();
 
 // Watch for chat user changes to manage WebSocket connections
 watch(
     () => chatStore.currentChatUser?.id,
     async (newUserId, oldUserId) => {
+        console.log('🔄 Chat user changed:', { 
+            oldUserId, 
+            newUserId, 
+            currentChatUser: chatStore.currentChatUser,
+            isSecretChat: isCurrentChatSecret.value 
+        });
+        
         if (oldUserId) {
             // Close previous connection explicitly
             closeConnection();
@@ -218,9 +216,48 @@ const handleIncomingMessage = async (data) => {
     let decryptedContent = message.content;
     if (isCurrentChatSecret.value && message.content) {
         try {
-            decryptedContent = await decryptMessage(message.content, message.chat_id);
+            // For secret chats, use the secret_chat_id instead of chat_id
+            const chatId = chatStore.currentChatUser?.secret_chat_id || message.chat_id;
+            console.log('🔐 Decrypting incoming message for secret chat:', {
+                message_chat_id: message.chat_id,
+                secret_chat_id: chatStore.currentChatUser?.secret_chat_id,
+                used_chat_id: chatId,
+                content_length: message.content.length,
+                is_secret: message.is_secret
+            });
+            
+            // For WebSocket messages in secret chats, always try to decrypt if content looks encrypted
+            // WebSocket messages might not have the is_secret flag, so we rely on the chat context
+            const shouldDecrypt = message.content.length > 20 && 
+                /^[A-Za-z0-9+/=]+$/.test(message.content) && // Base64 pattern
+                message.content.length % 4 === 0; // Base64 length check
+            
+            console.log('🔍 Incoming WebSocket message encryption check:', {
+                shouldDecrypt,
+                length: message.content.length,
+                isSecret: message.is_secret,
+                isBase64: /^[A-Za-z0-9+/=]+$/.test(message.content),
+                isSecretChat: isCurrentChatSecret.value
+            });
+            
+            if (shouldDecrypt) {
+                // Check if we have the symmetric key, if not try to load it
+                const { hasSymmetricKey } = useE2EE();
+                const { loadSecretChatSymmetricKey } = useSecretChatEncryption();
+                const keyAvailable = await hasSymmetricKey(chatId);
+                
+                if (!keyAvailable) {
+                    console.log('🔐 Symmetric key not found, attempting to load...');
+                    await loadSecretChatSymmetricKey(chatId);
+                }
+                
+                decryptedContent = await decryptMessage(message.content, chatId);
+                console.log('✅ Successfully decrypted incoming WebSocket message');
+            } else {
+                console.log('🔍 Incoming WebSocket message appears to be plaintext or not encrypted');
+            }
         } catch (error) {
-            console.error('Error decrypting message:', error);
+            console.error('Error decrypting WebSocket message:', error);
             // If decryption fails, show encrypted content or error message
             decryptedContent = '[Encrypted message - decryption failed]';
         }
@@ -313,10 +350,18 @@ const sendMessage = async () => {
     // Encrypt message if this is a secret chat
     if (isCurrentChatSecret.value) {
         try {
-            messageContent = await encryptMessage(newMessage.value, chatData.chatId);
+            // Validate that the chat is ready for messaging
+            const validation = await validateSecretChatForEncryption(chatData.chatId);
+            if (!validation.valid) {
+                showError(validation.message);
+                return;
+            }
+            
+            // Now encrypt the message
+            messageContent = await encryptMessageForSending(newMessage.value, chatData.chatId);
         } catch (error) {
             console.error('Error encrypting message:', error);
-            showError('Failed to encrypt message. Please try again.');
+            showError('Failed to encrypt message: ' + error.message);
             return;
         }
     }

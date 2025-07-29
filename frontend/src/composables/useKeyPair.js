@@ -50,8 +50,9 @@ export function useKeyPair() {
             keyPair.privateKey
         );
 
-        // Store private key with the specific secret chat ID
+        // Store both public and private keys with the specific secret chat ID
         await localforage.setItem(`secretChatPrivateKey_${secretChatId}`, privateKey);
+        await localforage.setItem(`secretChatPublicKey_${secretChatId}`, publicKey);
         
         // Return the public key as JWK (not base64 encoded)
         return publicKey;
@@ -99,29 +100,88 @@ export function useKeyPair() {
     const exportSecretChatPublicKey = async (secretChatId) => {
         const privateKey = await getSecretChatPrivateKey(secretChatId);
         if (privateKey) {
-            // Convert private key back to CryptoKey to get the public key
-            const cryptoKey = await window.crypto.subtle.importKey(
-                "jwk",
-                privateKey,
-                {
-                    name: "RSA-OAEP",
-                    modulusLength: 2048,
-                    publicExponent: new Uint8Array([1, 0, 1]),
-                    hash: "SHA-256",
-                },
-                true,
-                ["encrypt", "decrypt"]
-            );
+            // For RSA, we need to store both public and private keys
+            // Let me check if we have the public key stored
+            const publicKey = await localforage.getItem(`secretChatPublicKey_${secretChatId}`);
+            if (publicKey) {
+                return publicKey;
+            }
             
-            // Get the public key from the key pair
-            const publicKey = await window.crypto.subtle.exportKey(
-                "jwk",
-                cryptoKey.publicKey
-            );
-            
-            return publicKey;
+            // If we don't have the public key stored, we can't extract it from the private key
+            // This means we need to regenerate the key pair
+            console.warn('Public key not found, regenerating key pair for chat:', secretChatId);
+            await generateSecretChatKeyPair(secretChatId);
+            return await localforage.getItem(`secretChatPublicKey_${secretChatId}`);
         }
         return null;
+    };
+
+    // Encrypt a message with a public key (for direct RSA encryption)
+    const encryptMessage = async (message, publicKeyJwk, chatId) => {
+        try {
+            // Import the public key
+            const publicKey = await window.crypto.subtle.importKey(
+                "jwk",
+                publicKeyJwk,
+                {
+                    name: "RSA-OAEP",
+                    hash: "SHA-256"
+                },
+                false,
+                ["encrypt"]
+            );
+            
+            // Encrypt the message
+            const encodedMessage = new TextEncoder().encode(message);
+            const encryptedData = await window.crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                encodedMessage
+            );
+            
+            // Return base64 encoded encrypted message
+            return btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+        } catch (error) {
+            console.error('Error encrypting message:', error);
+            throw new Error('Failed to encrypt message');
+        }
+    };
+
+    // Decrypt a message with private key (for direct RSA decryption)
+    const decryptMessage = async (encryptedMessageBase64, privateKeyJwk, chatId) => {
+        try {
+            // Import the private key
+            const privateKey = await window.crypto.subtle.importKey(
+                "jwk",
+                privateKeyJwk,
+                {
+                    name: "RSA-OAEP",
+                    hash: "SHA-256"
+                },
+                false,
+                ["decrypt"]
+            );
+            
+            // Decode base64 encrypted message
+            const encryptedMessage = Uint8Array.from(atob(encryptedMessageBase64), c => c.charCodeAt(0));
+            
+            // Decrypt the message
+            const decryptedData = await window.crypto.subtle.decrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                privateKey,
+                encryptedMessage
+            );
+            
+            // Convert back to string
+            return new TextDecoder().decode(decryptedData);
+        } catch (error) {
+            console.error('Error decrypting message:', error);
+            throw new Error('Failed to decrypt message');
+        }
     };
 
     const clearKeys = async () => {
@@ -157,6 +217,8 @@ export function useKeyPair() {
         getSecretChatPrivateKey,
         exportPublicKey,
         exportSecretChatPublicKey,
+        encryptMessage,
+        decryptMessage,
         clearKeys,
         clearSecretChatKeys,
         clearAllKeys,

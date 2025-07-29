@@ -31,6 +31,7 @@ import { useUserStore } from "../stores/users";
 import axiosInstance from "@/axiosInstance";
 import { useMessagePagination } from "../composables/useMessagePagination";
 import { useE2EE } from "../composables/useE2EE";
+import { useSecretChatEncryption } from "../composables/useSecretChatEncryption";
 import ChatsTab from "./tabs/ChatsTab.vue";
 import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
@@ -42,6 +43,7 @@ const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 
 const { loadInitialMessages, loadInitialSecretChatMessages } = useMessagePagination();
 const { loadChatSymmetricKey } = useE2EE();
+const { loadSecretChatSymmetricKey } = useSecretChatEncryption();
 const chatsLoaded = ref(false);
 
 onMounted(async () => {
@@ -90,15 +92,25 @@ const handleOpenChat = async (user) => {
 
     // Check if this is a secret chat
     if (user.secret_chat_id) {
+        console.log('🔐 Opening secret chat with ID:', user.secret_chat_id);
         // For secret chats, load the symmetric key first
         try {
-            // Get the encrypted symmetric key from backend
-            const response = await axiosInstance.get(`/api/secret-chat/${user.secret_chat_id}/symmetric-key`);
-            if (response.data?.encrypted_symmetric_key) {
-                await loadChatSymmetricKey(user.secret_chat_id, response.data.encrypted_symmetric_key);
+            console.log('🔐 Attempting to load symmetric key...');
+            const symmetricKeyLoaded = await loadSecretChatSymmetricKey(user.secret_chat_id);
+            console.log('🔐 Symmetric key loading result:', symmetricKeyLoaded);
+            if (!symmetricKeyLoaded) {
+                console.log('⚠️ Symmetric key not available for secret chat, encryption disabled');
+                // Continue without E2EE if key loading fails
+            } else {
+                console.log('✅ Symmetric key loaded successfully');
             }
+            
+            // Check if key is in memory after loading
+            const { hasSymmetricKey } = useE2EE();
+            const keyInMemory = await hasSymmetricKey(user.secret_chat_id);
+            console.log('🔍 Key in memory after loading:', keyInMemory);
         } catch (error) {
-            console.error('Error loading symmetric key:', error);
+            console.error('❌ Error loading symmetric key:', error);
             // Continue without E2EE if key loading fails
         }
         

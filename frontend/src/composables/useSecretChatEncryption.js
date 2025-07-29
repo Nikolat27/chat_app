@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { useChatStore } from '../stores/chat';
 import { useUserStore } from '../stores/users';
 import { useKeyPair } from './useKeyPair';
+import { useE2EE } from './useE2EE';
 import axiosInstance from '../axiosInstance';
 
 export function useSecretChatEncryption() {
@@ -10,11 +11,21 @@ export function useSecretChatEncryption() {
     const { 
         generateSecretChatKeyPair,
         exportSecretChatPublicKey,
-        hasSecretChatKeys,
+        hasSecretChatKeys
+    } = useKeyPair();
+    
+    const {
         encryptMessage,
         decryptMessage,
-        getSecretChatPrivateKey
-    } = useKeyPair();
+        uploadPublicKey,
+        getSecretChatData,
+        uploadEncryptedSymmetricKeys,
+        handleUserBApproval,
+        loadSymmetricKeyForUserA,
+        loadSymmetricKeyForUserB,
+        isChatReadyForMessaging,
+        hasSymmetricKey
+    } = useE2EE();
 
     // Check if current chat is a secret chat
     const isCurrentChatSecret = () => {
@@ -45,10 +56,8 @@ export function useSecretChatEncryption() {
             
             // Send public key to backend
             try {
-                const response = await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${secretChatId}`, {
-                    public_key: publicKey
-                });
-                console.log('✅ Successfully uploaded public key, response:', response.data);
+                await uploadPublicKey(secretChatId, publicKey);
+                console.log('✅ Successfully uploaded public key');
                 
                 // Refresh secret chat data from backend
                 await refreshSecretChatData();
@@ -95,23 +104,34 @@ export function useSecretChatEncryption() {
         return isUser1 ? secretChat.user_1_public_key : secretChat.user_2_public_key;
     };
 
-    // Encrypt message for sending
-    const encryptMessageForSending = async (message, recipientUserId) => {
+    // Encrypt message for sending using symmetric key
+    const encryptMessageForSending = async (message, chatId) => {
         try {
-            console.log('🔐 Encrypting message for sending');
+            console.log('🔐 Encrypting message for sending using symmetric key');
             
-            const secretChat = getCurrentSecretChat();
-            if (!secretChat) {
-                throw new Error('Secret chat not found');
+            // Check if chat is ready for messaging
+            const isReady = await isChatReadyForMessaging(chatId);
+            if (!isReady) {
+                throw new Error('Chat is not ready for messaging. Keys are not finalized yet.');
             }
             
-            const recipientPublicKey = getRecipientPublicKey(secretChat, userStore.user_id);
-            if (!recipientPublicKey) {
-                throw new Error('Recipient public key not available. Cannot send encrypted message.');
+            // Check if symmetric key is available
+            let hasKey = await hasSymmetricKey(chatId);
+            if (!hasKey) {
+                console.log('⚠️ Symmetric key not in memory, attempting to load it...');
+                // Try to load the symmetric key
+                const loaded = await loadSecretChatSymmetricKey(chatId);
+                if (loaded) {
+                    hasKey = await hasSymmetricKey(chatId);
+                }
             }
             
-            // Encrypt the message with recipient's public key
-            const encryptedMessage = await encryptMessage(message, recipientPublicKey, secretChat.id);
+            if (!hasKey) {
+                throw new Error('No symmetric key available for this chat. Please wait for keys to be finalized.');
+            }
+            
+            // Encrypt the message with the symmetric key
+            const encryptedMessage = await encryptMessage(message, chatId);
             
             console.log('✅ Message encrypted for sending');
             return encryptedMessage;
@@ -121,7 +141,7 @@ export function useSecretChatEncryption() {
         }
     };
 
-    // Decrypt incoming messages
+    // Decrypt incoming messages using symmetric key
     const decryptIncomingMessage = async (message) => {
         console.log('🔍 Starting decryption for message:', message);
         
@@ -138,17 +158,25 @@ export function useSecretChatEncryption() {
         }
 
         try {
-            console.log('🔐 Found secret chat, attempting to decrypt message');
+            console.log('🔐 Found secret chat, attempting to decrypt message with symmetric key');
+            console.log('🔍 Message details:', {
+                chat_id: message.chat_id,
+                content_length: message.content?.length,
+                is_encrypted: message.content?.includes('==') || message.content?.length > 100
+            });
 
-            // Get sender's public key for decryption
-            const senderPublicKey = getSenderPublicKey(secretChat, message.sender_id);
-            if (!senderPublicKey) {
-                console.log('❌ No sender public key found for this message');
-                return message;
-            }
+            // Check if symmetric key is available
+            const hasKey = await hasSymmetricKey(message.chat_id);
+            console.log('🔍 Symmetric key available:', hasKey);
             
-            // Decrypt the message with sender's public key
-            const decryptedContent = await decryptMessage(message.content, senderPublicKey, message.chat_id);
+            if (!hasKey) {
+                console.log('⚠️ Symmetric key not available, attempting to load it...');
+                const loaded = await loadSecretChatSymmetricKey(message.chat_id);
+                console.log('🔍 Symmetric key loading result:', loaded);
+            }
+
+            // Decrypt the message with symmetric key
+            const decryptedContent = await decryptMessage(message.content, message.chat_id);
             console.log('✅ Successfully decrypted message content:', decryptedContent);
 
             return {
@@ -157,12 +185,16 @@ export function useSecretChatEncryption() {
             };
         } catch (error) {
             console.error('❌ Error during message decryption:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
             return message;
         }
     };
 
     // Validate secret chat for encryption
-    const validateSecretChatForEncryption = () => {
+    const validateSecretChatForEncryption = async (chatId) => {
         if (!isCurrentChatSecret()) {
             return { valid: true, message: null };
         }
@@ -172,14 +204,74 @@ export function useSecretChatEncryption() {
             return { valid: false, message: 'Secret chat not found' };
         }
 
-        const currentUserId = userStore.user_id;
-        const recipientPublicKey = getRecipientPublicKey(secretChat, currentUserId);
-        
-        if (!recipientPublicKey) {
-            return { valid: false, message: 'Recipient public key not available. Cannot send encrypted message.' };
+        // Check if chat is ready for messaging
+        const isReady = await isChatReadyForMessaging(chatId);
+        if (!isReady) {
+            return { valid: false, message: 'Chat is not ready for messaging. Keys are not finalized yet.' };
         }
 
         return { valid: true, message: null };
+    };
+
+    // Load symmetric key for a secret chat
+    const loadSecretChatSymmetricKey = async (secretChatId) => {
+        try {
+            console.log('🔐 Loading symmetric key for secret chat:', secretChatId);
+            
+            // Get secret chat data to determine which user we are
+            const chatData = await getSecretChatData(secretChatId);
+            const currentUserId = userStore.user_id;
+            
+            console.log('🔍 Chat data:', {
+                chatId: secretChatId,
+                currentUserId,
+                user_1: chatData.user_1,
+                user_2: chatData.user_2,
+                key_finalized: chatData.key_finalized,
+                user_1_encrypted_symmetric_key: !!chatData.user_1_encrypted_symmetric_key,
+                user_2_encrypted_symmetric_key: !!chatData.user_2_encrypted_symmetric_key
+            });
+            
+            // Determine if we are User A or User B
+            const isUserA = chatData.user_1 === currentUserId;
+            console.log('🔍 User role:', isUserA ? 'User A' : 'User B');
+            
+            if (isUserA) {
+                // We are User A, load our symmetric key
+                await loadSymmetricKeyForUserA(secretChatId);
+                console.log('✅ Successfully loaded symmetric key for User A');
+            } else {
+                // We are User B, load our symmetric key
+                await loadSymmetricKeyForUserB(secretChatId);
+                console.log('✅ Successfully loaded symmetric key for User B');
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Error loading symmetric key for secret chat:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
+            // Don't throw error, just return false to indicate no symmetric key available
+            return false;
+        }
+    };
+
+    // Handle User B approval (generates symmetric key)
+    const handleUserBApprovalForSecretChat = async (secretChatId) => {
+        try {
+            console.log('🔐 Handling User B approval for secret chat:', secretChatId);
+            
+            // Handle User B approval and symmetric key generation
+            await handleUserBApproval(secretChatId);
+            
+            console.log('✅ Successfully handled User B approval');
+            return true;
+        } catch (error) {
+            console.error('❌ Error handling User B approval:', error);
+            throw error;
+        }
     };
 
     // Refresh secret chat data from backend
@@ -203,7 +295,8 @@ export function useSecretChatEncryption() {
         getRecipientPublicKey,
         getSenderPublicKey,
         initializeSecretChatEncryption,
-        getSymmetricKey: null, // Remove this function
+        loadSecretChatSymmetricKey,
+        handleUserBApprovalForSecretChat,
         refreshSecretChatData,
     };
 } 

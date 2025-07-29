@@ -17,7 +17,16 @@ export const useChatStore = defineStore("chat", {
     }),
     actions: {
         setChatUser(user) {
-            this.currentChatUser = user;
+            // Create a clean user object to avoid leftover properties from previous chats
+            this.currentChatUser = {
+                id: user.id,
+                username: user.username,
+                avatar_url: user.avatar_url,
+                // Only include secret_chat_id if it's explicitly provided
+                ...(user.secret_chat_id && { secret_chat_id: user.secret_chat_id }),
+                // Only include chat_id if it's explicitly provided
+                ...(user.chat_id && { chat_id: user.chat_id })
+            };
         },
         clearChatUser() {
             this.currentChatUser = null;

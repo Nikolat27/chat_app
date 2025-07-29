@@ -1,12 +1,12 @@
 import { ref } from 'vue';
 import localforage from 'localforage';
 import { useKeyPair } from './useKeyPair';
+import { useE2EEStore } from '../stores/e2ee';
+import axiosInstance from '../axiosInstance';
 
 export function useE2EE() {
     const { generateKeyPair, exportSecretChatPublicKey, getSecretChatPrivateKey } = useKeyPair();
-    
-    // In-memory storage for decrypted symmetric keys (more secure)
-    const symmetricKeys = ref(new Map());
+    const e2eeStore = useE2EEStore();
     
     // Generate a symmetric key for a chat
     const generateSymmetricKey = async () => {
@@ -98,35 +98,19 @@ export function useE2EE() {
     
     // Get or create symmetric key for a chat
     const getSymmetricKey = async (chatId) => {
-        // Check if we already have the key in memory
-        if (symmetricKeys.value.has(chatId)) {
-            return symmetricKeys.value.get(chatId);
-        }
-        
-        // Check if we have it cached in localforage
-        const cachedKey = await localforage.getItem(`chatKey_${chatId}`);
-        if (cachedKey) {
-            // Import the cached key
-            const key = await window.crypto.subtle.importKey(
-                "raw",
-                new Uint8Array(cachedKey),
-                {
-                    name: "AES-GCM",
-                    length: 256
-                },
-                false,
-                ["encrypt", "decrypt"]
-            );
-            symmetricKeys.value.set(chatId, key);
-            return key;
-        }
-        
-        return null;
+        return e2eeStore.getSymmetricKey(chatId);
     };
     
-    // Store symmetric key in memory and optionally cache it
-    const storeSymmetricKey = async (chatId, symmetricKeyBytes, cacheInStorage = true) => {
+    // Check if symmetric key is available for a chat
+    const hasSymmetricKey = async (chatId) => {
+        return e2eeStore.hasSymmetricKey(chatId);
+    };
+    
+    // Store symmetric key in memory only (more secure)
+    const storeSymmetricKey = async (chatId, symmetricKeyBytes) => {
         try {
+            console.log('🔐 Storing symmetric key for chat:', chatId);
+            
             // Import the key
             const key = await window.crypto.subtle.importKey(
                 "raw",
@@ -139,13 +123,8 @@ export function useE2EE() {
                 ["encrypt", "decrypt"]
             );
             
-            // Store in memory
-            symmetricKeys.value.set(chatId, key);
-            
-            // Optionally cache in localforage
-            if (cacheInStorage) {
-                await localforage.setItem(`chatKey_${chatId}`, symmetricKeyBytes);
-            }
+            // Store in global store
+            e2eeStore.storeSymmetricKey(chatId, key);
             
             return key;
         } catch (error) {
@@ -192,19 +171,27 @@ export function useE2EE() {
     // Decrypt a message with the symmetric key
     const decryptMessage = async (encryptedMessageBase64, chatId) => {
         try {
+            console.log('🔐 Starting message decryption for chat:', chatId);
+            console.log('🔍 Encrypted message length:', encryptedMessageBase64?.length);
+            
             const key = await getSymmetricKey(chatId);
             if (!key) {
                 throw new Error('No symmetric key found for chat');
             }
+            console.log('✅ Symmetric key found for decryption');
             
             // Decode base64
+            console.log('🔐 Decoding base64 encrypted message...');
             const combined = Uint8Array.from(atob(encryptedMessageBase64), c => c.charCodeAt(0));
+            console.log('🔍 Combined data length:', combined.length);
             
             // Extract IV (first 12 bytes) and encrypted data
             const iv = combined.slice(0, 12);
             const encryptedData = combined.slice(12);
+            console.log('🔍 IV length:', iv.length, 'Encrypted data length:', encryptedData.length);
             
             // Decrypt the message
+            console.log('🔐 Decrypting with AES-GCM...');
             const decryptedData = await window.crypto.subtle.decrypt(
                 {
                     name: "AES-GCM",
@@ -215,46 +202,133 @@ export function useE2EE() {
             );
             
             // Convert back to string
-            return new TextDecoder().decode(decryptedData);
+            const result = new TextDecoder().decode(decryptedData);
+            console.log('✅ Successfully decrypted message:', result);
+            return result;
         } catch (error) {
-            console.error('Error decrypting message:', error);
+            console.error('❌ Error decrypting message:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
             throw new Error('Failed to decrypt message');
         }
     };
     
-    // Initialize E2EE for a new chat
-    const initializeChatE2EE = async (chatId, participants) => {
+    // Upload public key to backend
+    const uploadPublicKey = async (chatId, publicKeyJwk) => {
         try {
+            console.log('🔐 Uploading public key for chat:', chatId);
+            
+            // Base64 encode the public key using a more robust method
+            const publicKeyString = JSON.stringify(publicKeyJwk);
+            const publicKeyBase64 = btoa(unescape(encodeURIComponent(publicKeyString)));
+            
+            const response = await axiosInstance.post(`/api/secret-chat/add-public-key/${chatId}`, {
+                public_key: publicKeyBase64
+            });
+            
+            console.log('✅ Successfully uploaded public key');
+            return response.data;
+        } catch (error) {
+            console.error('Error uploading public key:', error);
+            throw error;
+        }
+    };
+    
+    // Get secret chat data from backend
+    const getSecretChatData = async (chatId) => {
+        try {
+            console.log('🔐 Getting secret chat data for chat:', chatId);
+            
+            const response = await axiosInstance.get(`/api/secret-chat/get/${chatId}`);
+            
+            console.log('✅ Successfully retrieved secret chat data');
+            return response.data;
+        } catch (error) {
+            console.error('Error getting secret chat data:', error);
+            throw error;
+        }
+    };
+    
+    // Upload encrypted symmetric keys to backend
+    const uploadEncryptedSymmetricKeys = async (chatId, user1EncryptedKey, user2EncryptedKey) => {
+        try {
+            console.log('🔐 Uploading encrypted symmetric keys for chat:', chatId);
+            
+            const response = await axiosInstance.post(`/api/secret-chat/add-symmetric-key/${chatId}`, {
+                user_1_encrypted_symmetric_key: user1EncryptedKey,
+                user_2_encrypted_symmetric_key: user2EncryptedKey
+            });
+            
+            console.log('✅ Successfully uploaded encrypted symmetric keys');
+            return response.data;
+        } catch (error) {
+            console.error('Error uploading encrypted symmetric keys:', error);
+            throw error;
+        }
+    };
+    
+    // Handle User B's approval and symmetric key generation
+    const handleUserBApproval = async (chatId) => {
+        try {
+            console.log('🔐 Handling User B approval for chat:', chatId);
+            
+            // Get secret chat data to check if User A's public key is available
+            const chatData = await getSecretChatData(chatId);
+            
+            if (!chatData.user_1_public_key) {
+                throw new Error('User A\'s public key not available yet');
+            }
+            
+            // Parse User A's public key
+            const userAPublicKeyString = decodeURIComponent(escape(atob(chatData.user_1_public_key)));
+            const userAPublicKeyJwk = JSON.parse(userAPublicKeyString);
+            
             // Generate symmetric key
             const symmetricKey = await generateSymmetricKey();
+            console.log('✅ Generated symmetric key');
             
-            // Get our public key
+            // Encrypt symmetric key for User A
+            const userAEncryptedKey = await encryptSymmetricKey(symmetricKey, userAPublicKeyJwk);
+            console.log('✅ Encrypted symmetric key for User A');
+            
+            // Get our public key and encrypt symmetric key for User B (ourselves)
             const ourPublicKey = await exportSecretChatPublicKey(chatId);
             if (!ourPublicKey) {
                 throw new Error('No public key available');
             }
             
-            // Encrypt symmetric key with our public key
-            const encryptedKeyForUs = await encryptSymmetricKey(symmetricKey, ourPublicKey);
+            const userBEncryptedKey = await encryptSymmetricKey(symmetricKey, ourPublicKey);
+            console.log('✅ Encrypted symmetric key for User B');
             
-            // Store the key locally
+            // Upload both encrypted keys to backend
+            await uploadEncryptedSymmetricKeys(chatId, userAEncryptedKey, userBEncryptedKey);
+            console.log('✅ Uploaded both encrypted symmetric keys to backend');
+            
+            // Store symmetric key locally for User B
             await storeSymmetricKey(chatId, symmetricKey);
+            console.log('✅ Stored symmetric key locally for User B');
             
-            // Return encrypted key for backend storage
-            return {
-                chatId,
-                encryptedKey: encryptedKeyForUs,
-                participants
-            };
+            return true;
         } catch (error) {
-            console.error('Error initializing chat E2EE:', error);
+            console.error('Error handling User B approval:', error);
             throw error;
         }
     };
     
-    // Load symmetric key for an existing chat
-    const loadChatSymmetricKey = async (chatId, encryptedKeyBase64) => {
+    // Load symmetric key for User A (first user)
+    const loadSymmetricKeyForUserA = async (chatId) => {
         try {
+            console.log('🔐 Loading symmetric key for User A in chat:', chatId);
+            
+            // Get secret chat data
+            const chatData = await getSecretChatData(chatId);
+            
+            if (!chatData.user_1_encrypted_symmetric_key) {
+                throw new Error('No encrypted symmetric key available for User A');
+            }
+            
             // Get our private key
             const privateKey = await getSecretChatPrivateKey(chatId);
             if (!privateKey) {
@@ -262,26 +336,84 @@ export function useE2EE() {
             }
             
             // Decrypt the symmetric key
-            const symmetricKey = await decryptSymmetricKey(encryptedKeyBase64, privateKey);
+            const symmetricKey = await decryptSymmetricKey(chatData.user_1_encrypted_symmetric_key, privateKey);
+            console.log('✅ Decrypted symmetric key for User A');
             
-            // Store the key
+            // Store the key locally
             await storeSymmetricKey(chatId, symmetricKey);
+            console.log('✅ Stored symmetric key locally for User A');
             
             return true;
         } catch (error) {
-            console.error('Error loading chat symmetric key:', error);
+            console.error('Error loading symmetric key for User A:', error);
             throw error;
+        }
+    };
+    
+    // Load symmetric key for User B (second user)
+    const loadSymmetricKeyForUserB = async (chatId) => {
+        try {
+            console.log('🔐 Loading symmetric key for User B in chat:', chatId);
+            
+            // Get secret chat data
+            const chatData = await getSecretChatData(chatId);
+            console.log('🔍 Chat data for User B:', {
+                has_user_2_encrypted_symmetric_key: !!chatData.user_2_encrypted_symmetric_key,
+                key_finalized: chatData.key_finalized
+            });
+            
+            if (!chatData.user_2_encrypted_symmetric_key) {
+                throw new Error('No encrypted symmetric key available for User B');
+            }
+            
+            // Get our private key
+            const privateKey = await getSecretChatPrivateKey(chatId);
+            console.log('🔍 Private key available:', !!privateKey);
+            if (!privateKey) {
+                throw new Error('No private key available');
+            }
+            
+            // Decrypt the symmetric key
+            console.log('🔐 Decrypting symmetric key...');
+            const symmetricKey = await decryptSymmetricKey(chatData.user_2_encrypted_symmetric_key, privateKey);
+            console.log('✅ Decrypted symmetric key for User B');
+            console.log('🔍 Symmetric key length:', symmetricKey.length);
+            
+            // Store the key locally
+            console.log('🔐 Storing symmetric key...');
+            await storeSymmetricKey(chatId, symmetricKey);
+            console.log('✅ Stored symmetric key locally for User B');
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Error loading symmetric key for User B:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
+    };
+    
+    // Check if chat is ready for messaging (key finalized)
+    const isChatReadyForMessaging = async (chatId) => {
+        try {
+            const chatData = await getSecretChatData(chatId);
+            return chatData.key_finalized === true;
+        } catch (error) {
+            console.error('Error checking if chat is ready for messaging:', error);
+            return false;
         }
     };
     
     // Clear symmetric key from memory
     const clearSymmetricKey = (chatId) => {
-        symmetricKeys.value.delete(chatId);
+        e2eeStore.clearSymmetricKey(chatId);
     };
     
     // Clear all symmetric keys
     const clearAllSymmetricKeys = () => {
-        symmetricKeys.value.clear();
+        e2eeStore.clearAllSymmetricKeys();
     };
     
     return {
@@ -289,11 +421,17 @@ export function useE2EE() {
         encryptSymmetricKey,
         decryptSymmetricKey,
         getSymmetricKey,
+        hasSymmetricKey,
         storeSymmetricKey,
         encryptMessage,
         decryptMessage,
-        initializeChatE2EE,
-        loadChatSymmetricKey,
+        uploadPublicKey,
+        getSecretChatData,
+        uploadEncryptedSymmetricKeys,
+        handleUserBApproval,
+        loadSymmetricKeyForUserA,
+        loadSymmetricKeyForUserB,
+        isChatReadyForMessaging,
         clearSymmetricKey,
         clearAllSymmetricKeys
     };
