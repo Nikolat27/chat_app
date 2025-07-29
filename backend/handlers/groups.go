@@ -16,9 +16,9 @@ import (
 )
 
 func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusUnauthorized, err.Type, err.Detail)
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -32,6 +32,11 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		description = "no description"
 	}
 
+	groupType := r.FormValue("name")
+	if groupType == "" {
+		groupType = "public"
+	}
+
 	allowedFormats := []string{".jpg", ".jpeg", ".png", ".webp"}
 	avatarUrl, err := utils.UploadFile(r, "file", allowedFormats)
 	if err != nil {
@@ -43,7 +48,7 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	users := []primitive.ObjectID{payload.UserId}
 
-	if _, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, inviteLink, users); err != nil {
+	if _, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, users); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createGroup", "failed to create group")
 		return
 	}

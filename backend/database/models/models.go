@@ -9,6 +9,7 @@ type Models struct {
 	Message     *MessageModel
 	SaveMessage *SaveMessageModel
 	Group       *GroupModel
+	Approval    *ApprovalModel
 }
 
 func New(db *mongo.Database) *Models {
@@ -19,5 +20,6 @@ func New(db *mongo.Database) *Models {
 		Message:     NewMessageModel(db),
 		SaveMessage: NewSaveMessageModel(db),
 		Group:       NewGroupModel(db),
+		Approval:    NewApprovalModel(db),
 	}
 }

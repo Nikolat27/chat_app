@@ -20,21 +20,22 @@ func NewGroupModel(db *mongo.Database) *GroupModel {
 }
 
 type Group struct {
-	Id              primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
-	OwnerId         primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
-	Users           []primitive.ObjectID `json:"users" bson:"users"`
-	Name            string               `json:"name" bson:"name"`
-	Description     string               `json:"description" bson:"description"`
-	AvatarUrl       string               `json:"avatar_url" bson:"avatar_url"`
-	InviteLink      string               `json:"invite_link" bson:"invite_link"`
-	PinnedMessageId primitive.ObjectID   `json:"pinned_message_id" bson:"pinned_message_id"`
-	LastMessageId   primitive.ObjectID   `json:"last_message_id" bson:"last_message_id"`
-	LastMessageAt   time.Time            `json:"last_message_at" bson:"last_message_at"`
-	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
+	Id          primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
+	OwnerId     primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
+	Users       []primitive.ObjectID `json:"users" bson:"users"`
+	Name        string               `json:"name" bson:"name"`
+	Description string               `json:"description" bson:"description"`
+	AvatarUrl   string               `json:"avatar_url" bson:"avatar_url"`
+	// public or private (private needs apporval)
+	Type            string             `json:"type" bson:"type"`
+	InviteLink      string             `json:"invite_link" bson:"invite_link"`
+	PinnedMessageId primitive.ObjectID `json:"pinned_message_id" bson:"pinned_message_id"`
+	LastMessageId   primitive.ObjectID `json:"last_message_id" bson:"last_message_id"`
+	LastMessageAt   time.Time          `json:"last_message_at" bson:"last_message_at"`
+	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 }
 
-func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description,
-	avatarUrl, inviteLink string, users []primitive.ObjectID) (*mongo.InsertOneResult, error) {
+func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, avatarUrl, groupType, inviteLink string, users []primitive.ObjectID) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -44,6 +45,7 @@ func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description,
 		Name:        name,
 		Description: description,
 		AvatarUrl:   avatarUrl,
+		Type:        groupType,
 		InviteLink:  inviteLink,
 		Users:       users,
 		CreatedAt:   time.Now(),
@@ -81,6 +83,6 @@ func (group *GroupModel) Update(filter, updates bson.M) (*mongo.UpdateResult, er
 func (group *GroupModel) Delete(filter bson.M) (*mongo.DeleteResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	return group.collection.DeleteOne(ctx, filter)
 }
