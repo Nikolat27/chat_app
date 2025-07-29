@@ -126,6 +126,7 @@ watch(
         
         if (oldUserId) {
             // Close previous connection explicitly
+            console.log('🔌 Closing previous WebSocket connection');
             closeConnection();
         }
 
@@ -144,6 +145,7 @@ watch(
                 }
             }
             if (chatData) {
+                console.log('🔌 Establishing WebSocket connection for chat:', chatData);
                 establishConnection(chatData, handleIncomingMessage);
                 // Wait a bit for connection to establish
                 await new Promise(resolve => setTimeout(resolve, 200));
@@ -221,7 +223,9 @@ const getChatData = (targetUserId) => {
 
 // Handle incoming messages
 const handleIncomingMessage = async (data) => {
+    console.log('📨 Received WebSocket message:', data);
     const message = parseIncomingMessage(data);
+    console.log('📨 Parsed message:', message);
 
     // Decrypt message if this is a secret chat
     let decryptedContent = message.content;
@@ -276,7 +280,9 @@ const handleIncomingMessage = async (data) => {
 
     const decryptedMessage = {
         ...message,
-        content: decryptedContent
+        content: decryptedContent,
+        // Add timestamp if not present (for WebSocket messages)
+        created_at: message.created_at || new Date().toISOString()
     };
 
     // Check if this is a confirmation of a sent message (same content and sender)
@@ -288,11 +294,41 @@ const handleIncomingMessage = async (data) => {
             msg.id.startsWith("temp-")
     );
 
+    // Check for duplicate messages based on content and sender
+    // This handles both WebSocket messages (no ID) and API messages (with ID)
+    const duplicateMessage = chatStore.messages.find(
+        (msg) =>
+            msg.content === decryptedMessage.content &&
+            msg.sender_id === decryptedMessage.sender_id &&
+            // If the incoming message has an ID, check for exact ID match
+            // If not, check if we have a very recent message with same content and sender (within 100ms)
+            (decryptedMessage.id ? msg.id === decryptedMessage.id : 
+             // For WebSocket messages without ID, only skip if it's the exact same message received twice very quickly
+             Math.abs(new Date(msg.created_at) - new Date(decryptedMessage.created_at)) < 100) // Within 100ms
+    );
+
+    if (duplicateMessage) {
+        console.log('🔄 Duplicate message detected, skipping:', decryptedMessage.content);
+        console.log('🔄 Duplicate details:', {
+            existingMessage: duplicateMessage,
+            incomingMessage: decryptedMessage,
+            timeDiff: Math.abs(new Date(duplicateMessage.created_at) - new Date(decryptedMessage.created_at))
+        });
+        return; // Skip adding duplicate message
+    }
+
     if (existingMessage && decryptedMessage.id && !decryptedMessage.id.startsWith("temp-")) {
         // Update the temp ID with the real ID from backend
+        console.log('🔄 Updating temp message with real ID:', existingMessage.id, '->', decryptedMessage.id);
         chatStore.updateMessageId(existingMessage.id, decryptedMessage.id);
     } else {
         // This is a new message from someone else
+        console.log('➕ Adding new message:', {
+            id: decryptedMessage.id,
+            content: decryptedMessage.content,
+            sender_id: decryptedMessage.sender_id,
+            created_at: decryptedMessage.created_at
+        });
         chatStore.addMessage(decryptedMessage);
     }
 };
