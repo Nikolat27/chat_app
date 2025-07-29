@@ -20,25 +20,27 @@ func NewApprovalModel(db *mongo.Database) *ApprovalModel {
 }
 
 type Approval struct {
-	Id          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	GroupId     primitive.ObjectID `json:"group_id" bson:"group_id"`
-	RequesterId primitive.ObjectID `json:"requester_id" bson:"requester_id"`
-	Status      string             `json:"status" bson:"status"` // pending, rejected, approved
-	Reason      string             `json:"reason" bson:"reason"`
-	ReviewedAt  *time.Time         `json:"reviewed_at" bson:"reviewed_at"`
-	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
+	Id           primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	GroupId      primitive.ObjectID `json:"group_id" bson:"group_id"`
+	GroupOwnerId primitive.ObjectID `json:"group_owner_id" bson:"group_owner_id"`
+	RequesterId  primitive.ObjectID `json:"requester_id" bson:"requester_id"`
+	Status       string             `json:"status" bson:"status"` // pending, rejected, approved
+	Reason       string             `json:"reason" bson:"reason"`
+	ReviewedAt   *time.Time         `json:"reviewed_at" bson:"reviewed_at"`
+	CreatedAt    time.Time          `json:"created_at" bson:"created_at"`
 }
 
-func (approval *ApprovalModel) Create(groupId, requesterId primitive.ObjectID, reason string) (*mongo.InsertOneResult, error) {
+func (approval *ApprovalModel) Create(groupId, groupOwnerId, requesterId primitive.ObjectID, reason string) (*mongo.InsertOneResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	newApproval := &Approval{
-		GroupId:     groupId,
-		RequesterId: requesterId,
-		Status:      "pending",
-		Reason:      reason,
-		CreatedAt:   time.Now(),
+		GroupId:      groupId,
+		GroupOwnerId: groupOwnerId,
+		RequesterId:  requesterId,
+		Status:       "pending",
+		Reason:       reason,
+		CreatedAt:    time.Now(),
 	}
 
 	return approval.collection.InsertOne(ctx, newApproval)
