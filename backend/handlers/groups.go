@@ -66,9 +66,9 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusUnauthorized, err.Type, err.Detail)
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -85,11 +85,12 @@ func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
 	projection := bson.M{
 		"_id":   1,
 		"users": 1,
+		"type":  1,
 	}
 
-	groupInstance, err2 := handler.Models.Group.Get(filter, projection)
-	if err2 != nil {
-		if errors.Is(err2, mongo.ErrNoDocuments) {
+	groupInstance, err := handler.Models.Group.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			utils.WriteError(w, http.StatusBadRequest, "getGroup", "group with this invite link does not exist")
 			return
 		}
@@ -99,8 +100,15 @@ func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if slices.Contains(groupInstance.Users, payload.UserId) {
-		utils.WriteError(w, http.StatusBadRequest, "userExists", "This user is already in the group")
+		utils.WriteError(w, http.StatusBadRequest, "userExists", "you are already in this group")
 		return
+	}
+
+	if groupInstance.Type == "private" {
+		if err := checkUserApproval(groupInstance.Id, payload.UserId, handler); err != nil {
+			utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+			return
+		}
 	}
 
 	newUsers := append(groupInstance.Users, payload.UserId)
@@ -395,4 +403,38 @@ func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, "you left the group successfully")
+}
+
+func checkUserApproval(groupId, userId primitive.ObjectID, handler *Handler) *utils.ErrorResponse {
+	filter := bson.M{
+		"group_id":     groupId,
+		"requester_id": userId,
+	}
+
+	projection := bson.M{
+		"status": 1,
+	}
+
+	approvalInstance, err := handler.Models.Approval.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return &utils.ErrorResponse{Type: "userApprovalNotFound", Detail: "You have to submit an approval for this"}
+		}
+
+		return &utils.ErrorResponse{Type: "getUserApproval", Detail: err.Error()}
+	}
+
+	if approvalInstance.Status == "approved" {
+		return nil
+	}
+
+	if approvalInstance.Status == "pending" {
+		return &utils.ErrorResponse{Type: "userApprovalStatus", Detail: "Your approval is in pending status. Please be patient"}
+	}
+
+	if approvalInstance.Status == "rejected" {
+		return &utils.ErrorResponse{Type: "userApprovalStatus", Detail: "Your approval has been rejected"}
+	}
+
+	return nil
 }
