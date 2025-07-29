@@ -23,7 +23,30 @@ export const useGroupStore = defineStore('groups', {
             try {
                 this.isLoading = true;
                 const response = await axiosInstance.get('/api/user/get-groups');
-                this.groups = response.data.groups || response.data || [];
+                console.log('User groups response:', response.data);
+                
+                // Handle different response formats
+                let groupsData = response.data.groups || response.data || [];
+                
+                // Ensure groupsData is an array
+                if (!Array.isArray(groupsData)) {
+                    groupsData = [];
+                }
+                
+                // Ensure each group has the correct structure
+                this.groups = groupsData.map(group => ({
+                    id: group.id || group._id,
+                    name: group.name,
+                    description: group.description,
+                    type: group.type,
+                    avatar_url: group.avatar_url,
+                    invite_link: group.invite_link,
+                    owner_id: group.owner_id,
+                    created_at: group.created_at,
+                    member_count: group.users?.length || group.member_count || 1,
+                    role: group.role || 'member'
+                }));
+                
                 return this.groups;
             } catch (error) {
                 console.error('Failed to load user groups:', error);
@@ -53,7 +76,7 @@ export const useGroupStore = defineStore('groups', {
                 
                 // Create a group object from the response
                 const newGroup = {
-                    id: Date.now(), // Temporary ID for frontend
+                    id: responseData.group_id || Date.now(), // Use backend group_id or fallback
                     name: formData.get('name'),
                     description: formData.get('description'),
                     type: formData.get('group_type'),
@@ -62,7 +85,8 @@ export const useGroupStore = defineStore('groups', {
                     message: responseData.message || '',
                     created_at: new Date().toISOString(),
                     member_count: 1,
-                    role: 'admin'
+                    role: 'admin',
+                    owner_id: responseData.owner_id || null // Use owner_id from backend
                 };
                 
                 // Ensure groups is an array
@@ -95,7 +119,7 @@ export const useGroupStore = defineStore('groups', {
                 
                 // Create a group object from the response
                 const newGroup = {
-                    id: Date.now(), // Temporary ID for frontend
+                    id: responseData.group_id || Date.now(), // Use backend group_id or fallback
                     name: formData.get('name'),
                     description: formData.get('description'),
                     type: 'secret',
@@ -105,6 +129,7 @@ export const useGroupStore = defineStore('groups', {
                     created_at: new Date().toISOString(),
                     member_count: 1,
                     role: 'admin',
+                    owner_id: responseData.owner_id || null, // Use owner_id from backend
                     is_secret: true
                 };
                 
@@ -143,7 +168,8 @@ export const useGroupStore = defineStore('groups', {
 
         async leaveGroup(groupId) {
             try {
-                await axiosInstance.post(`/api/group/leave/${groupId}`);
+                const response = await axiosInstance.delete(`/api/group/leave/${groupId}`);
+                console.log('Left group response:', response.data);
                 
                 // Remove group from local state
                 this.groups = this.groups.filter(g => g.id !== groupId);
@@ -154,6 +180,8 @@ export const useGroupStore = defineStore('groups', {
                     this.groupMembers = [];
                     this.groupMessages = [];
                 }
+                
+                return response.data;
             } catch (error) {
                 console.error('Failed to leave group:', error);
                 // If endpoint doesn't exist yet, still remove from local state
@@ -164,7 +192,7 @@ export const useGroupStore = defineStore('groups', {
                         this.groupMembers = [];
                         this.groupMessages = [];
                     }
-                    return;
+                    return { message: 'Left group successfully' };
                 }
                 throw error;
             }
@@ -220,7 +248,8 @@ export const useGroupStore = defineStore('groups', {
 
         async deleteGroup(groupId) {
             try {
-                await axiosInstance.delete(`/api/group/${groupId}`);
+                const response = await axiosInstance.delete(`/api/group/delete/${groupId}`);
+                console.log('Delete group response:', response.data);
                 
                 // Remove from local state
                 this.groups = this.groups.filter(g => g.id !== groupId);
@@ -231,8 +260,20 @@ export const useGroupStore = defineStore('groups', {
                     this.groupMembers = [];
                     this.groupMessages = [];
                 }
+                
+                return response.data;
             } catch (error) {
                 console.error('Failed to delete group:', error);
+                // If endpoint doesn't exist yet, still remove from local state
+                if (error.response?.status === 404) {
+                    this.groups = this.groups.filter(g => g.id !== groupId);
+                    if (this.currentGroup && this.currentGroup.id === groupId) {
+                        this.currentGroup = null;
+                        this.groupMembers = [];
+                        this.groupMessages = [];
+                    }
+                    return { message: 'Group deleted successfully' };
+                }
                 throw error;
             }
         },
