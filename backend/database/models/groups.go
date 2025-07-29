@@ -35,7 +35,8 @@ type Group struct {
 	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 }
 
-func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, avatarUrl, groupType, inviteLink string, users []primitive.ObjectID) (*mongo.InsertOneResult, error) {
+func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, avatarUrl, groupType, inviteLink string,
+	users []primitive.ObjectID) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -67,6 +68,28 @@ func (group *GroupModel) Get(filter, projection bson.M) (*Group, error) {
 	}
 
 	return &groupInstance, nil
+}
+
+func (group *GroupModel) GetAll(filter, projection bson.M, page, pageLimit int64) ([]Group, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	findOptions := options.Find()
+	findOptions.SetProjection(projection)
+	findOptions.SetSkip((page - 1) * pageLimit)
+	findOptions.SetLimit(pageLimit)
+
+	var groups []Group
+	cursor, err := group.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+
+	return groups, nil
 }
 
 func (group *GroupModel) Update(filter, updates bson.M) (*mongo.UpdateResult, error) {
