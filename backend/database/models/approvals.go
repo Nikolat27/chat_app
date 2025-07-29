@@ -62,6 +62,7 @@ func (approval *ApprovalModel) Get(filter, projection bson.M) (*Approval, error)
 	defer cancel()
 
 	findOptions := options.FindOne()
+	findOptions.SetSort(bson.D{{"created_at", -1}})
 	findOptions.SetProjection(projection)
 
 	var approvalInstance Approval
