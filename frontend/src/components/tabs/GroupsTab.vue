@@ -159,7 +159,27 @@
                                 >
                             </button>
                             <button
-                                v-else
+                                v-if="group.invite_link"
+                                @click.stop="handleCopyInviteLink(group)"
+                                class="w-8 h-8 text-blue-600 hover:bg-blue-50 rounded-full hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
+                                title="Copy invite link"
+                            >
+                                <span class="material-icons text-sm"
+                                    >content_copy</span
+                                >
+                            </button>
+                            <button
+                                v-if="group.owner_id !== userStore.user_id"
+                                @click.stop="handleLeaveGroup(group)"
+                                class="w-8 h-8 text-red-500 hover:bg-red-50 rounded-full hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
+                                title="Leave group"
+                            >
+                                <span class="material-icons text-sm"
+                                    >exit_to_app</span
+                                >
+                            </button>
+                            <button
+                                v-if="group.owner_id === userStore.user_id"
                                 @click.stop="handleDeleteGroup(group)"
                                 class="w-8 h-8 text-red-600 hover:bg-red-50 rounded-full hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
                                 title="Delete group"
@@ -215,7 +235,7 @@
         <!-- Join Group Modal -->
         <div
             v-if="showJoinGroupModal"
-            class="fixed inset-0 bg-gradient-to-br from-blue-50 via-white to-blue-100 bg-opacity-95 backdrop-blur-md flex items-center justify-center z-50 p-4"
+            class="fixed inset-0 bg-gray-300 bg-opacity-30 backdrop-blur-md flex items-center justify-center z-50 p-4"
         >
             <div
                 class="bg-white rounded-3xl shadow-2xl border border-blue-100 p-8 w-96 max-w-[90vw] transform transition-all duration-300 scale-100 hover:shadow-3xl"
@@ -242,7 +262,7 @@
                         Join Group
                     </h3>
                     <p class="text-sm text-gray-600 leading-relaxed">
-                        Enter the group code or name to join an existing group.
+                        Enter the invite link to join an existing group.
                     </p>
                 </div>
 
@@ -254,19 +274,19 @@
                         >
                             <span
                                 class="material-icons align-middle mr-1 text-base"
-                                >key</span
+                                >link</span
                             >
-                            Group Code or Name
+                            Invite Link
                         </label>
                         <div class="relative">
-                                                    <input
-                            v-model="joinGroupCode"
-                            type="text"
-                            placeholder="Enter group code or name..."
-                            class="w-full border-2 border-blue-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-200 text-gray-700 shadow-sm hover:shadow-md"
-                            @keyup.enter="handleJoinGroup"
-                            :disabled="isJoiningGroup"
-                        />
+                                                                                <input
+                                v-model="joinGroupCode"
+                                type="text"
+                                placeholder="Enter invite link..."
+                                class="w-full border-2 border-blue-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-200 text-gray-700 shadow-sm hover:shadow-md"
+                                @keyup.enter="handleJoinGroup"
+                                :disabled="isJoiningGroup"
+                            />
                             <div
                                 v-if="isJoiningGroup"
                                 class="absolute right-3 top-1/2 transform -translate-y-1/2"
@@ -290,7 +310,7 @@
                     <button
                         @click="handleJoinGroup"
                         :disabled="isJoiningGroup || !joinGroupCode.trim()"
-                        class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none border border-blue-400"
                     >
                         <span
                             v-if="!isJoiningGroup"
@@ -311,10 +331,10 @@
         <!-- Create Group Modal -->
         <div
             v-if="showCreateGroupModal"
-            class="fixed inset-0 bg-gradient-to-br from-green-100 via-white to-green-200 bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            class="fixed inset-0 bg-gray-300 bg-opacity-30 backdrop-blur-md flex items-center justify-center z-50 p-4"
         >
             <div
-                class="bg-white rounded-3xl shadow-2xl p-8 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100"
+                class="bg-white rounded-3xl shadow-2xl border border-green-100 p-8 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 hover:shadow-3xl"
             >
                 <!-- Close Button -->
                 <button
@@ -327,11 +347,10 @@
 
                 <!-- Header -->
                 <div class="mb-8 text-center">
-                    <div class="mb-4">
-                        <span
-                            class="material-icons text-4xl text-green-500 mb-3"
-                            >add_circle</span
-                        >
+                    <div class="mb-6">
+                        <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                            <span class="material-icons text-3xl text-white">add_circle</span>
+                        </div>
                     </div>
                     <h3
                         class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-500 mb-3 tracking-tight"
@@ -510,10 +529,10 @@
         <!-- Create Secret Group Modal -->
         <div
             v-if="showCreateSecretGroupModal"
-            class="fixed inset-0 bg-gradient-to-br from-purple-100 via-white to-purple-200 bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            class="fixed inset-0 bg-gray-300 bg-opacity-30 backdrop-blur-md flex items-center justify-center z-50 p-4"
         >
             <div
-                class="bg-white rounded-3xl shadow-2xl p-8 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100"
+                class="bg-white rounded-3xl shadow-2xl border border-purple-100 p-8 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 hover:shadow-3xl"
             >
                 <!-- Close Button -->
                 <button
@@ -526,11 +545,10 @@
 
                 <!-- Header -->
                 <div class="mb-8 text-center">
-                    <div class="mb-4">
-                        <span
-                            class="material-icons text-4xl text-purple-500 mb-3"
-                            >lock</span
-                        >
+                    <div class="mb-6">
+                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                            <span class="material-icons text-3xl text-white">lock</span>
+                        </div>
                     </div>
                     <h3
                         class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 mb-3 tracking-tight"
@@ -763,58 +781,63 @@ const handleDeleteModalActionCompleted = () => {
     // The store already updated the groups list
 };
 
+const handleCopyInviteLink = async (group) => {
+    try {
+        await navigator.clipboard.writeText(group.invite_link);
+        showMessage('Invite link copied to clipboard!');
+    } catch (error) {
+        console.error('Failed to copy invite link:', error);
+        showError('Failed to copy invite link. Please try again.');
+    }
+};
+
 const handleJoinGroup = async () => {
     try {
         if (!joinGroupCode.value.trim()) {
-            showError("Please enter a group code or name");
+            showError("Please enter an invite link");
             return;
         }
-
+        
         isJoiningGroup.value = true;
-
-        // Try to join by invite code first, then by group name
-        let response;
-        try {
-            response = await groupStore.joinGroup({
-                invite_code: joinGroupCode.value.trim(),
-            });
-        } catch (error) {
-            // If invite code fails, try searching for group by name
-            try {
-                const foundGroups = await groupStore.searchGroups(
-                    joinGroupCode.value.trim()
-                );
-                const foundGroup = foundGroups.find(
-                    (g) => g.type === "public" && !g.is_member
-                );
-
-                if (foundGroup) {
-                    response = await groupStore.joinGroup({
-                        group_id: foundGroup.id,
-                    });
-                } else {
-                    throw new Error(
-                        "Group not found or you are already a member"
-                    );
-                }
-            } catch (searchError) {
-                // If search also fails, show a helpful message
-                showError(
-                    "Join group functionality not yet implemented on backend. Please try creating a group instead."
-                );
-                return;
-            }
-        }
-
+        
+        // Extract invite link from input
+        const inviteLink = joinGroupCode.value.trim();
+        
+        // Join group using invite link
+        const response = await groupStore.joinGroup(inviteLink);
+        
         showMessage("Successfully joined group!");
         showJoinGroupModal.value = false;
         joinGroupCode.value = "";
     } catch (error) {
         console.error("Failed to join group:", error);
-        showError(
-            error.response?.data?.detail ||
-                "Failed to join group. Please check the code and try again."
-        );
+        
+        // Handle approval-specific errors
+        const errorType = error.response?.data?.type;
+        const errorDetail = error.response?.data?.detail;
+        
+        switch (errorType) {
+            case 'userApprovalNotFound':
+                showError('You need to submit an approval request first before joining this group.');
+                break;
+            case 'userApprovalStatus':
+                if (errorDetail?.includes('pending')) {
+                    showError('Your approval is pending. Please wait for admin approval.');
+                } else if (errorDetail?.includes('rejected')) {
+                    showError('Your approval has been rejected. Please contact an administrator.');
+                } else {
+                    showError(errorDetail || 'Approval status error occurred.');
+                }
+                break;
+            case 'getUserApproval':
+                showError('Failed to check approval status. Please try again.');
+                break;
+            default:
+                showError(
+                    errorDetail ||
+                    "Failed to join group. Please check the invite link and try again."
+                );
+        }
     } finally {
         isJoiningGroup.value = false;
     }

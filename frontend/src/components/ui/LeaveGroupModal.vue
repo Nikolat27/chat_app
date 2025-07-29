@@ -1,7 +1,7 @@
 <template>
     <div v-if="isVisible && group" class="fixed inset-0 z-50 flex items-center justify-center">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-gray-100 bg-opacity-30 backdrop-blur-sm"></div>
         
         <!-- Modal -->
         <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100">

@@ -148,9 +148,11 @@ export const useGroupStore = defineStore('groups', {
             }
         },
 
-        async joinGroup(joinData) {
+        async joinGroup(inviteLink) {
             try {
-                const response = await axiosInstance.post('/api/group/join', joinData);
+                const response = await axiosInstance.get(`/api/group/join/${inviteLink}`);
+                console.log('Join group response:', response.data);
+                
                 const joinedGroup = response.data.group || response.data;
                 
                 // Check if group already exists in our list
