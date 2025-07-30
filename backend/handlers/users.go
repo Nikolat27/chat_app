@@ -213,7 +213,7 @@ func (handler *Handler) GetUserGroups(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filter := bson.M{
-		"users": bson.M{
+		"members": bson.M{
 			"$in": []primitive.ObjectID{payload.UserId},
 		},
 	}

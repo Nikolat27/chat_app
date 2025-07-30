@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -48,7 +49,9 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	members := []primitive.ObjectID{payload.UserId}
 
-	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, members)
+	admins := []primitive.ObjectID{payload.UserId}
+
+	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, members, admins)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createGroup", "failed to create group")
 		return
@@ -445,7 +448,7 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusOK, resp)
 }
 
-// GetGroupMembers -> Returns all the members of the group
+// GetGroupMembers -> Returns all the members (users) of the group
 func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
 	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
@@ -489,10 +492,12 @@ func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	fmt.Println(members)
+
 	utils.WriteJSON(w, http.StatusOK, members)
 }
 
-func (handler *Handler) BanUserFromGroup(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) BanMemberFromGroup(w http.ResponseWriter, r *http.Request) {
 	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
@@ -547,8 +552,8 @@ func (handler *Handler) BanUserFromGroup(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if payload.UserId == groupInstance.OwnerId {
-		utils.WriteError(w, http.StatusBadRequest, "banFromGroup", "group owner can`t ban himself")
+	if !slices.Contains(groupInstance.Admins, payload.UserId) {
+		utils.WriteError(w, http.StatusBadRequest, "banFromGroup", "only group admins can ban someone")
 		return
 	}
 

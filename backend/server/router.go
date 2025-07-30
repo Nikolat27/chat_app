@@ -49,7 +49,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/group/create", handler.CreateGroup)
 		r.Put("/group/update/{group_id}", handler.UpdateGroup)
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
-		r.Post("/group/ban/{group_id}", handler.BanUserFromGroup)
+		r.Post("/group/ban/{group_id}", handler.BanMemberFromGroup)
 		r.Get("/group/get/{group_id}/messages", handler.GetGroupMessages)
 		r.Get("/group/get/{group_id}/members", handler.GetGroupMembers)
 		r.Delete("/group/leave/{group_id}", handler.LeaveGroup)
