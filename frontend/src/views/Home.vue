@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
     <Sidebar :activeTab="activeTab" @changeTab="activeTab = $event" @logout="logout" />
-    <MiddleSection :activeTab="activeTab" />
+    <MiddleSection :activeTab="activeTab" @switch-to-chats-tab="handleSwitchToChatsTab" />
     <ChatSection />
   </div>
 </template>
@@ -39,6 +39,11 @@ async function logout() {
   
   userStore.$reset();
   router.replace("/auth");
+}
+
+function handleSwitchToChatsTab(user) {
+  console.log("💬 Switching to chats tab for user:", user);
+  activeTab.value = "chats";
 }
 </script>
 

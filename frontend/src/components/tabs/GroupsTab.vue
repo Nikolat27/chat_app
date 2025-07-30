@@ -752,6 +752,7 @@
         :current-user-id="userStore.user_id"
         @close="handleGroupMembersModalClose"
         @member-updated="handleMemberUpdated"
+        @start-chat="handleStartChat"
     />
 </template>
 
@@ -779,7 +780,7 @@ const groupStore = useGroupStore();
 const userStore = useUserStore();
 
 // Emits
-const emit = defineEmits(["group-clicked"]);
+const emit = defineEmits(["group-clicked", "switch-to-chat"]);
 
 // Reactive state
 const isLoading = computed(() => groupStore.isLoading);
@@ -920,6 +921,20 @@ const handleMemberUpdated = (data) => {
     console.log('Member updated:', data);
     // Optionally refresh groups if needed
     // await loadUserGroups();
+};
+
+const handleStartChat = (userData) => {
+    console.log('💬 Starting chat with user from group:', userData);
+    
+    // Create a user object for the chat
+    const user = {
+        id: userData.user_id,
+        username: userData.username,
+        avatar_url: userData.avatar_url
+    };
+    
+    // Emit the event to parent component to switch to chats tab and open the chat
+    emit('switch-to-chat', user);
 };
 
 const handleApprovalsModalClose = () => {

@@ -17,6 +17,7 @@
             <GroupsTab
                 :backend-base-url="backendBaseUrl"
                 @group-clicked="handleGroupClick"
+                @switch-to-chat="handleSwitchToChat"
             />
         </div>
 
@@ -42,6 +43,7 @@ import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
 
 const props = defineProps({ activeTab: String });
+const emit = defineEmits(['switch-to-chats-tab']);
 const chatStore = useChatStore();
 const userStore = useUserStore();
 const groupStore = useGroupStore();
@@ -203,6 +205,16 @@ const createNewChat = async (user) => {
     } catch (error) {
         // Optionally, show a toast error here
     }
+};
+
+const handleSwitchToChat = async (user) => {
+    console.log("💬 Switching to chat with user:", user);
+    
+    // Emit event to parent to switch to chats tab
+    emit('switch-to-chats-tab', user);
+    
+    // Also handle opening the chat directly
+    await handleOpenChat(user);
 };
 
 const handleGroupClick = async (group) => {

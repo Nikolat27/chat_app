@@ -142,6 +142,16 @@
 
                         <!-- Action Buttons -->
                         <div class="flex items-center gap-2">
+                            <!-- Start Chat Button (only show if not current user) -->
+                            <button
+                                v-if="member.user_id !== currentUserId"
+                                @click="handleStartChat(member)"
+                                class="w-8 h-8 text-blue-500 hover:bg-blue-50 rounded-full hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
+                                title="Start chat with user"
+                            >
+                                <span class="material-icons text-sm">chat</span>
+                            </button>
+
                             <!-- Ban Button (only show if user is not banned) -->
                             <button
                                 v-if="
@@ -234,7 +244,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["close", "member-updated"]);
+const emit = defineEmits(["close", "member-updated", "start-chat"]);
 
 const isLoading = ref(false);
 const isBanning = ref(null);
@@ -532,6 +542,16 @@ const handleUnban = async (member) => {
     } finally {
         isBanning.value = null;
     }
+};
+
+const handleStartChat = (member) => {
+    console.log("💬 Starting chat with user:", member);
+    emit("start-chat", {
+        user_id: member.user_id,
+        username: member.username,
+        avatar_url: member.avatar_url
+    });
+    closeModal();
 };
 
 const closeModal = () => {
