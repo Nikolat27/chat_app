@@ -316,7 +316,13 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 		"group_id": groupObjectId,
 	}
 
-	messages, err := handler.Models.Message.GetAll(filter, bson.M{}, 1, 10)
+	page, pageLimit, errResp := utils.ParsePageAndLimitQueryParams(r.URL)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	messages, err := handler.Models.Message.GetAll(filter, bson.M{}, page, pageLimit)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err)
 		return
