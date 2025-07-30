@@ -538,6 +538,7 @@ func (handler *Handler) BanMemberFromGroup(w http.ResponseWriter, r *http.Reques
 	projection := bson.M{
 		"members":        1,
 		"banned_members": 1,
+		"admins":         1,
 		"owner_id":       1,
 	}
 
@@ -553,7 +554,7 @@ func (handler *Handler) BanMemberFromGroup(w http.ResponseWriter, r *http.Reques
 	}
 
 	if !slices.Contains(groupInstance.Admins, payload.UserId) {
-		utils.WriteError(w, http.StatusBadRequest, "banFromGroup", "only group admins can ban someone")
+		utils.WriteError(w, http.StatusForbidden, "banFromGroup", "only group admins can ban someone")
 		return
 	}
 
@@ -581,6 +582,93 @@ func (handler *Handler) BanMemberFromGroup(w http.ResponseWriter, r *http.Reques
 	}
 
 	utils.WriteJSON(w, http.StatusOK, "user banned from this group successfully")
+}
+
+func (handler *Handler) UnBanMemberFromGroup(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
+		return
+	}
+
+	groupObjectId, errResp := utils.ToObjectId(groupId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	var input struct {
+		TargetUser string `json:"target_user"`
+	}
+
+	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "parseJson", err.Error())
+		return
+	}
+
+	targetUserObjectId, errResp := utils.ToObjectId(input.TargetUser)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"_id": groupObjectId,
+	}
+
+	projection := bson.M{
+		"members":        1,
+		"banned_members": 1,
+		"admins":         1,
+		"owner_id":       1,
+	}
+
+	groupInstance, err := handler.Models.Group.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			utils.WriteError(w, http.StatusBadRequest, "getGroup", "group with this id does not exist")
+			return
+		}
+
+		utils.WriteError(w, http.StatusBadRequest, "getGroup", err.Error())
+		return
+	}
+
+	if !slices.Contains(groupInstance.Admins, payload.UserId) {
+		utils.WriteError(w, http.StatusForbidden, "UnBanFromGroup", "only group admins can UnBan someone")
+		return
+	}
+
+	if !slices.Contains(groupInstance.BannedMembers, targetUserObjectId) {
+		utils.WriteError(w, http.StatusBadRequest, "UnBanFromGroup", "this user is not banned")
+		return
+	}
+
+	if slices.Contains(groupInstance.Members, targetUserObjectId) {
+		utils.WriteError(w, http.StatusBadRequest, "UnBanFromGroup", "this user is a member of this group already")
+		return
+	}
+
+	newMembers := append(groupInstance.Members, targetUserObjectId)
+	updatedBans := utils.DeleteElementFromSlice(groupInstance.BannedMembers, targetUserObjectId)
+
+	updates := bson.M{
+		"members":        newMembers,
+		"banned_members": updatedBans,
+	}
+
+	if _, err := handler.Models.Group.Update(filter, updates); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "updatingGroup", err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, "user UnBanned from this group successfully")
 }
 
 func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
@@ -644,40 +732,6 @@ func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, "you left the group successfully")
-}
-
-func checkUserApproval(groupId, userId primitive.ObjectID, handler *Handler) *utils.ErrorResponse {
-	filter := bson.M{
-		"group_id":     groupId,
-		"requester_id": userId,
-	}
-
-	projection := bson.M{
-		"status": 1,
-	}
-
-	approvalInstance, err := handler.Models.Approval.Get(filter, projection)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return &utils.ErrorResponse{Type: "userApprovalNotFound", Detail: "You have to submit an approval for this"}
-		}
-
-		return &utils.ErrorResponse{Type: "getUserApproval", Detail: err.Error()}
-	}
-
-	if approvalInstance.Status == "approved" {
-		return nil
-	}
-
-	if approvalInstance.Status == "pending" {
-		return &utils.ErrorResponse{Type: "userApprovalStatus", Detail: "Your approval is in pending status. Please be patient"}
-	}
-
-	if approvalInstance.Status == "rejected" {
-		return &utils.ErrorResponse{Type: "userApprovalStatus", Detail: "Your approval has been rejected"}
-	}
-
-	return nil
 }
 
 func (handler *Handler) getIdByInviteLink(inviteLink string) (primitive.ObjectID, error) {
