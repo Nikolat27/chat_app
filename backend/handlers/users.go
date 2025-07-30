@@ -4,6 +4,7 @@ import (
 	"chat_app/utils"
 	"encoding/hex"
 	"errors"
+	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -51,6 +52,42 @@ func (handler *Handler) SearchUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userInstance, err := handler.Models.User.Get(filter, bson.M{})
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		utils.WriteError(w, http.StatusBadRequest, "getUser", err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, userInstance)
+}
+
+func (handler *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	userId := chi.URLParam(r, "user_id")
+	if userId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "getUrlParam", "user id is missing")
+		return
+	}
+
+	userObjectId, errResp := utils.ToObjectId(userId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"_id": userObjectId,
+	}
+
+	projection := bson.M{
+		"avatar_url": 1,
+		"username":   1,
+	}
+
+	userInstance, err := handler.Models.User.Get(filter, projection)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		utils.WriteError(w, http.StatusBadRequest, "getUser", err)
 		return
@@ -279,4 +316,38 @@ func getUserUsername(id primitive.ObjectID, handler *Handler) (string, error) {
 	}
 
 	return user.Username, nil
+}
+
+func checkUserApproval(groupId, userId primitive.ObjectID, handler *Handler) *utils.ErrorResponse {
+	filter := bson.M{
+		"group_id":     groupId,
+		"requester_id": userId,
+	}
+
+	projection := bson.M{
+		"status": 1,
+	}
+
+	approvalInstance, err := handler.Models.Approval.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return &utils.ErrorResponse{Type: "userApprovalNotFound", Detail: "You have to submit an approval for this"}
+		}
+
+		return &utils.ErrorResponse{Type: "getUserApproval", Detail: err.Error()}
+	}
+
+	if approvalInstance.Status == "approved" {
+		return nil
+	}
+
+	if approvalInstance.Status == "pending" {
+		return &utils.ErrorResponse{Type: "userApprovalStatus", Detail: "Your approval is in pending status. Please be patient"}
+	}
+
+	if approvalInstance.Status == "rejected" {
+		return &utils.ErrorResponse{Type: "userApprovalStatus", Detail: "Your approval has been rejected"}
+	}
+
+	return nil
 }
