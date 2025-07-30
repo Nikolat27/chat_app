@@ -14,7 +14,7 @@ import (
 func UploadFile(r *http.Request, keyName string, allowedFormats []string) (string, *ErrorResponse) {
 	file, header, err := r.FormFile(keyName)
 	if err != nil {
-		return "", &ErrorResponse{Type: "getFile", Detail: err.Error()}
+		return "", &ErrorResponse{Type: "fileMissing", Detail: err.Error()}
 	}
 	defer file.Close()
 
