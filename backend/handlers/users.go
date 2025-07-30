@@ -274,6 +274,39 @@ func (handler *Handler) GetUserGroups(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, response)
 }
 
+// GetUserSecretGroups -> Returns the secret chats themselves
+func (handler *Handler) GetUserSecretGroups(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"members": bson.M{
+			"$in": []primitive.ObjectID{payload.UserId},
+		},
+	}
+
+	page, pageLimit, errResp := utils.ParsePageAndLimitQueryParams(r.URL)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groups, err := handler.Models.SecretGroup.GetAll(filter, bson.M{}, page, pageLimit)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		utils.WriteError(w, http.StatusBadRequest, "getGroups", err.Error())
+		return
+	}
+
+	response := map[string]any{
+		"groups": groups,
+	}
+
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
 func getOtherUserId(participants []primitive.ObjectID, userId primitive.ObjectID) primitive.ObjectID {
 	for _, participant := range participants {
 		if participant != userId {
