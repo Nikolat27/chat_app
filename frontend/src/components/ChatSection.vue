@@ -110,7 +110,6 @@ const {
     isGroupConnected,
     groupMessages,
     newGroupMessage,
-    groupUsers,
     establishGroupConnection,
     sendGroupMessage,
     closeGroupConnection,

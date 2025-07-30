@@ -1,15 +1,16 @@
 import { ref } from 'vue';
 import { showError } from '../utils/toast';
 import axiosInstance from '../axiosInstance';
+import { useGroupStore } from '../stores/groups';
 
 let groupSocket = null;
 let groupUsers = ref({});
 
 export function useGroupChat() {
+    const groupStore = useGroupStore();
     const isGroupConnected = ref(false);
     const groupMessages = ref([]);
     const newGroupMessage = ref('');
-    const groupUsers = ref({});
 
     // Establish group WebSocket connection
     const establishGroupConnection = (groupData, onMessageCallback) => {
@@ -126,30 +127,34 @@ export function useGroupChat() {
             console.log('👥 Group users response:', response.data);
             
             if (response.data && typeof response.data === 'object') {
-                groupUsers.value = response.data;
+                groupStore.setGroupUsers(response.data);
                 console.log('✅ Loaded', Object.keys(response.data).length, 'group users');
             } else {
                 console.log('👥 No group users found or invalid response format');
-                groupUsers.value = {};
+                groupStore.setGroupUsers({});
             }
         } catch (error) {
             console.error('❌ Failed to load group users:', error);
             console.error('❌ Error details:', error.response?.data);
             showError('Failed to load group users. Please try again.');
-            groupUsers.value = {};
+            groupStore.setGroupUsers({});
         }
     };
 
     // Get username by sender ID
     const getUsernameBySenderId = (senderId) => {
-        const user = groupUsers.value[senderId];
+        const user = groupStore.getGroupUsers()[senderId];
         return user?.username || 'Unknown User';
     };
 
     // Get avatar by sender ID
     const getAvatarBySenderId = (senderId) => {
-        const user = groupUsers.value[senderId];
-        return user?.profile_url || null;
+        const user = groupStore.getGroupUsers()[senderId];
+        if (!user?.profile_url) return null;
+        
+        // Construct full avatar URL
+        const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+        return `${backendBaseUrl}/static/${user.profile_url}`;
     };
 
     // Load group messages from API
@@ -269,7 +274,6 @@ export function useGroupChat() {
         isGroupConnected,
         groupMessages,
         newGroupMessage,
-        groupUsers,
         establishGroupConnection,
         sendGroupMessage,
         closeGroupConnection,

@@ -20,8 +20,8 @@
                     <span
                         class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
                     >
-                        {{ groups ? groups.length : 0 }} groups
-                    </span>
+                    {{ groups ? groups.length : 0 }} groups
+                </span>
                 </div>
             </div>
             <p class="text-sm text-gray-600">
@@ -107,10 +107,10 @@
                                 >
                                     {{ group.name }}
                                 </span>
-                                <div
+                                <div 
                                     :class="
                                         group.is_secret
-                                            ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
                                             : group.type === 'private'
                                             ? 'bg-orange-100 text-orange-700 border-orange-200'
                                             : 'bg-green-100 text-green-700 border-green-200'
@@ -285,9 +285,9 @@
                             Invite Link
                         </label>
                         <div class="relative">
-                            <input
-                                v-model="joinGroupCode"
-                                type="text"
+                <input
+                    v-model="joinGroupCode"
+                    type="text"
                                 placeholder="Enter invite link..."
                                 class="w-full border-2 border-blue-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-200 text-gray-700 shadow-sm hover:shadow-md"
                                 @keyup.enter="handleJoinGroup"
@@ -853,7 +853,7 @@ const handleJoinGroup = async () => {
             showError("Please enter an invite link");
             return;
         }
-
+        
         isJoiningGroup.value = true;
 
         // Extract invite link from input
@@ -911,7 +911,7 @@ const handleCreateGroup = async () => {
             showError("Please enter a group name");
             return;
         }
-
+        
         isCreatingGroup.value = true;
 
         // Create FormData for multipart/form-data
@@ -946,7 +946,7 @@ const handleCreateGroup = async () => {
         }
 
         showCreateGroupModal.value = false;
-
+        
         // Reset form
         newGroup.name = "";
         newGroup.description = "";
@@ -977,7 +977,7 @@ const handleCreateSecretGroup = async () => {
             showError("Please enter a group name");
             return;
         }
-
+        
         isCreatingSecretGroup.value = true;
 
         // Create FormData for multipart/form-data
@@ -1006,7 +1006,7 @@ const handleCreateSecretGroup = async () => {
         }
 
         showCreateSecretGroupModal.value = false;
-
+        
         // Reset form
         newSecretGroup.name = "";
         newSecretGroup.description = "";
@@ -1062,4 +1062,4 @@ const handleAvatarUpload = (event) => {
 
 <style scoped>
 @import url("https://fonts.googleapis.com/icon?family=Material+Icons");
-</style>
+</style> 

@@ -7,7 +7,8 @@ export const useGroupStore = defineStore('groups', {
         isLoading: false,
         currentGroup: null,
         groupMembers: [],
-        groupMessages: []
+        groupMessages: [],
+        groupUsers: {}
     }),
 
     getters: {
@@ -383,6 +384,14 @@ export const useGroupStore = defineStore('groups', {
 
         clearGroupMessages() {
             this.groupMessages = [];
+        },
+
+        setGroupUsers(users) {
+            this.groupUsers = users;
+        },
+
+        getGroupUsers() {
+            return this.groupUsers;
         }
     }
 }); 
