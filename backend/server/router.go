@@ -64,7 +64,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Post("/save-message/create", handler.CreateSaveMessage)
 		r.Get("/save-message/get", handler.GetSaveMessages)
 		r.Put("/save-message/update/{message_id}", handler.EditSaveMessage)
-		r.Delete("/save-message/delete", handler.DeleteSaveMessage)
+		r.Delete("/save-message/delete/{message_id}", handler.DeleteSaveMessage)
 
 		// Secret Chats
 		r.Get("/secret-chat/get/{secret_chat_id}", handler.GetSecretChat)
