@@ -49,12 +49,16 @@
             :messages="groupMessages"
             :current-user-id="userStore.user_id"
             :backend-base-url="backendBaseUrl"
-            :user-avatar="userStore.avatar_url"
+            :user-avatar="userStore.avatar_url ? `${backendBaseUrl}/static/${userStore.avatar_url}` : null"
             :other-user-avatar="null"
             :chat-id="currentGroup?.id"
             :is-loading-messages="isLoadingMessages"
             @load-more-messages="handleLoadMoreGroupMessages"
         />
+        <!-- Debug user avatar -->
+        <div v-if="currentGroup && isCurrentChatGroup" style="display: none;">
+            Debug - User Avatar: {{ userStore.avatar_url }}
+        </div>
 
         <!-- Regular Chat Message Input -->
         <MessageInput

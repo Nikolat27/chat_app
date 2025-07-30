@@ -34,7 +34,7 @@
                     <template v-if="msg.sender_id !== currentUserId">
                         <div class="flex-shrink-0">
                             <img
-                                :src="getAvatarUrl(msg.sender_avatar || otherUserAvatar)"
+                                :src="getAvatarUrl(msg.sender_avatar)"
                                 class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md select-none pointer-events-none"
                                 alt="Avatar"
                             />
@@ -99,6 +99,7 @@
                                 :src="getAvatarUrl(userAvatar)"
                                 class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md select-none pointer-events-none"
                                 alt="Avatar"
+                                @error="handleAvatarError"
                             />
                         </div>
                     </template>
@@ -156,11 +157,27 @@ const emit = defineEmits(['load-more-messages']);
 
 const messagesContainer = ref(null);
 const { handleDeleteMessage, isDeleting } = useMessageDeletion();
+const previousMessageCount = ref(0);
+const isPaginationLoading = ref(false);
 
 const getAvatarUrl = (avatarUrl) => {
-    if (!avatarUrl) return '/src/assets/default-avatar.jpg';
-    if (avatarUrl.startsWith('http')) return avatarUrl;
-    return `${props.backendBaseUrl}/static/${avatarUrl}`;
+    console.log('🖼️ getAvatarUrl called with:', avatarUrl);
+    if (!avatarUrl) {
+        console.log('🖼️ No avatar URL, using default');
+        return '/src/assets/default-avatar.jpg';
+    }
+    if (avatarUrl.startsWith('http')) {
+        console.log('🖼️ Avatar URL is already full URL:', avatarUrl);
+        return avatarUrl;
+    }
+    // For group messages, the avatar URL should already be constructed with full path
+    console.log('🖼️ Avatar URL (not http):', avatarUrl);
+    return avatarUrl;
+};
+
+const handleAvatarError = (event) => {
+    console.log('🖼️ Avatar load error, using default');
+    event.target.src = '/src/assets/default-avatar.jpg';
 };
 
 const formatTime = (timestamp) => {
@@ -179,6 +196,7 @@ const handleScroll = () => {
         const { scrollTop } = messagesContainer.value;
         // Load more messages when user scrolls to the top
         if (scrollTop === 0) {
+            isPaginationLoading.value = true;
             emit('load-more-messages');
         }
     }
@@ -190,12 +208,41 @@ const scrollToBottom = () => {
     }
 };
 
+const preserveScrollPosition = () => {
+    if (messagesContainer.value) {
+        // Store current scroll position
+        const currentScrollTop = messagesContainer.value.scrollTop;
+        const currentScrollHeight = messagesContainer.value.scrollHeight;
+        
+        // After new content is added, adjust scroll position
+        nextTick(() => {
+            if (messagesContainer.value) {
+                const newScrollHeight = messagesContainer.value.scrollHeight;
+                const heightDifference = newScrollHeight - currentScrollHeight;
+                messagesContainer.value.scrollTop = currentScrollTop + heightDifference;
+            }
+        });
+    }
+};
+
 // Watch for new messages and scroll to bottom
 watch(
     () => props.messages.length,
-    () => {
+    (newLength, oldLength) => {
         nextTick(() => {
-            scrollToBottom();
+            if (newLength > oldLength) {
+                if (isPaginationLoading.value) {
+                    // This is pagination - preserve scroll position
+                    console.log('📜 Pagination detected, preserving scroll position');
+                    preserveScrollPosition();
+                    isPaginationLoading.value = false;
+                } else {
+                    // This is a new message - scroll to bottom
+                    console.log('📜 New message detected, scrolling to bottom');
+                    scrollToBottom();
+                }
+            }
+            previousMessageCount.value = newLength;
         });
     }
 );
@@ -205,7 +252,10 @@ watch(
     () => props.messages[props.messages.length - 1]?.id,
     () => {
         nextTick(() => {
-            scrollToBottom();
+            // Only scroll to bottom for new incoming messages (not pagination)
+            if (!isPaginationLoading.value) {
+                scrollToBottom();
+            }
         });
     }
 );

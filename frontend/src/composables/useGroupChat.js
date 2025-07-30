@@ -153,18 +153,30 @@ export function useGroupChat() {
 
     // Get username by sender ID
     const getUsernameBySenderId = (senderId) => {
-        const user = groupStore.getGroupUsers()[senderId];
+        const users = groupStore.getGroupUsers();
+        console.log('👤 getUsernameBySenderId - senderId:', senderId, 'users:', users);
+        const user = users[senderId];
+        console.log('👤 Found user:', user);
         return user?.username || 'Unknown User';
     };
 
     // Get avatar by sender ID
     const getAvatarBySenderId = (senderId) => {
-        const user = groupStore.getGroupUsers()[senderId];
-        if (!user?.profile_url) return null;
+        const users = groupStore.getGroupUsers();
+        console.log('🖼️ getAvatarBySenderId - senderId:', senderId, 'users:', users);
+        const user = users[senderId];
+        console.log('🖼️ Found user:', user);
+        
+        if (!user?.avatar_url) {
+            console.log('🖼️ No avatar_url found for user');
+            return null;
+        }
         
         // Construct full avatar URL
         const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
-        return `${backendBaseUrl}/static/${user.profile_url}`;
+        const fullUrl = `${backendBaseUrl}/static/${user.avatar_url}`;
+        console.log('🖼️ Constructed avatar URL:', fullUrl);
+        return fullUrl;
     };
 
     // Load group messages from API with pagination
