@@ -78,6 +78,25 @@
 
         <!-- No Chat Selected State -->
         <NoChatSelected v-if="!chatStore.currentChatUser && !currentGroup" />
+
+        <!-- Group Info Modal -->
+        <GroupInfoModal
+            :is-visible="showGroupInfoModal"
+            :group="selectedGroupForInfo"
+            :backend-base-url="backendBaseUrl"
+            :current-user-id="userStore.user_id"
+            @close="handleGroupInfoModalClose"
+            @edit-group="handleEditGroupFromInfo"
+        />
+
+        <!-- Update Group Modal -->
+        <UpdateGroupModal
+            :is-visible="showUpdateGroupModal"
+            :group="selectedGroupForUpdate"
+            :backend-base-url="backendBaseUrl"
+            @close="handleUpdateGroupModalClose"
+            @group-updated="handleGroupUpdated"
+        />
     </section>
 </template>
 
@@ -94,6 +113,8 @@ import MessagesArea from "./chat/MessagesArea.vue";
 import MessageInput from "./chat/MessageInput.vue";
 import GroupMessagesArea from "./chat/GroupMessagesArea.vue";
 import GroupMessageInput from "./chat/GroupMessageInput.vue";
+import GroupInfoModal from "./ui/GroupInfoModal.vue";
+import UpdateGroupModal from "./ui/UpdateGroupModal.vue";
 import { useWebSocket } from "../composables/useWebSocket";
 import { useGroupChat } from "../composables/useGroupChat";
 import { useMessagePagination } from "../composables/useMessagePagination";
@@ -782,10 +803,42 @@ const handleDeleteGroup = async (group) => {
 };
 
 // Handle show group info
+const showGroupInfoModal = ref(false);
+const selectedGroupForInfo = ref(null);
+
+// Handle edit group
+const showUpdateGroupModal = ref(false);
+const selectedGroupForUpdate = ref(null);
+
 const handleShowGroupInfo = (group) => {
-    // For now, just show a simple alert with group info
-    // You can implement a proper modal later
-    alert(`Group: ${group.name}\nDescription: ${group.description || 'No description'}\nType: ${group.type}\nMembers: ${group.member_count || 0}`);
+    selectedGroupForInfo.value = group;
+    showGroupInfoModal.value = true;
+};
+
+const handleGroupInfoModalClose = () => {
+    showGroupInfoModal.value = false;
+    selectedGroupForInfo.value = null;
+};
+
+const handleEditGroupFromInfo = (group) => {
+    // Close info modal and open update modal
+    handleGroupInfoModalClose();
+    selectedGroupForUpdate.value = group;
+    showUpdateGroupModal.value = true;
+};
+
+const handleUpdateGroupModalClose = () => {
+    showUpdateGroupModal.value = false;
+    selectedGroupForUpdate.value = null;
+};
+
+const handleGroupUpdated = (updatedGroup) => {
+    console.log('Group updated:', updatedGroup);
+    // Update the current group if it's the same one
+    if (currentGroup.value && currentGroup.value.id === updatedGroup.id) {
+        currentGroup.value = { ...currentGroup.value, ...updatedGroup };
+    }
+    handleUpdateGroupModalClose();
 };
 </script>
 

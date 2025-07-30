@@ -1,125 +1,123 @@
 <template>
     <div
         ref="messagesContainer"
-        class="flex-1 overflow-y-auto px-4 py-6 space-y-3 bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50"
+        class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"
         @scroll="handleScroll"
     >
         <!-- Loading indicator for older messages -->
-        <div v-if="isLoadingMessages" class="text-center py-6">
-            <div
-                class="inline-flex items-center px-6 py-3 bg-white rounded-full shadow-lg border border-gray-200"
-            >
-                <div
-                    class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"
-                ></div>
-                <span class="text-gray-700 text-sm font-medium"
-                    >Loading messages...</span
-                >
+        <div v-if="isLoadingMessages" class="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+            <div class="flex items-center justify-center py-4">
+                <div class="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-lg border border-gray-200">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                    <span class="text-gray-600 text-sm font-medium">Loading messages...</span>
+                </div>
             </div>
         </div>
 
-        <!-- Messages List -->
-        <div v-if="messages && messages.length" class="space-y-3">
-            <template v-for="msg in messages" :key="msg.id">
+        <!-- Messages Container -->
+        <div class="px-6 py-8 space-y-4">
+            <!-- Messages List -->
+            <template v-if="messages && messages.length">
                 <div
-                    v-if="msg.content !== '' || msg.content_address !== ''"
+                    v-for="msg in filteredMessages"
+                    :key="msg.id"
                     :class="
                         msg.sender_id === currentUserId
-                            ? 'justify-end'
-                            : 'justify-start'
+                            ? 'flex justify-end'
+                            : 'flex justify-start'
                     "
-                    class="flex items-end gap-3 px-2"
+                    class="group"
                 >
-                    <!-- Avatar for received messages -->
-                    <template v-if="msg.sender_id !== currentUserId">
-                        <div class="flex-shrink-0">
+                    <div class="flex items-end gap-3 max-w-[70%]">
+                        <!-- Avatar for received messages -->
+                        <div v-if="msg.sender_id !== currentUserId" class="flex-shrink-0">
                             <img
                                 :src="getAvatarUrl(msg.sender_avatar)"
-                                class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md select-none pointer-events-none"
-                                alt="Avatar"
-                            />
-                        </div>
-                    </template>
-
-                    <!-- Message Bubble -->
-                    <div
-                        :class="
-                            msg.sender_id === currentUserId
-                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                                : 'bg-white text-gray-900 border border-gray-200 shadow-md'
-                        "
-                        class="rounded-2xl px-5 py-3 max-w-xs sm:max-w-md lg:max-w-lg relative group hover:shadow-lg transition-all duration-200"
-                    >
-                        <!-- Sender name for group messages -->
-                        <div v-if="msg.sender_id !== currentUserId" class="text-xs text-gray-500 mb-1 font-medium">
-                            {{ msg.sender_name || 'Unknown User' }}
-                        </div>
-                        
-                        <div
-                            class="text-base break-words whitespace-pre-wrap leading-relaxed font-medium"
-                        >
-                            {{ msg.content }}
-                        </div>
-                        <div
-                            :class="
-                                msg.sender_id === currentUserId
-                                    ? 'text-blue-100'
-                                    : 'text-gray-500'
-                            "
-                            class="text-xs text-right mt-2 font-medium"
-                        >
-                            {{
-                                formatTime(msg.created_at) ||
-                                formatTime(Date.now())
-                            }}
-                        </div>
-
-                        <!-- Delete button -->
-                        <div
-                            v-if="canDeleteMessage(msg.id, currentUserId)"
-                            class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100"
-                        >
-                            <button
-                                @click="handleDeleteMessage(msg.id)"
-                                :disabled="isDeleting"
-                                class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl"
-                                title="Delete message"
-                            >
-                                <span class="material-icons text-sm"
-                                    >delete</span
-                                >
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Avatar for sent messages -->
-                    <template v-if="msg.sender_id === currentUserId">
-                        <div class="flex-shrink-0">
-                            <img
-                                :src="getAvatarUrl(userAvatar)"
-                                class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md select-none pointer-events-none"
+                                class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
                                 alt="Avatar"
                                 @error="handleAvatarError"
                             />
                         </div>
-                    </template>
+
+                        <!-- Message Content -->
+                        <div class="flex flex-col">
+                            <!-- Sender name for group messages -->
+                            <div v-if="msg.sender_id !== currentUserId" class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-semibold text-gray-700">
+                                    {{ msg.sender_name || 'Unknown User' }}
+                                </span>
+                                <span class="text-xs text-gray-400">
+                                    {{ formatTime(msg.created_at) }}
+                                </span>
+                            </div>
+
+                            <!-- Message Bubble -->
+                            <div
+                                :class="
+                                    msg.sender_id === currentUserId
+                                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                                        : 'bg-white text-gray-800 border border-gray-200'
+                                "
+                                class="rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200 relative"
+                            >
+                                <div class="text-base leading-relaxed break-words whitespace-pre-wrap">
+                                    {{ msg.content }}
+                                </div>
+
+                                <!-- Time for sent messages -->
+                                <div
+                                    v-if="msg.sender_id === currentUserId"
+                                    class="text-xs text-blue-100 mt-2 text-right"
+                                >
+                                    {{ formatTime(msg.created_at) }}
+                                </div>
+
+                                <!-- Delete button for sent messages -->
+                                <div
+                                    v-if="canDeleteMessage(msg.id, currentUserId) && msg.sender_id === currentUserId"
+                                    class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                >
+                                    <button
+                                        @click="handleDeleteMessage(msg.id)"
+                                        :disabled="isDeleting"
+                                        class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg cursor-pointer transition-all duration-200"
+                                        title="Delete message"
+                                    >
+                                        <span class="material-icons text-xs">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Avatar for sent messages -->
+                        <div v-if="msg.sender_id === currentUserId" class="flex-shrink-0">
+                            <img
+                                :src="getAvatarUrl(userAvatar)"
+                                class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+                                alt="Avatar"
+                                @error="handleAvatarError"
+                            />
+                        </div>
+                    </div>
                 </div>
             </template>
-        </div>
 
-        <!-- Empty state -->
-        <div v-else class="text-center py-8">
-            <div class="text-gray-500">
-                <span class="material-icons text-6xl mb-4 block">chat_bubble_outline</span>
-                <p class="text-lg font-medium">No messages yet</p>
-                <p class="text-sm">Start the conversation!</p>
+            <!-- Empty state -->
+            <div v-else class="flex items-center justify-center h-full">
+                <div class="text-center">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                        <span class="material-icons text-2xl text-blue-600">chat_bubble_outline</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">No messages yet</h3>
+                    <p class="text-sm text-gray-500">Start the conversation!</p>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import { useMessageDeletion } from '../../composables/useMessageDeletion';
 
 const props = defineProps({
@@ -160,23 +158,25 @@ const { handleDeleteMessage, isDeleting } = useMessageDeletion();
 const previousMessageCount = ref(0);
 const isPaginationLoading = ref(false);
 
+// Filter messages to only show valid ones
+const filteredMessages = computed(() => {
+    if (!props.messages) return [];
+    return props.messages.filter(msg => 
+        msg && (msg.content !== '' || msg.content_address !== '')
+    );
+});
+
 const getAvatarUrl = (avatarUrl) => {
-    console.log('🖼️ getAvatarUrl called with:', avatarUrl);
     if (!avatarUrl) {
-        console.log('🖼️ No avatar URL, using default');
         return '/src/assets/default-avatar.jpg';
     }
     if (avatarUrl.startsWith('http')) {
-        console.log('🖼️ Avatar URL is already full URL:', avatarUrl);
         return avatarUrl;
     }
-    // For group messages, the avatar URL should already be constructed with full path
-    console.log('🖼️ Avatar URL (not http):', avatarUrl);
     return avatarUrl;
 };
 
 const handleAvatarError = (event) => {
-    console.log('🖼️ Avatar load error, using default');
     event.target.src = '/src/assets/default-avatar.jpg';
 };
 
@@ -187,14 +187,12 @@ const formatTime = (timestamp) => {
 };
 
 const canDeleteMessage = (messageId, currentUserId) => {
-    // For now, allow deletion of own messages
     return messageId && messageId.startsWith('temp-');
 };
 
 const handleScroll = () => {
     if (messagesContainer.value) {
         const { scrollTop } = messagesContainer.value;
-        // Load more messages when user scrolls to the top
         if (scrollTop === 0) {
             isPaginationLoading.value = true;
             emit('load-more-messages');
@@ -210,11 +208,8 @@ const scrollToBottom = () => {
 
 const preserveScrollPosition = () => {
     if (messagesContainer.value) {
-        // Store current scroll position
         const currentScrollTop = messagesContainer.value.scrollTop;
         const currentScrollHeight = messagesContainer.value.scrollHeight;
-        
-        // After new content is added, adjust scroll position
         nextTick(() => {
             if (messagesContainer.value) {
                 const newScrollHeight = messagesContainer.value.scrollHeight;
@@ -232,13 +227,9 @@ watch(
         nextTick(() => {
             if (newLength > oldLength) {
                 if (isPaginationLoading.value) {
-                    // This is pagination - preserve scroll position
-                    console.log('📜 Pagination detected, preserving scroll position');
                     preserveScrollPosition();
                     isPaginationLoading.value = false;
                 } else {
-                    // This is a new message - scroll to bottom
-                    console.log('📜 New message detected, scrolling to bottom');
                     scrollToBottom();
                 }
             }
@@ -247,12 +238,11 @@ watch(
     }
 );
 
-// Watch for changes in the last message (for new incoming messages)
+// Watch for new messages and scroll to bottom
 watch(
     () => props.messages[props.messages.length - 1]?.id,
     () => {
         nextTick(() => {
-            // Only scroll to bottom for new incoming messages (not pagination)
             if (!isPaginationLoading.value) {
                 scrollToBottom();
             }
@@ -261,8 +251,26 @@ watch(
 );
 
 onMounted(() => {
-    nextTick(() => {
-        scrollToBottom();
-    });
+    scrollToBottom();
 });
-</script> 
+</script>
+
+<style scoped>
+/* Custom scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.3);
+    border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.5);
+}
+</style> 
