@@ -118,7 +118,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import { useMessageDeletion } from '../../composables/useMessageDeletion';
 
 const props = defineProps({
@@ -177,17 +177,42 @@ const canDeleteMessage = (messageId, currentUserId) => {
 const handleScroll = () => {
     if (messagesContainer.value) {
         const { scrollTop } = messagesContainer.value;
+        // Load more messages when user scrolls to the top
         if (scrollTop === 0) {
             emit('load-more-messages');
         }
     }
 };
 
+const scrollToBottom = () => {
+    if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    }
+};
+
+// Watch for new messages and scroll to bottom
+watch(
+    () => props.messages.length,
+    () => {
+        nextTick(() => {
+            scrollToBottom();
+        });
+    }
+);
+
+// Watch for changes in the last message (for new incoming messages)
+watch(
+    () => props.messages[props.messages.length - 1]?.id,
+    () => {
+        nextTick(() => {
+            scrollToBottom();
+        });
+    }
+);
+
 onMounted(() => {
     nextTick(() => {
-        if (messagesContainer.value) {
-            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-        }
+        scrollToBottom();
     });
 });
 </script> 

@@ -11,6 +11,12 @@ export function useGroupChat() {
     const isGroupConnected = ref(false);
     const groupMessages = ref([]);
     const newGroupMessage = ref('');
+    
+    // Pagination state
+    const currentPage = ref(1);
+    const pageLimit = ref(20);
+    const hasMoreMessages = ref(true);
+    const isLoadingMessages = ref(false);
 
     // Establish group WebSocket connection
     const establishGroupConnection = (groupData, onMessageCallback) => {
@@ -115,6 +121,10 @@ export function useGroupChat() {
     // Clear group messages
     const clearGroupMessages = () => {
         groupMessages.value = [];
+        // Reset pagination state
+        currentPage.value = 1;
+        hasMoreMessages.value = true;
+        isLoadingMessages.value = false;
     };
 
     // Load group users from API
@@ -157,11 +167,17 @@ export function useGroupChat() {
         return `${backendBaseUrl}/static/${user.profile_url}`;
     };
 
-    // Load group messages from API
-    const loadGroupMessages = async (groupId) => {
+    // Load group messages from API with pagination
+    const loadGroupMessages = async (groupId, page = 1, limit = 20) => {
+        if (isLoadingMessages.value) return;
+
         try {
-            console.log('📥 Loading group messages for group:', groupId);
-            const response = await axiosInstance.get(`/api/group/get/${groupId}/messages`);
+            isLoadingMessages.value = true;
+            console.log('📥 Loading group messages for group:', groupId, 'page:', page, 'limit:', limit);
+            
+            const response = await axiosInstance.get(`/api/group/get/${groupId}/messages`, {
+                params: { page, limit }
+            });
             console.log('📥 Group messages response:', response.data);
             
             // Handle the response structure: { messages: [...] }
@@ -179,17 +195,55 @@ export function useGroupChat() {
                     sender_avatar: getAvatarBySenderId(msg.sender_id)
                 }));
                 
-                groupMessages.value = transformedMessages;
-                console.log('✅ Loaded', transformedMessages.length, 'group messages');
+                // For pagination, we'll assume there are more messages if we got a full page
+                const hasMore = messagesArray.length >= limit;
+                
+                // Update pagination state
+                currentPage.value = page;
+                hasMoreMessages.value = hasMore;
+                
+                // If it's the first page, replace messages; otherwise, prepend to existing messages
+                if (page === 1) {
+                    groupMessages.value = transformedMessages;
+                } else {
+                    // Prepend older messages to the beginning (for pagination)
+                    groupMessages.value.unshift(...transformedMessages);
+                }
+                
+                console.log('✅ Loaded', transformedMessages.length, 'group messages (page', page, ')');
             } else {
                 console.log('📥 No group messages found or invalid response format');
-                groupMessages.value = [];
+                if (page === 1) {
+                    groupMessages.value = [];
+                }
+                hasMoreMessages.value = false;
             }
         } catch (error) {
             console.error('❌ Failed to load group messages:', error);
             showError('Failed to load group messages. Please try again.');
-            groupMessages.value = [];
+            if (page === 1) {
+                groupMessages.value = [];
+            }
+        } finally {
+            isLoadingMessages.value = false;
         }
+    };
+
+    // Load next page of group messages
+    const loadNextGroupPage = async (groupId) => {
+        if (!hasMoreMessages.value || isLoadingMessages.value) return;
+        
+        const nextPage = currentPage.value + 1;
+        return await loadGroupMessages(groupId, nextPage, pageLimit.value);
+    };
+
+    // Load initial group messages
+    const loadInitialGroupMessages = async (groupId) => {
+        // Reset pagination state
+        currentPage.value = 1;
+        hasMoreMessages.value = true;
+        isLoadingMessages.value = false;
+        return await loadGroupMessages(groupId, 1, pageLimit.value);
     };
 
     // Handle incoming group message
@@ -274,6 +328,11 @@ export function useGroupChat() {
         isGroupConnected,
         groupMessages,
         newGroupMessage,
+        // Pagination state
+        currentPage,
+        pageLimit,
+        hasMoreMessages,
+        isLoadingMessages,
         establishGroupConnection,
         sendGroupMessage,
         closeGroupConnection,
@@ -282,6 +341,8 @@ export function useGroupChat() {
         clearGroupMessages,
         loadGroupUsers,
         loadGroupMessages,
+        loadNextGroupPage,
+        loadInitialGroupMessages,
         getUsernameBySenderId,
         getAvatarBySenderId,
         handleIncomingGroupMessage

@@ -52,7 +52,7 @@
             :user-avatar="userStore.avatar_url"
             :other-user-avatar="null"
             :chat-id="currentGroup?.id"
-            :is-loading-messages="false"
+            :is-loading-messages="isLoadingMessages"
             @load-more-messages="handleLoadMoreGroupMessages"
         />
 
@@ -110,6 +110,11 @@ const {
     isGroupConnected,
     groupMessages,
     newGroupMessage,
+    // Pagination state
+    currentPage,
+    pageLimit,
+    hasMoreMessages,
+    isLoadingMessages,
     establishGroupConnection,
     sendGroupMessage,
     closeGroupConnection,
@@ -118,6 +123,8 @@ const {
     clearGroupMessages,
     loadGroupUsers,
     loadGroupMessages,
+    loadNextGroupPage,
+    loadInitialGroupMessages,
     getUsernameBySenderId,
     getAvatarBySenderId,
     handleIncomingGroupMessage
@@ -264,7 +271,7 @@ watch(
             
             // Load existing group messages
             console.log('📥 About to load group messages...');
-            await loadGroupMessages(newGroupId);
+            await loadInitialGroupMessages(newGroupId);
             console.log('📥 Group messages loaded successfully');
             
             const groupData = getGroupChatData(newGroupId);
@@ -657,11 +664,7 @@ const sendGroupMessageHandler = async () => {
     newGroupMessage.value = "";
 };
 
-// Handle load more group messages
-const handleLoadMoreGroupMessages = async () => {
-    // TODO: Implement group message pagination if needed
-    console.log('Load more group messages - not implemented yet');
-};
+
 
 // Get current chat ID
 const getCurrentChatId = () => {
@@ -692,6 +695,14 @@ const handleLoadMoreMessages = async () => {
         } else {
             await loadNextPage(chatId);
         }
+    }
+};
+
+// Handle loading more group messages
+const handleLoadMoreGroupMessages = async () => {
+    if (currentGroup.value?.id) {
+        console.log('📥 Loading more group messages for group:', currentGroup.value.id);
+        await loadNextGroupPage(currentGroup.value.id);
     }
 };
 
