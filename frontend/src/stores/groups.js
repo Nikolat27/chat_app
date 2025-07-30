@@ -46,7 +46,8 @@ export const useGroupStore = defineStore('groups', {
                     created_at: group.created_at,
                     member_count: group.users?.length || group.member_count || 1,
                     role: group.role || 'member',
-                    admins: group.admins || [] // Add admins field
+                    admins: group.admins || [], // Add admins field
+                    banned_members: group.banned_members || [] // Add banned_members field
                 }));
                 
                 return this.groups;

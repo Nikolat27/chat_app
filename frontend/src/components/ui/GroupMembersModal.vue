@@ -284,16 +284,18 @@ const loadMembers = async () => {
 
         // Transform the response to include user details
         let membersData = response.data.members || response.data || {};
+        // Get banned members from the group details instead of the members endpoint
+        console.log(props.group)
+
+        const bannedMembers = props.group.banned_members || [];
+        const admins = props.group.admins || [];
+        
+        console.log("🚫 Banned members from group details:", bannedMembers);
+        console.log("👑 Admins from group:", admins);
 
         // Handle object format where keys are user IDs
         if (typeof membersData === "object" && !Array.isArray(membersData)) {
             console.log("🔄 Converting object format to array:", membersData);
-
-            // Get banned members from response and admins from group data
-            const bannedMembers = response.data.banned_members || [];
-            const admins = props.group.admins || [];
-            console.log("🚫 Banned members:", bannedMembers);
-            console.log("👑 Admins from group:", admins);
 
             const membersArray = Object.entries(membersData).map(
                 ([user_id, userData]) => {
@@ -317,12 +319,72 @@ const loadMembers = async () => {
                     return member;
                 }
             );
-            members.value = membersArray;
+            
+            // Handle banned members - they might be in the banned_members array but not in active members
+            const bannedMembersNotInActive = bannedMembers.filter(
+                bannedId => !Object.keys(membersData).includes(bannedId)
+            );
+            
+            console.log("🚫 Banned members not in active list:", bannedMembersNotInActive);
+            
+            if (bannedMembersNotInActive.length > 0) {
+                // Try to get user details for banned members
+                try {
+                    // Try to get user details for each banned member
+                    const bannedMembersWithDetails = await Promise.all(
+                        bannedMembersNotInActive.map(async (bannedId) => {
+                            try {
+                                // Try to get user details from user API
+                                const userResponse = await axiosInstance.get(`/api/user/get/${bannedId}`);
+                                console.log(`👤 User details for banned member ${bannedId}:`, userResponse.data);
+                                
+                                return {
+                                    user_id: bannedId,
+                                    username: userResponse.data.username || `User ${bannedId.slice(-6)}`,
+                                    avatar_url: userResponse.data.avatar_url || null,
+                                    is_banned: true,
+                                    is_admin: admins.includes(bannedId) || bannedId === props.group.owner_id,
+                                    current_user_id: null,
+                                };
+                            } catch (userError) {
+                                console.error(`❌ Failed to get user details for ${bannedId}:`, userError);
+                                // Fallback to placeholder
+                                return {
+                                    user_id: bannedId,
+                                    username: `User ${bannedId.slice(-6)}`,
+                                    avatar_url: null,
+                                    is_banned: true,
+                                    is_admin: admins.includes(bannedId) || bannedId === props.group.owner_id,
+                                    current_user_id: null,
+                                };
+                            }
+                        })
+                    );
+                    
+                    // Combine active and banned members
+                    members.value = [...membersArray, ...bannedMembersWithDetails];
+                } catch (bannedError) {
+                    console.error("❌ Failed to load banned members details:", bannedError);
+                    
+                    // Create placeholder entries for banned members if we can't get their details
+                    const bannedMembersArray = bannedMembersNotInActive.map(bannedId => ({
+                        user_id: bannedId,
+                        username: `User ${bannedId.slice(-6)}`, // Use last 6 chars of ID as username
+                        avatar_url: null,
+                        is_banned: true,
+                        is_admin: admins.includes(bannedId) || bannedId === props.group.owner_id,
+                        current_user_id: null,
+                    }));
+                    
+                    // Combine active and banned members
+                    members.value = [...membersArray, ...bannedMembersArray];
+                }
+            } else {
+                members.value = membersArray;
+            }
         } else if (Array.isArray(membersData)) {
             // Handle array format
-            const bannedMembers = response.data.banned_members || [];
-            const admins = props.group.admins || [];
-            members.value = membersData.map((member) => ({
+            const activeMembers = membersData.map((member) => ({
                 user_id: member.user_id,
                 username: member.username,
                 avatar_url: member.avatar_url,
@@ -332,12 +394,72 @@ const loadMembers = async () => {
                     member.user_id === props.group.owner_id,
                 current_user_id: member.current_user_id, // For permission checking
             }));
+            
+            // Handle banned members not in the active list
+            const bannedMembersNotInActive = bannedMembers.filter(
+                bannedId => !membersData.some(member => member.user_id === bannedId)
+            );
+            
+            if (bannedMembersNotInActive.length > 0) {
+                // Try to get user details for each banned member
+                try {
+                    const bannedMembersWithDetails = await Promise.all(
+                        bannedMembersNotInActive.map(async (bannedId) => {
+                            try {
+                                // Try to get user details from user API
+                                const userResponse = await axiosInstance.get(`/api/user/get/${bannedId}`);
+                                console.log(`👤 User details for banned member ${bannedId}:`, userResponse.data);
+                                
+                                return {
+                                    user_id: bannedId,
+                                    username: userResponse.data.username || `User ${bannedId.slice(-6)}`,
+                                    avatar_url: userResponse.data.avatar_url || null,
+                                    is_banned: true,
+                                    is_admin: admins.includes(bannedId) || bannedId === props.group.owner_id,
+                                    current_user_id: null,
+                                };
+                            } catch (userError) {
+                                console.error(`❌ Failed to get user details for ${bannedId}:`, userError);
+                                // Fallback to placeholder
+                                return {
+                                    user_id: bannedId,
+                                    username: `User ${bannedId.slice(-6)}`,
+                                    avatar_url: null,
+                                    is_banned: true,
+                                    is_admin: admins.includes(bannedId) || bannedId === props.group.owner_id,
+                                    current_user_id: null,
+                                };
+                            }
+                        })
+                    );
+                    
+                    // Combine active and banned members
+                    members.value = [...activeMembers, ...bannedMembersWithDetails];
+                } catch (bannedError) {
+                    console.error("❌ Failed to load banned members details:", bannedError);
+                    
+                    // Create placeholder entries for banned members if we can't get their details
+                    const bannedMembersArray = bannedMembersNotInActive.map(bannedId => ({
+                        user_id: bannedId,
+                        username: `User ${bannedId.slice(-6)}`, // Use last 6 chars of ID as username
+                        avatar_url: null,
+                        is_banned: true,
+                        is_admin: admins.includes(bannedId) || bannedId === props.group.owner_id,
+                        current_user_id: null,
+                    }));
+                    
+                    // Combine active and banned members
+                    members.value = [...activeMembers, ...bannedMembersArray];
+                }
+            } else {
+                members.value = activeMembers;
+            }
         } else {
             console.log("⚠️ Unexpected membersData format:", membersData);
             members.value = [];
         }
 
-        console.log("✅ Loaded", members.value.length, "group members");
+        console.log("✅ Loaded", members.value.length, "group members (including banned)");
     } catch (error) {
         console.error("❌ Failed to load group members:", error);
         error.value = "Failed to load group members. Please try again.";
