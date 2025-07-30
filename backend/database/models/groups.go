@@ -20,13 +20,13 @@ func NewGroupModel(db *mongo.Database) *GroupModel {
 }
 
 type Group struct {
-	Id          primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
-	OwnerId     primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
-	Users       []primitive.ObjectID `json:"users" bson:"users"`
-	BannedUsers []primitive.ObjectID `json:"banned_users" bson:"banned_users"`
-	Name        string               `json:"name" bson:"name"`
-	Description string               `json:"description" bson:"description"`
-	AvatarUrl   string               `json:"avatar_url" bson:"avatar_url"`
+	Id            primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
+	OwnerId       primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
+	Members       []primitive.ObjectID `json:"members" bson:"members"`
+	BannedMembers []primitive.ObjectID `json:"banned_members" bson:"banned_members"`
+	Name          string               `json:"name" bson:"name"`
+	Description   string               `json:"description" bson:"description"`
+	AvatarUrl     string               `json:"avatar_url" bson:"avatar_url"`
 	// public or private (private needs apporval)
 	Type            string             `json:"type" bson:"type"`
 	InviteLink      string             `json:"invite_link" bson:"invite_link"`
@@ -49,7 +49,7 @@ func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, a
 		AvatarUrl:   avatarUrl,
 		Type:        groupType,
 		InviteLink:  inviteLink,
-		Users:       users,
+		Members:     users,
 		CreatedAt:   time.Now(),
 	}
 

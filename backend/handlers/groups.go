@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -47,9 +46,9 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	inviteLink := uuid.New().String()
 
-	users := []primitive.ObjectID{payload.UserId}
+	members := []primitive.ObjectID{payload.UserId}
 
-	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, users)
+	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, members)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createGroup", "failed to create group")
 		return
@@ -173,10 +172,10 @@ func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	projection := bson.M{
-		"_id":          1,
-		"users":        1,
-		"banned_users": 1,
-		"type":         1,
+		"_id":            1,
+		"members":        1,
+		"banned_members": 1,
+		"type":           1,
 	}
 
 	groupInstance, err := handler.Models.Group.Get(filter, projection)
@@ -190,12 +189,12 @@ func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if slices.Contains(groupInstance.BannedUsers, payload.UserId) {
+	if slices.Contains(groupInstance.BannedMembers, payload.UserId) {
 		utils.WriteError(w, http.StatusBadRequest, "userBanned", "you are banned from this group")
 		return
 	}
 
-	if slices.Contains(groupInstance.Users, payload.UserId) {
+	if slices.Contains(groupInstance.Members, payload.UserId) {
 		utils.WriteError(w, http.StatusBadRequest, "userExists", "you are already in this group")
 		return
 	}
@@ -207,14 +206,14 @@ func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	newUsers := append(groupInstance.Users, payload.UserId)
+	newMembers := append(groupInstance.Members, payload.UserId)
 
 	updates := bson.M{
-		"users": newUsers,
+		"members": newMembers,
 	}
 
 	if _, err := handler.Models.Group.Update(filter, updates); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "updateGroup", "failed to join the users")
+		utils.WriteError(w, http.StatusBadRequest, "updateGroup", "failed to join the members")
 		return
 	}
 
@@ -242,7 +241,7 @@ func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Reque
 
 	userId := chi.URLParam(r, "user_id")
 	if userId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "getParam", "user id is missign")
+		utils.WriteError(w, http.StatusBadRequest, "getParam", "member id is missign")
 		return
 	}
 
@@ -258,7 +257,7 @@ func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Reque
 
 	projection := bson.M{
 		"_id":      1,
-		"users":    1,
+		"members":  1,
 		"owner_id": 1,
 	}
 
@@ -274,7 +273,7 @@ func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Reque
 	}
 
 	if groupInstance.OwnerId != payload.UserId {
-		utils.WriteError(w, http.StatusBadRequest, "userChecking", "only group owner can remove users")
+		utils.WriteError(w, http.StatusBadRequest, "userChecking", "only group owner can remove members")
 		return
 	}
 
@@ -283,20 +282,20 @@ func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if !slices.Contains(groupInstance.Users, userObjectId) {
-		utils.WriteError(w, http.StatusBadRequest, "userChecking", "no user with this id is a member of this group")
+	if !slices.Contains(groupInstance.Members, userObjectId) {
+		utils.WriteError(w, http.StatusBadRequest, "userChecking", "no member with this id is a member of this group")
 		return
 	}
 
-	var newUsers []primitive.ObjectID
-	for _, user := range groupInstance.Users {
-		if user != userObjectId {
-			newUsers = append(newUsers, user)
+	var newMembers []primitive.ObjectID
+	for _, member := range groupInstance.Members {
+		if member != userObjectId {
+			newMembers = append(newMembers, member)
 		}
 	}
 
 	updates := bson.M{
-		"users": newUsers,
+		"members": newMembers,
 	}
 
 	if _, err := handler.Models.Group.Update(filter, updates); err != nil {
@@ -304,7 +303,7 @@ func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, "user removed successfully")
+	utils.WriteJSON(w, http.StatusOK, "member removed successfully")
 }
 
 func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
@@ -332,7 +331,7 @@ func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	projection := bson.M{
 		"_id":      1,
-		"users":    1,
+		"members":  1,
 		"owner_id": 1,
 	}
 
@@ -446,8 +445,8 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusOK, resp)
 }
 
-// GetGroupUsers -> Returns all the users of the group
-func (handler *Handler) GetGroupUsers(w http.ResponseWriter, r *http.Request) {
+// GetGroupMembers -> Returns all the members of the group
+func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
 	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -470,7 +469,7 @@ func (handler *Handler) GetGroupUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	projection := bson.M{
-		"users": 1,
+		"members": 1,
 	}
 
 	groupInstance, err := handler.Models.Group.Get(filter, projection)
@@ -479,20 +478,18 @@ func (handler *Handler) GetGroupUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users := make(map[string]map[string]string)
-	for _, userId := range groupInstance.Users {
+	members := make(map[string]map[string]string)
+	for _, userId := range groupInstance.Members {
 		username, _ := getUserUsername(userId, handler)
 		avatarUrl, _ := getUserAvatarUrl(userId, handler)
 
-		users[userId.Hex()] = map[string]string{
+		members[userId.Hex()] = map[string]string{
 			"username":   username,
 			"avatar_url": avatarUrl,
 		}
 	}
 
-	fmt.Println(users)
-
-	utils.WriteJSON(w, http.StatusOK, users)
+	utils.WriteJSON(w, http.StatusOK, members)
 }
 
 func (handler *Handler) BanUserFromGroup(w http.ResponseWriter, r *http.Request) {
@@ -534,9 +531,9 @@ func (handler *Handler) BanUserFromGroup(w http.ResponseWriter, r *http.Request)
 	}
 
 	projection := bson.M{
-		"users":        1,
-		"banned_users": 1,
-		"owner_id":     1,
+		"members":        1,
+		"banned_members": 1,
+		"owner_id":       1,
 	}
 
 	groupInstance, err := handler.Models.Group.Get(filter, projection)
@@ -555,22 +552,22 @@ func (handler *Handler) BanUserFromGroup(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if slices.Contains(groupInstance.BannedUsers, targetUserObjectId) {
+	if slices.Contains(groupInstance.BannedMembers, targetUserObjectId) {
 		utils.WriteError(w, http.StatusBadRequest, "banFromGroup", "this user is already banned from this group")
 		return
 	}
 
-	if !slices.Contains(groupInstance.Users, targetUserObjectId) {
+	if !slices.Contains(groupInstance.Members, targetUserObjectId) {
 		utils.WriteError(w, http.StatusBadRequest, "banFromGroup", "this user is not a member of this group")
 		return
 	}
 
-	newUsers := utils.DeleteElementFromSlice(groupInstance.Users, targetUserObjectId)
-	newBans := append(groupInstance.BannedUsers, targetUserObjectId)
+	newMembers := utils.DeleteElementFromSlice(groupInstance.Members, targetUserObjectId)
+	newBans := append(groupInstance.BannedMembers, targetUserObjectId)
 
 	updates := bson.M{
-		"users":        newUsers,
-		"banned_users": newBans,
+		"members":        newMembers,
+		"banned_members": newBans,
 	}
 
 	if _, err := handler.Models.Group.Update(filter, updates); err != nil {
@@ -605,7 +602,7 @@ func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	projection := bson.M{
-		"users":    1,
+		"members":  1,
 		"owner_id": 1,
 	}
 
@@ -625,15 +622,15 @@ func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !slices.Contains(groupInstance.Users, payload.UserId) {
+	if !slices.Contains(groupInstance.Members, payload.UserId) {
 		utils.WriteError(w, http.StatusBadRequest, "leaveGroup", "you are not a member of this group")
 		return
 	}
 
-	newUsers := utils.DeleteElementFromSlice(groupInstance.Users, payload.UserId)
+	newMembers := utils.DeleteElementFromSlice(groupInstance.Members, payload.UserId)
 
 	updates := bson.M{
-		"users": newUsers,
+		"members": newMembers,
 	}
 
 	if _, err := handler.Models.Group.Update(filter, updates); err != nil {
