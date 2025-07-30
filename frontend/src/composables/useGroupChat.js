@@ -131,14 +131,14 @@ export function useGroupChat() {
     const loadGroupUsers = async (groupId) => {
         try {
             console.log('👥 Loading group users for group:', groupId);
-            console.log('👥 Making API call to:', `/api/group/get/${groupId}/users`);
+            console.log('👥 Making API call to:', `/api/group/get/${groupId}/members`);
             
-            const response = await axiosInstance.get(`/api/group/get/${groupId}/users`);
+            const response = await axiosInstance.get(`/api/group/get/${groupId}/members`);
             console.log('👥 Group users response:', response.data);
             
             if (response.data && typeof response.data === 'object') {
                 groupStore.setGroupUsers(response.data);
-                console.log('✅ Loaded', Object.keys(response.data).length, 'group users');
+                console.log('✅ Loaded', Object.keys(response.data).length, 'group members');
             } else {
                 console.log('👥 No group users found or invalid response format');
                 groupStore.setGroupUsers({});

@@ -134,6 +134,20 @@
                                             : "Public"
                                     }}
                                 </div>
+                                <!-- Owner Badge -->
+                                <span
+                                    v-if="group.owner_id === userStore.user_id"
+                                    class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium border border-blue-200"
+                                >
+                                    Owner
+                                </span>
+                                <!-- Admin Badge -->
+                                <span
+                                    v-else-if="group.admins && group.admins.includes(userStore.user_id)"
+                                    class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200"
+                                >
+                                    Admin
+                                </span>
                             </div>
                             <p class="text-sm text-gray-600 truncate">
                                 {{ group.description || "No description" }}
@@ -159,6 +173,21 @@
                                 title="Open group chat"
                             >
                                 <span class="material-icons text-sm">chat</span>
+                            </button>
+                            <button
+                                v-if="group.owner_id === userStore.user_id"
+                                @click.stop="handleEditGroup(group)"
+                                class="w-8 h-8 text-green-500 hover:bg-green-50 rounded-full hover:text-green-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
+                                title="Edit group"
+                            >
+                                <span class="material-icons text-sm">edit</span>
+                            </button>
+                            <button
+                                @click.stop="handleManageMembers(group)"
+                                class="w-8 h-8 text-blue-500 hover:bg-blue-50 rounded-full hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
+                                title="Group users"
+                            >
+                                <span class="material-icons text-sm">people</span>
                             </button>
                             <button
                                 v-if="group.invite_link"
@@ -705,6 +734,25 @@
         @close="handleApprovalsModalClose"
         @approval-updated="handleApprovalUpdated"
     />
+
+    <!-- Update Group Modal -->
+    <UpdateGroupModal
+        :is-visible="showUpdateGroupModal"
+        :group="selectedGroup"
+        :backend-base-url="backendBaseUrl"
+        @close="handleUpdateGroupModalClose"
+        @group-updated="handleGroupUpdated"
+    />
+
+    <!-- Group Members Modal -->
+    <GroupMembersModal
+        :is-visible="showGroupMembersModal"
+        :group="selectedGroup"
+        :backend-base-url="backendBaseUrl"
+        :current-user-id="userStore.user_id"
+        @close="handleGroupMembersModalClose"
+        @member-updated="handleMemberUpdated"
+    />
 </template>
 
 <script setup>
@@ -715,6 +763,8 @@ import { useUserStore } from "../../stores/users";
 import LeaveGroupModal from "../ui/LeaveGroupModal.vue";
 import ApprovalModal from "../ui/ApprovalModal.vue";
 import ApprovalsModal from "../ui/ApprovalsModal.vue";
+import UpdateGroupModal from "../ui/UpdateGroupModal.vue";
+import GroupMembersModal from "../ui/GroupMembersModal.vue";
 
 // Props
 const props = defineProps({
@@ -741,6 +791,8 @@ const showLeaveModal = ref(false);
 const showDeleteModal = ref(false);
 const showApprovalModal = ref(false);
 const showApprovalsModal = ref(false);
+const showUpdateGroupModal = ref(false);
+const showGroupMembersModal = ref(false);
 const selectedGroup = ref(null);
 const approvalInviteLink = ref(null);
 const joinGroupCode = ref("");
@@ -826,6 +878,48 @@ const handleApprovalSubmitted = () => {
 
 const handleOpenApprovals = () => {
     showApprovalsModal.value = true;
+};
+
+const handleEditGroup = (group) => {
+    selectedGroup.value = group;
+    showUpdateGroupModal.value = true;
+};
+
+const handleUpdateGroupModalClose = () => {
+    showUpdateGroupModal.value = false;
+    selectedGroup.value = null;
+};
+
+const handleGroupUpdated = async (updatedGroup) => {
+    console.log('Group updated:', updatedGroup);
+    
+    try {
+        // Fetch updated groups from the backend
+        await loadUserGroups();
+        console.log('✅ Groups refreshed after update');
+    } catch (error) {
+        console.error('❌ Failed to refresh groups after update:', error);
+        showError('Group updated but failed to refresh groups list');
+    }
+    
+    showUpdateGroupModal.value = false;
+    selectedGroup.value = null;
+};
+
+const handleManageMembers = (group) => {
+    selectedGroup.value = group;
+    showGroupMembersModal.value = true;
+};
+
+const handleGroupMembersModalClose = () => {
+    showGroupMembersModal.value = false;
+    selectedGroup.value = null;
+};
+
+const handleMemberUpdated = (data) => {
+    console.log('Member updated:', data);
+    // Optionally refresh groups if needed
+    // await loadUserGroups();
 };
 
 const handleApprovalsModalClose = () => {

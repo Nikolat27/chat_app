@@ -45,7 +45,8 @@ export const useGroupStore = defineStore('groups', {
                     owner_id: group.owner_id,
                     created_at: group.created_at,
                     member_count: group.users?.length || group.member_count || 1,
-                    role: group.role || 'member'
+                    role: group.role || 'member',
+                    admins: group.admins || [] // Add admins field
                 }));
                 
                 return this.groups;
@@ -275,10 +276,17 @@ export const useGroupStore = defineStore('groups', {
             }
         },
 
-        async updateGroup(groupId, updateData) {
+        async updateGroup(groupId, formData) {
             try {
-                const response = await axiosInstance.put(`/api/group/${groupId}`, updateData);
-                const updatedGroup = response.data.group;
+                const response = await axiosInstance.put(`/api/group/update/${groupId}`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+                
+                console.log('Update group response:', response.data);
+                
+                const updatedGroup = response.data.group || response.data;
                 
                 // Update in local state
                 const index = this.groups.findIndex(g => g.id === groupId);

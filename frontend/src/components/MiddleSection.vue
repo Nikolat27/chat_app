@@ -224,11 +224,11 @@ const handleGroupClick = async (group) => {
         console.log("👥 Loading group users for group:", group.id);
         console.log(
             "👥 Making API call to:",
-            `/api/group/get/${group.id}/users`
+            `/api/group/get/${group.id}/members`
         );
 
         const response = await axiosInstance.get(
-            `/api/group/get/${group.id}/users`
+            `/api/group/get/${group.id}/members`
         );
         console.log("👥 Group users response:", response.data);
 
