@@ -287,9 +287,15 @@ const loadMembers = async () => {
         error.value = "";
 
         console.log("👥 Loading group members for group:", props.group.id);
-        const response = await axiosInstance.get(
-            `/api/group/get/${props.group.id}/members`
-        );
+        
+        // Check if this is a secret group
+        const isSecretGroup = props.group.type === 'secret';
+        const endpoint = isSecretGroup 
+            ? `/api/secret-group/get/${props.group.id}/members`
+            : `/api/group/get/${props.group.id}/members`;
+            
+        console.log("👥 Making API call to:", endpoint);
+        const response = await axiosInstance.get(endpoint);
         console.log("👥 Group members response:", response.data);
 
         // Transform the response to include user details

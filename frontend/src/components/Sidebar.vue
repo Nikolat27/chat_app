@@ -17,6 +17,7 @@
         >
             <span class="material-icons text-gray-700">group</span>
         </button>
+
         <button
             class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'settings')"

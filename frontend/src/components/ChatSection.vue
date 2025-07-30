@@ -43,6 +43,8 @@
             @load-more-messages="handleLoadMoreMessages"
         />
 
+
+
         <!-- Group Chat Messages Area -->
         <GroupMessagesArea
             v-if="currentGroup && isCurrentChatGroup"
@@ -81,12 +83,25 @@
 
         <!-- Group Info Modal -->
         <GroupInfoModal
+            v-if="!selectedGroupForInfo?.type || selectedGroupForInfo?.type !== 'secret'"
             :is-visible="showGroupInfoModal"
             :group="selectedGroupForInfo"
             :backend-base-url="backendBaseUrl"
             :current-user-id="userStore.user_id"
             @close="handleGroupInfoModalClose"
             @edit-group="handleEditGroupFromInfo"
+        />
+
+        <!-- Secret Group Info Modal -->
+        <SecretGroupInfoModal
+            v-if="selectedGroupForInfo?.type === 'secret'"
+            :is-visible="showGroupInfoModal"
+            :group="selectedGroupForInfo"
+            :backend-base-url="backendBaseUrl"
+            :current-user-id="userStore.user_id"
+            @close="handleGroupInfoModalClose"
+            @edit-group="handleEditGroupFromInfo"
+            @leave-group="handleLeaveGroup"
         />
 
         <!-- Update Group Modal -->
@@ -114,6 +129,7 @@ import MessageInput from "./chat/MessageInput.vue";
 import GroupMessagesArea from "./chat/GroupMessagesArea.vue";
 import GroupMessageInput from "./chat/GroupMessageInput.vue";
 import GroupInfoModal from "./ui/GroupInfoModal.vue";
+import SecretGroupInfoModal from "./ui/SecretGroupInfoModal.vue";
 import UpdateGroupModal from "./ui/UpdateGroupModal.vue";
 import { useWebSocket } from "../composables/useWebSocket";
 import { useGroupChat } from "../composables/useGroupChat";
@@ -195,6 +211,8 @@ const isCurrentChatGroup = computed(() => {
 const currentGroup = computed(() => {
     return groupStore.currentGroup;
 });
+
+
 
 // WebSocket management
 const { establishConnection, sendMessage: sendWebSocketMessage, closeConnection, getConnectionStatus } =
@@ -284,6 +302,10 @@ watch(
         if (newGroupId) {
             console.log('🔄 Starting group initialization for:', newGroupId);
             
+            // Check if this is a secret group
+            const isSecretGroup = groupStore.currentGroup.type === 'secret';
+            console.log('🔐 Group type:', groupStore.currentGroup.type, 'isSecretGroup:', isSecretGroup);
+            
             // Add a small delay to ensure group is properly set
             await nextTick();
             
@@ -294,15 +316,15 @@ watch(
             await loadGroupUsers(newGroupId);
             console.log('👥 Group users loaded successfully');
             
-            // Load existing group messages
+            // Load existing group messages with encryption for secret groups
             console.log('📥 About to load group messages...');
-            await loadInitialGroupMessages(newGroupId);
+            await loadInitialGroupMessages(newGroupId, isSecretGroup);
             console.log('📥 Group messages loaded successfully');
             
             const groupData = getGroupChatData(newGroupId);
             if (groupData) {
                 console.log('🔌 Establishing group WebSocket connection:', groupData);
-                establishGroupConnection(groupData, handleIncomingGroupMessage);
+                establishGroupConnection(groupData, (data) => handleIncomingGroupMessage(data, newGroupId, isSecretGroup), isSecretGroup);
                 // Wait a bit for connection to establish
                 await new Promise(resolve => setTimeout(resolve, 500));
             } else {
@@ -636,6 +658,10 @@ const sendGroupMessageHandler = async () => {
 
     if (!newGroupMessage.value.trim()) return;
 
+    // Check if this is a secret group
+    const isSecretGroup = groupStore.currentGroup.type === 'secret';
+    console.log('🔐 Sending group message, is secret group:', isSecretGroup);
+
     // Check group WebSocket connection status
     const connectionStatus = getGroupConnectionStatus();
     
@@ -643,7 +669,7 @@ const sendGroupMessageHandler = async () => {
         console.log('🔌 Group WebSocket not connected, establishing connection...');
         const groupData = getGroupChatData(groupStore.currentGroup.id);
         if (groupData) {
-            establishGroupConnection(groupData, handleIncomingGroupMessage);
+            establishGroupConnection(groupData, (data) => handleIncomingGroupMessage(data, groupStore.currentGroup.id, isSecretGroup), isSecretGroup);
             
             // Wait for connection with retries
             let retries = 0;
@@ -678,8 +704,8 @@ const sendGroupMessageHandler = async () => {
     // Add message to group messages immediately with temp ID
     addGroupMessage(messageData);
 
-    // Send message via group WebSocket
-    const success = sendGroupMessage(newGroupMessage.value);
+    // Send message via group WebSocket with encryption for secret groups
+    const success = await sendGroupMessage(messageData, groupStore.currentGroup.id, isSecretGroup);
     
     if (!success) {
         showError('Failed to send group message. Please try again.');
@@ -770,8 +796,14 @@ const handleLeaveGroup = async (group) => {
         const confirmed = confirm(`Are you sure you want to leave "${group.name}"?`);
         if (!confirmed) return;
 
-        await groupStore.leaveGroup(group.id);
-        showMessage('Successfully left group');
+        // Use the correct leave method based on group type
+        if (group.type === 'secret') {
+            await groupStore.leaveSecretGroup(group.id);
+            showMessage('Successfully left secret group');
+        } else {
+            await groupStore.leaveGroup(group.id);
+            showMessage('Successfully left group');
+        }
         
         // Clear current group and chat user
         groupStore.clearCurrentGroup();
@@ -789,8 +821,14 @@ const handleDeleteGroup = async (group) => {
         const confirmed = confirm(`Are you sure you want to delete "${group.name}"? This action cannot be undone.`);
         if (!confirmed) return;
 
-        await groupStore.deleteGroup(group.id);
-        showMessage('Group deleted successfully');
+        // Use the correct deletion method based on group type
+        if (group.type === 'secret') {
+            await groupStore.deleteSecretGroup(group.id);
+            showMessage('Secret group deleted successfully');
+        } else {
+            await groupStore.deleteGroup(group.id);
+            showMessage('Group deleted successfully');
+        }
         
         // Clear current group and chat user
         groupStore.clearCurrentGroup();

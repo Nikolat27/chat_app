@@ -45,11 +45,39 @@ export const useE2EEStore = defineStore('e2ee', () => {
         console.log('🔍 [Store] Keys in memory after clearing all:', Array.from(symmetricKeys.value.keys()));
     };
 
+    // Clear all group symmetric keys
+    const clearAllGroupSymmetricKeys = () => {
+        console.log('🗑️ [Store] Clearing all group symmetric keys');
+        const keysToDelete = [];
+        for (const key of symmetricKeys.value.keys()) {
+            if (key.startsWith('group_')) {
+                keysToDelete.push(key);
+            }
+        }
+        keysToDelete.forEach(key => symmetricKeys.value.delete(key));
+        console.log('🔍 [Store] Keys in memory after clearing group keys:', Array.from(symmetricKeys.value.keys()));
+    };
+
+    // Clear all chat symmetric keys
+    const clearAllChatSymmetricKeys = () => {
+        console.log('🗑️ [Store] Clearing all chat symmetric keys');
+        const keysToDelete = [];
+        for (const key of symmetricKeys.value.keys()) {
+            if (!key.startsWith('group_')) {
+                keysToDelete.push(key);
+            }
+        }
+        keysToDelete.forEach(key => symmetricKeys.value.delete(key));
+        console.log('🔍 [Store] Keys in memory after clearing chat keys:', Array.from(symmetricKeys.value.keys()));
+    };
+
     return {
         storeSymmetricKey,
         getSymmetricKey,
         hasSymmetricKey,
         clearSymmetricKey,
-        clearAllSymmetricKeys
+        clearAllSymmetricKeys,
+        clearAllGroupSymmetricKeys,
+        clearAllChatSymmetricKeys
     };
 }); 

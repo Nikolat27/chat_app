@@ -968,47 +968,95 @@ const handleJoinGroup = async () => {
         // Extract invite link from input
         const inviteLink = joinGroupCode.value.trim();
 
-        // Join group using invite link
-        const response = await groupStore.joinGroup(inviteLink);
+        // Check if this is a secret group invite (you might need to detect this based on your invite link format)
+        // For now, we'll try regular group first, then secret group if it fails
+        try {
+            // Try joining as regular group first
+            const response = await groupStore.joinGroup(inviteLink);
+            showMessage("Successfully joined group!");
+        } catch (regularGroupError) {
+            // If regular group join fails, try as secret group
+            if (regularGroupError.response?.status === 404 || regularGroupError.response?.status === 400) {
+                try {
+                    const response = await groupStore.joinSecretGroup(inviteLink);
+                    showMessage("Successfully joined secret group!");
+                } catch (secretGroupError) {
+                    // Handle approval-specific errors for secret groups
+                    const errorType = secretGroupError.response?.data?.type;
+                    const errorDetail = secretGroupError.response?.data?.detail;
 
-        showMessage("Successfully joined group!");
+                    switch (errorType) {
+                        case "userApprovalNotFound":
+                            // Store the invite link for approval submission
+                            approvalInviteLink.value = joinGroupCode.value.trim();
+                            showApprovalModal.value = true;
+                            break;
+                        case "userApprovalStatus":
+                            if (errorDetail?.includes("pending")) {
+                                showError(
+                                    "Your approval is pending. Please wait for admin approval."
+                                );
+                            } else if (errorDetail?.includes("rejected")) {
+                                showError(
+                                    "Your approval has been rejected. Please contact an administrator."
+                                );
+                            } else {
+                                showError(errorDetail || "Approval status error occurred.");
+                            }
+                            break;
+                        case "getUserApproval":
+                            showError("Failed to check approval status. Please try again.");
+                            break;
+                        default:
+                            showError(
+                                errorDetail ||
+                                    "Failed to join secret group. Please check the invite link and try again."
+                            );
+                    }
+                    return;
+                }
+            } else {
+                // Handle approval-specific errors for regular groups
+                const errorType = regularGroupError.response?.data?.type;
+                const errorDetail = regularGroupError.response?.data?.detail;
+
+                switch (errorType) {
+                    case "userApprovalNotFound":
+                        // Store the invite link for approval submission
+                        approvalInviteLink.value = joinGroupCode.value.trim();
+                        showApprovalModal.value = true;
+                        break;
+                    case "userApprovalStatus":
+                        if (errorDetail?.includes("pending")) {
+                            showError(
+                                "Your approval is pending. Please wait for admin approval."
+                            );
+                        } else if (errorDetail?.includes("rejected")) {
+                            showError(
+                                "Your approval has been rejected. Please contact an administrator."
+                            );
+                        } else {
+                            showError(errorDetail || "Approval status error occurred.");
+                        }
+                        break;
+                    case "getUserApproval":
+                        showError("Failed to check approval status. Please try again.");
+                        break;
+                    default:
+                        showError(
+                            errorDetail ||
+                                "Failed to join group. Please check the invite link and try again."
+                        );
+                }
+                return;
+            }
+        }
+
         showJoinGroupModal.value = false;
         joinGroupCode.value = "";
     } catch (error) {
         console.error("Failed to join group:", error);
-
-        // Handle approval-specific errors
-        const errorType = error.response?.data?.type;
-        const errorDetail = error.response?.data?.detail;
-
-        switch (errorType) {
-            case "userApprovalNotFound":
-                // Store the invite link for approval submission
-                approvalInviteLink.value = joinGroupCode.value.trim();
-                showApprovalModal.value = true;
-                break;
-            case "userApprovalStatus":
-                if (errorDetail?.includes("pending")) {
-                    showError(
-                        "Your approval is pending. Please wait for admin approval."
-                    );
-                } else if (errorDetail?.includes("rejected")) {
-                    showError(
-                        "Your approval has been rejected. Please contact an administrator."
-                    );
-                } else {
-                    showError(errorDetail || "Approval status error occurred.");
-                }
-                break;
-            case "getUserApproval":
-                showError("Failed to check approval status. Please try again.");
-                break;
-            default:
-                showError(
-                    errorDetail ||
-                        "Failed to join group. Please check the invite link and try again."
-                );
-        }
+        showError("Failed to join group. Please check the invite link and try again.");
     } finally {
         isJoiningGroup.value = false;
     }

@@ -46,15 +46,18 @@
                         <p class="text-sm text-gray-500">{{ group.description }}</p>
                         <div class="flex items-center space-x-2 mt-1">
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                                  :class="group.type === 'public' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
+                                  :class="group.type === 'public' ? 'bg-green-100 text-green-800' : group.type === 'secret' ? 'bg-purple-100 text-purple-800' : 'bg-yellow-100 text-yellow-800'">
                                 <svg v-if="group.type === 'public'" class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
                                     <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
                                 </svg>
+                                <svg v-else-if="group.type === 'secret'" class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                                </svg>
                                 <svg v-else class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
                                 </svg>
-                                {{ group.type === 'public' ? 'Public' : 'Private' }}
+                                {{ group.type === 'public' ? 'Public' : group.type === 'secret' ? 'Secret' : 'Private' }}
                             </span>
                             <span class="text-xs text-gray-400">{{ group.member_count }} members</span>
                         </div>
@@ -190,14 +193,27 @@ const handleAction = async () => {
     isLoading.value = true;
     
     try {
+        // Check if this is a secret group
+        const isSecretGroup = props.group?.type === 'secret';
+        
         if (isOwner.value) {
             // Delete group
-            await groupStore.deleteGroup(props.group.id);
-            showMessage('Group deleted successfully');
+            if (isSecretGroup) {
+                await groupStore.deleteSecretGroup(props.group.id);
+                showMessage('Secret group deleted successfully');
+            } else {
+                await groupStore.deleteGroup(props.group.id);
+                showMessage('Group deleted successfully');
+            }
         } else {
             // Leave group
-            await groupStore.leaveGroup(props.group.id);
-            showMessage('Left group successfully');
+            if (isSecretGroup) {
+                await groupStore.leaveSecretGroup(props.group.id);
+                showMessage('Left secret group successfully');
+            } else {
+                await groupStore.leaveGroup(props.group.id);
+                showMessage('Left group successfully');
+            }
         }
         
         emit('action-completed');

@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import axiosInstance from '../axiosInstance';
+import { useSecretGroupE2EE } from '../composables/useSecretGroupE2EE';
+import { useKeyPair } from '../composables/useKeyPair';
 
 export const useGroupStore = defineStore('groups', {
     state: () => ({
@@ -23,19 +25,31 @@ export const useGroupStore = defineStore('groups', {
         async loadUserGroups() {
             try {
                 this.isLoading = true;
-                const response = await axiosInstance.get('/api/user/get-groups');
-                console.log('User groups response:', response.data);
                 
-                // Handle different response formats
-                let groupsData = response.data.groups || response.data || [];
+                // Load regular groups
+                const regularGroupsResponse = await axiosInstance.get('/api/user/get-groups');
+                console.log('Regular groups response:', regularGroupsResponse.data);
                 
-                // Ensure groupsData is an array
-                if (!Array.isArray(groupsData)) {
-                    groupsData = [];
+                // Load secret groups
+                const secretGroupsResponse = await axiosInstance.get('/api/user/get-secret-groups');
+                console.log('Secret groups response:', secretGroupsResponse.data);
+                
+                // Handle different response formats for regular groups
+                let regularGroupsData = regularGroupsResponse.data.groups || regularGroupsResponse.data || [];
+                
+                // Handle different response formats for secret groups
+                let secretGroupsData = secretGroupsResponse.data.groups || secretGroupsResponse.data || [];
+                
+                // Ensure both are arrays
+                if (!Array.isArray(regularGroupsData)) {
+                    regularGroupsData = [];
+                }
+                if (!Array.isArray(secretGroupsData)) {
+                    secretGroupsData = [];
                 }
                 
-                // Ensure each group has the correct structure
-                this.groups = groupsData.map(group => ({
+                // Process regular groups
+                const regularGroups = regularGroupsData.map(group => ({
                     id: group.id || group._id,
                     name: group.name,
                     description: group.description,
@@ -46,14 +60,36 @@ export const useGroupStore = defineStore('groups', {
                     created_at: group.created_at,
                     member_count: group.users?.length || group.member_count || 1,
                     role: group.role || 'member',
-                    admins: group.admins || [], // Add admins field
-                    banned_members: group.banned_members || [] // Add banned_members field
+                    admins: group.admins || [],
+                    banned_members: group.banned_members || []
                 }));
+                
+                // Process secret groups
+                const secretGroups = secretGroupsData.map(group => ({
+                    id: group.id || group._id,
+                    name: group.name,
+                    description: group.description,
+                    type: 'secret',
+                    avatar_url: group.avatar_url,
+                    invite_link: group.invite_link,
+                    owner_id: group.owner_id,
+                    created_at: group.created_at,
+                    member_count: group.users?.length || group.member_count || 1,
+                    role: group.role || 'member',
+                    admins: group.admins || [],
+                    banned_members: group.banned_members || [],
+                    is_secret: true
+                }));
+                
+                // Combine both types of groups
+                this.groups = [...regularGroups, ...secretGroups];
+                
+                console.log('✅ Loaded', regularGroups.length, 'regular groups and', secretGroups.length, 'secret groups');
                 
                 return this.groups;
             } catch (error) {
                 console.error('Failed to load user groups:', error);
-                // If endpoint doesn't exist yet, return empty array
+                // If endpoints don't exist yet, return empty array
                 if (error.response?.status === 404) {
                     this.groups = [];
                     return this.groups;
@@ -109,7 +145,24 @@ export const useGroupStore = defineStore('groups', {
 
         async createSecretGroup(formData) {
             try {
-                const response = await axiosInstance.post('/api/group/create-secret', formData, {
+                // Generate key pair for this secret group first
+                const { generateSecretGroupKeyPair, exportSecretGroupPublicKey } = useKeyPair();
+                const groupId = Date.now(); // Temporary ID for key generation
+                await generateSecretGroupKeyPair(groupId);
+                const publicKey = await exportSecretGroupPublicKey(groupId);
+                
+                if (!publicKey) {
+                    throw new Error('Failed to generate public key for secret group');
+                }
+                
+                // Convert JWK to base64 for backend transmission
+                const publicKeyString = JSON.stringify(publicKey);
+                const base64PublicKey = btoa(publicKeyString);
+                
+                // Add public key to form data
+                formData.append('public_key', base64PublicKey);
+                
+                const response = await axiosInstance.post('/api/secret-group/create', formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data'
                     }
@@ -122,7 +175,7 @@ export const useGroupStore = defineStore('groups', {
                 
                 // Create a group object from the response
                 const newGroup = {
-                    id: responseData.group_id || Date.now(), // Use backend group_id or fallback
+                    id: responseData.group_id || responseData.secret_group_id || groupId, // Use backend group_id or fallback
                     name: formData.get('name'),
                     description: formData.get('description'),
                     type: 'secret',
@@ -144,6 +197,20 @@ export const useGroupStore = defineStore('groups', {
                 // Add the new group to the list
                 this.groups.push(newGroup);
                 
+                // Clear the temporary keys and generate proper ones for the actual group ID
+                const { clearSecretGroupKeys } = useKeyPair();
+                await clearSecretGroupKeys(groupId);
+                
+                // Generate keys for the actual group ID
+                try {
+                    const { initializeSecretGroupEncryption } = useSecretGroupE2EE();
+                    await initializeSecretGroupEncryption(newGroup.id);
+                    console.log('✅ Secret group encryption initialized');
+                } catch (encryptionError) {
+                    console.error('❌ Failed to initialize secret group encryption:', encryptionError);
+                    // Don't fail the group creation, just log the error
+                }
+                
                 return newGroup;
             } catch (error) {
                 console.error('Failed to create secret group:', error);
@@ -160,18 +227,26 @@ export const useGroupStore = defineStore('groups', {
                 
                 // After joining, fetch the complete group data to get name, avatar_url, etc.
                 try {
-                    const groupDetailsResponse = await axiosInstance.get('/api/user/get-groups');
-                    console.log('Updated groups response after joining:', groupDetailsResponse.data);
+                    // Load both regular and secret groups to find the newly joined group
+                    const regularGroupsResponse = await axiosInstance.get('/api/user/get-groups');
+                    const secretGroupsResponse = await axiosInstance.get('/api/user/get-secret-groups');
                     
-                    let groupsData = groupDetailsResponse.data.groups || groupDetailsResponse.data || [];
+                    let regularGroupsData = regularGroupsResponse.data.groups || regularGroupsResponse.data || [];
+                    let secretGroupsData = secretGroupsResponse.data.groups || secretGroupsResponse.data || [];
                     
-                    // Ensure groupsData is an array
-                    if (!Array.isArray(groupsData)) {
-                        groupsData = [];
+                    // Ensure both are arrays
+                    if (!Array.isArray(regularGroupsData)) {
+                        regularGroupsData = [];
+                    }
+                    if (!Array.isArray(secretGroupsData)) {
+                        secretGroupsData = [];
                     }
                     
+                    // Combine all groups to search for the newly joined one
+                    const allGroups = [...regularGroupsData, ...secretGroupsData];
+                    
                     // Find the newly joined group in the updated list
-                    const updatedGroup = groupsData.find(group => 
+                    const updatedGroup = allGroups.find(group => 
                         group.id === joinedGroup.id || group._id === joinedGroup.id
                     );
                     
@@ -199,6 +274,18 @@ export const useGroupStore = defineStore('groups', {
                             this.groups[existingIndex] = completeGroup;
                         }
                         
+                        // Initialize encryption for secret groups
+                        if (completeGroup.type === 'secret') {
+                            try {
+                                const { initializeSecretGroupEncryption } = useSecretGroupE2EE();
+                                await initializeSecretGroupEncryption(completeGroup.id);
+                                console.log('✅ Secret group encryption initialized after joining');
+                            } catch (encryptionError) {
+                                console.error('❌ Failed to initialize secret group encryption after joining:', encryptionError);
+                                // Don't fail the join, just log the error
+                            }
+                        }
+                        
                         return completeGroup;
                     }
                 } catch (detailsError) {
@@ -219,6 +306,110 @@ export const useGroupStore = defineStore('groups', {
             }
         },
 
+        async joinSecretGroup(inviteLink) {
+            try {
+                // Generate key pair for this secret group first
+                const { generateSecretGroupKeyPair, exportSecretGroupPublicKey } = useKeyPair();
+                const groupId = Date.now(); // Temporary ID for key generation
+                await generateSecretGroupKeyPair(groupId);
+                const publicKey = await exportSecretGroupPublicKey(groupId);
+                
+                if (!publicKey) {
+                    throw new Error('Failed to generate public key for secret group');
+                }
+                
+                // Convert JWK to base64 for backend transmission
+                const publicKeyString = JSON.stringify(publicKey);
+                const base64PublicKey = btoa(publicKeyString);
+                
+                // Join secret group with public key
+                const response = await axiosInstance.post(`/api/secret-group/join/${inviteLink}`, {
+                    public_key: base64PublicKey
+                });
+                console.log('Join secret group response:', response.data);
+                
+                const joinedGroup = response.data.group || response.data;
+                
+                // After joining, fetch the complete group data to get name, avatar_url, etc.
+                try {
+                    // Load both regular and secret groups to find the newly joined group
+                    const regularGroupsResponse = await axiosInstance.get('/api/user/get-groups');
+                    const secretGroupsResponse = await axiosInstance.get('/api/user/get-secret-groups');
+                    
+                    let regularGroupsData = regularGroupsResponse.data.groups || regularGroupsResponse.data || [];
+                    let secretGroupsData = secretGroupsResponse.data.groups || secretGroupsResponse.data || [];
+                    
+                    // Ensure both are arrays
+                    if (!Array.isArray(regularGroupsData)) {
+                        regularGroupsData = [];
+                    }
+                    if (!Array.isArray(secretGroupsData)) {
+                        secretGroupsData = [];
+                    }
+                    
+                    // Combine all groups to search for the newly joined one
+                    const allGroups = [...regularGroupsData, ...secretGroupsData];
+                    
+                    // Find the newly joined group in the updated list
+                    const updatedGroup = allGroups.find(group => 
+                        group.id === joinedGroup.id || group._id === joinedGroup.id
+                    );
+                    
+                    if (updatedGroup) {
+                        // Replace the basic joined group with complete data
+                        const completeGroup = {
+                            id: updatedGroup.id || updatedGroup._id,
+                            name: updatedGroup.name,
+                            description: updatedGroup.description,
+                            type: 'secret',
+                            avatar_url: updatedGroup.avatar_url,
+                            invite_link: updatedGroup.invite_link,
+                            owner_id: updatedGroup.owner_id,
+                            created_at: updatedGroup.created_at,
+                            member_count: updatedGroup.users?.length || updatedGroup.member_count || 1,
+                            role: updatedGroup.role || 'member',
+                            is_secret: true
+                        };
+                        
+                        // Check if group already exists in our list
+                        const existingIndex = this.groups.findIndex(g => g.id === completeGroup.id);
+                        if (existingIndex === -1) {
+                            this.groups.push(completeGroup);
+                        } else {
+                            // Update existing group with complete data
+                            this.groups[existingIndex] = completeGroup;
+                        }
+                        
+                        // Initialize encryption for secret groups
+                        try {
+                            const { initializeSecretGroupEncryption } = useSecretGroupE2EE();
+                            await initializeSecretGroupEncryption(completeGroup.id);
+                            console.log('✅ Secret group encryption initialized after joining');
+                        } catch (encryptionError) {
+                            console.error('❌ Failed to initialize secret group encryption after joining:', encryptionError);
+                            // Don't fail the join, just log the error
+                        }
+                        
+                        return completeGroup;
+                    }
+                } catch (detailsError) {
+                    console.error('Failed to fetch complete group details:', detailsError);
+                    // Fallback to the basic joined group data
+                }
+                
+                // Fallback: use the basic joined group data
+                const existingIndex = this.groups.findIndex(g => g.id === joinedGroup.id);
+                if (existingIndex === -1) {
+                    this.groups.push(joinedGroup);
+                }
+                
+                return joinedGroup;
+            } catch (error) {
+                console.error('Failed to join secret group:', error);
+                throw error;
+            }
+        },
+
         async leaveGroup(groupId) {
             try {
                 const response = await axiosInstance.delete(`/api/group/leave/${groupId}`);
@@ -232,6 +423,18 @@ export const useGroupStore = defineStore('groups', {
                     this.currentGroup = null;
                     this.groupMembers = [];
                     this.groupMessages = [];
+                }
+                
+                // Clear encryption keys for secret groups
+                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearSecretGroupKeys } = useKeyPair();
+                
+                try {
+                    clearGroupSymmetricKey(groupId);
+                    await clearSecretGroupKeys(groupId);
+                    console.log('✅ Cleared encryption keys for left group');
+                } catch (keyError) {
+                    console.error('❌ Failed to clear encryption keys:', keyError);
                 }
                 
                 return response.data;
@@ -251,6 +454,50 @@ export const useGroupStore = defineStore('groups', {
             }
         },
 
+        async leaveSecretGroup(groupId) {
+            try {
+                const response = await axiosInstance.delete(`/api/secret-group/leave/${groupId}`);
+                console.log('Left secret group response:', response.data);
+                
+                // Remove group from local state
+                this.groups = this.groups.filter(g => g.id !== groupId);
+                
+                // If this was the current group, clear it
+                if (this.currentGroup && this.currentGroup.id === groupId) {
+                    this.currentGroup = null;
+                    this.groupMembers = [];
+                    this.groupMessages = [];
+                }
+                
+                // Clear encryption keys for secret groups
+                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearSecretGroupKeys } = useKeyPair();
+                
+                try {
+                    clearGroupSymmetricKey(groupId);
+                    await clearSecretGroupKeys(groupId);
+                    console.log('✅ Cleared encryption keys for left secret group');
+                } catch (keyError) {
+                    console.error('❌ Failed to clear encryption keys:', keyError);
+                }
+                
+                return response.data;
+            } catch (error) {
+                console.error('Failed to leave secret group:', error);
+                // If endpoint doesn't exist yet, still remove from local state
+                if (error.response?.status === 404) {
+                    this.groups = this.groups.filter(g => g.id !== groupId);
+                    if (this.currentGroup && this.currentGroup.id === groupId) {
+                        this.currentGroup = null;
+                        this.groupMembers = [];
+                        this.groupMessages = [];
+                    }
+                    return { message: 'Left secret group successfully' };
+                }
+                throw error;
+            }
+        },
+
         async loadGroupDetails(groupId) {
             try {
                 const response = await axiosInstance.get(`/api/group/${groupId}`);
@@ -259,6 +506,18 @@ export const useGroupStore = defineStore('groups', {
                 return this.currentGroup;
             } catch (error) {
                 console.error('Failed to load group details:', error);
+                throw error;
+            }
+        },
+
+        async loadSecretGroupDetails(groupId) {
+            try {
+                const response = await axiosInstance.get(`/api/secret-group/get/${groupId}/members`);
+                this.currentGroup = response.data.group;
+                this.groupMembers = response.data.members || [];
+                return this.currentGroup;
+            } catch (error) {
+                console.error('Failed to load secret group details:', error);
                 throw error;
             }
         },
@@ -306,6 +565,35 @@ export const useGroupStore = defineStore('groups', {
             }
         },
 
+        async updateSecretGroup(groupId, formData) {
+            try {
+                const response = await axiosInstance.put(`/api/secret-group/update/${groupId}`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+                
+                console.log('Update secret group response:', response.data);
+                
+                const updatedGroup = response.data.group || response.data;
+                
+                // Update in local state
+                const index = this.groups.findIndex(g => g.id === groupId);
+                if (index !== -1) {
+                    this.groups[index] = { ...this.groups[index], ...updatedGroup };
+                }
+                
+                if (this.currentGroup && this.currentGroup.id === groupId) {
+                    this.currentGroup = { ...this.currentGroup, ...updatedGroup };
+                }
+                
+                return updatedGroup;
+            } catch (error) {
+                console.error('Failed to update secret group:', error);
+                throw error;
+            }
+        },
+
         async deleteGroup(groupId) {
             try {
                 const response = await axiosInstance.delete(`/api/group/delete/${groupId}`);
@@ -321,6 +609,18 @@ export const useGroupStore = defineStore('groups', {
                     this.groupMessages = [];
                 }
                 
+                // Clear encryption keys for secret groups
+                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearSecretGroupKeys } = useKeyPair();
+                
+                try {
+                    clearGroupSymmetricKey(groupId);
+                    await clearSecretGroupKeys(groupId);
+                    console.log('✅ Cleared encryption keys for deleted group');
+                } catch (keyError) {
+                    console.error('❌ Failed to clear encryption keys:', keyError);
+                }
+                
                 return response.data;
             } catch (error) {
                 console.error('Failed to delete group:', error);
@@ -333,6 +633,50 @@ export const useGroupStore = defineStore('groups', {
                         this.groupMessages = [];
                     }
                     return { message: 'Group deleted successfully' };
+                }
+                throw error;
+            }
+        },
+
+        async deleteSecretGroup(groupId) {
+            try {
+                const response = await axiosInstance.delete(`/api/secret-group/delete/${groupId}`);
+                console.log('Delete secret group response:', response.data);
+                
+                // Remove from local state
+                this.groups = this.groups.filter(g => g.id !== groupId);
+                
+                // If this was the current group, clear it
+                if (this.currentGroup && this.currentGroup.id === groupId) {
+                    this.currentGroup = null;
+                    this.groupMembers = [];
+                    this.groupMessages = [];
+                }
+                
+                // Clear encryption keys for secret groups
+                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearSecretGroupKeys } = useKeyPair();
+                
+                try {
+                    clearGroupSymmetricKey(groupId);
+                    await clearSecretGroupKeys(groupId);
+                    console.log('✅ Cleared encryption keys for deleted secret group');
+                } catch (keyError) {
+                    console.error('❌ Failed to clear encryption keys:', keyError);
+                }
+                
+                return response.data;
+            } catch (error) {
+                console.error('Failed to delete secret group:', error);
+                // If endpoint doesn't exist yet, still remove from local state
+                if (error.response?.status === 404) {
+                    this.groups = this.groups.filter(g => g.id !== groupId);
+                    if (this.currentGroup && this.currentGroup.id === groupId) {
+                        this.currentGroup = null;
+                        this.groupMembers = [];
+                        this.groupMessages = [];
+                    }
+                    return { message: 'Secret group deleted successfully' };
                 }
                 throw error;
             }
@@ -358,6 +702,42 @@ export const useGroupStore = defineStore('groups', {
                 await this.loadGroupDetails(groupId);
             } catch (error) {
                 console.error('Failed to remove member:', error);
+                throw error;
+            }
+        },
+
+        async removeUserFromSecretGroup(groupId, userId) {
+            try {
+                await axiosInstance.delete(`/api/secret-group/remove-user/${groupId}/${userId}`);
+                
+                // Refresh group details
+                await this.loadSecretGroupDetails(groupId);
+            } catch (error) {
+                console.error('Failed to remove user from secret group:', error);
+                throw error;
+            }
+        },
+
+        async banMemberFromSecretGroup(groupId, userId) {
+            try {
+                await axiosInstance.post(`/api/secret-group/ban/${groupId}`, { user_id: userId });
+                
+                // Refresh group details
+                await this.loadSecretGroupDetails(groupId);
+            } catch (error) {
+                console.error('Failed to ban member from secret group:', error);
+                throw error;
+            }
+        },
+
+        async unbanMemberFromSecretGroup(groupId, userId) {
+            try {
+                await axiosInstance.post(`/api/secret-group/unban/${groupId}`, { user_id: userId });
+                
+                // Refresh group details
+                await this.loadSecretGroupDetails(groupId);
+            } catch (error) {
+                console.error('Failed to unban member from secret group:', error);
                 throw error;
             }
         },

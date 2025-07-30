@@ -21,6 +21,8 @@
             />
         </div>
 
+
+
         <!-- Settings Tab -->
         <div v-else-if="activeTab === 'settings'">
             <SettingsTab />
@@ -41,6 +43,7 @@ import { showMessage } from "../utils/toast";
 import ChatsTab from "./tabs/ChatsTab.vue";
 import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
+
 
 const props = defineProps({ activeTab: String });
 const emit = defineEmits(['switch-to-chats-tab']);
@@ -234,14 +237,16 @@ const handleGroupClick = async (group) => {
     // Load group users and messages
     try {
         console.log("👥 Loading group users for group:", group.id);
-        console.log(
-            "👥 Making API call to:",
-            `/api/group/get/${group.id}/members`
-        );
+        
+        // Check if this is a secret group
+        const isSecretGroup = group.type === 'secret';
+        const endpoint = isSecretGroup 
+            ? `/api/secret-group/get/${group.id}/members`
+            : `/api/group/get/${group.id}/members`;
+            
+        console.log("👥 Making API call to:", endpoint);
 
-        const response = await axiosInstance.get(
-            `/api/group/get/${group.id}/members`
-        );
+        const response = await axiosInstance.get(endpoint);
         console.log("👥 Group users response:", response.data);
 
         // Store group users in the group store or a reactive variable

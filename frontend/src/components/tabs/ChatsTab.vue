@@ -61,6 +61,8 @@
                 @secret-chat-deleted="handleSecretChatDeleted"
             />
         </div>
+
+
     </div>
 </template>
 
@@ -97,6 +99,8 @@ const handleUserSelected = (user) => {
     emit("open-chat", user);
     showCreateChat.value = false;
 };
+
+
 
 // Handle user selection for secret chat
 const handleSecretUserSelected = async (user) => {

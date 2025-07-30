@@ -7,14 +7,36 @@
                 <img 
                     :src="group.avatar_url ? `${backendBaseUrl}/static/${group.avatar_url}` : '/src/assets/default-avatar.jpg'"
                     :alt="group.name"
-                    class="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                    :class="[
+                        'w-12 h-12 rounded-full object-cover border-2',
+                        group.type === 'secret' ? 'border-purple-300' : 'border-gray-200'
+                    ]"
                 />
-                <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                <div 
+                    :class="[
+                        'absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white',
+                        group.type === 'secret' ? 'bg-purple-500' : 'bg-green-500'
+                    ]"
+                >
+                    <span 
+                        v-if="group.type === 'secret'"
+                        class="material-icons text-white text-xs"
+                    >lock</span>
+                </div>
             </div>
             
             <!-- Group Details -->
             <div class="flex flex-col">
-                <h3 class="text-lg font-semibold text-gray-900">{{ group.name }}</h3>
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ group.name }}</h3>
+                    <div 
+                        v-if="group.type === 'secret'"
+                        class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium border border-purple-200 flex items-center gap-1"
+                    >
+                        <span class="material-icons text-xs">security</span>
+                        Secret
+                    </div>
+                </div>
                 <div class="flex items-center space-x-2 text-sm text-gray-500">
                     <span>{{ group.member_count || 0 }} members</span>
                     <span>•</span>
