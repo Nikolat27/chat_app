@@ -26,6 +26,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 		// Members
 		r.Get("/user/search", handler.SearchUser)
+		r.Get("/user/get/{user_id}", handler.GetUser)
 		r.Delete("/user/delete", handler.DeleteUser)
 		r.Post("/user/upload-avatar", handler.UploadAvatar)
 		r.Get("/user/get-chats", handler.GetUserChats)
@@ -50,6 +51,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Put("/group/update/{group_id}", handler.UpdateGroup)
 		r.Get("/group/join/{invite_link}", handler.JoinGroup)
 		r.Post("/group/ban/{group_id}", handler.BanMemberFromGroup)
+		r.Post("/group/unban/{group_id}", handler.UnBanMemberFromGroup)
 		r.Get("/group/get/{group_id}/messages", handler.GetGroupMessages)
 		r.Get("/group/get/{group_id}/members", handler.GetGroupMembers)
 		r.Delete("/group/leave/{group_id}", handler.LeaveGroup)
