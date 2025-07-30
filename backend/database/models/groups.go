@@ -23,6 +23,7 @@ type Group struct {
 	Id          primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
 	OwnerId     primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
 	Users       []primitive.ObjectID `json:"users" bson:"users"`
+	BannedUsers []primitive.ObjectID `json:"banned_users" bson:"banned_users"`
 	Name        string               `json:"name" bson:"name"`
 	Description string               `json:"description" bson:"description"`
 	AvatarUrl   string               `json:"avatar_url" bson:"avatar_url"`
