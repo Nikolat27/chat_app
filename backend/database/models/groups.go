@@ -20,25 +20,25 @@ func NewGroupModel(db *mongo.Database) *GroupModel {
 }
 
 type Group struct {
-	Id            primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
-	OwnerId       primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
-	Admins        []primitive.ObjectID `json:"admins" bson:"admins"`
-	Members       []primitive.ObjectID `json:"members" bson:"members"`
-	BannedMembers []primitive.ObjectID `json:"banned_members" bson:"banned_members"`
-	Name          string               `json:"name" bson:"name"`
-	Description   string               `json:"description" bson:"description"`
-	AvatarUrl     string               `json:"avatar_url" bson:"avatar_url"`
-	// public or private (private needs apporval)
-	Type            string             `json:"type" bson:"type"`
-	InviteLink      string             `json:"invite_link" bson:"invite_link"`
-	PinnedMessageId primitive.ObjectID `json:"pinned_message_id" bson:"pinned_message_id"`
-	LastMessageId   primitive.ObjectID `json:"last_message_id" bson:"last_message_id"`
-	LastMessageAt   time.Time          `json:"last_message_at" bson:"last_message_at"`
-	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
+	Id              primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
+	OwnerId         primitive.ObjectID   `json:"owner_id" bson:"owner_id"`
+	Admins          []primitive.ObjectID `json:"admins" bson:"admins"`
+	Members         []primitive.ObjectID `json:"members" bson:"members"`
+	BannedMembers   []primitive.ObjectID `json:"banned_members" bson:"banned_members"`
+	Name            string               `json:"name" bson:"name"`
+	Description     string               `json:"description" bson:"description"`
+	AvatarUrl       string               `json:"avatar_url" bson:"avatar_url"`
+	Type            string               `json:"type" bson:"type"` // public or private (private needs apporval)
+	InviteLink      string               `json:"invite_link" bson:"invite_link"`
+	PinnedMessageId primitive.ObjectID   `json:"pinned_message_id" bson:"pinned_message_id"`
+	LastMessageId   primitive.ObjectID   `json:"last_message_id" bson:"last_message_id"`
+	IsSecret        bool                 `json:"is_secret" bson:"is_secret"`
+	LastMessageAt   time.Time            `json:"last_message_at" bson:"last_message_at"`
+	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
 }
 
 func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, avatarUrl, groupType, inviteLink string,
-	members, admins []primitive.ObjectID) (*mongo.InsertOneResult, error) {
+	members, admins []primitive.ObjectID, isSecret bool) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -52,6 +52,7 @@ func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, a
 		InviteLink:  inviteLink,
 		Members:     members,
 		Admins:      admins,
+		IsSecret:    isSecret,
 		CreatedAt:   time.Now(),
 	}
 

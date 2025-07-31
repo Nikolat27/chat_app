@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -13,7 +12,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
+	"strconv"
 )
 
 func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
@@ -22,6 +23,8 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
+
+	isSecret := handler.isSecretGroup(r.URL)
 
 	name := r.FormValue("name")
 	if name == "" {
@@ -51,7 +54,7 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	admins := []primitive.ObjectID{payload.UserId}
 
-	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, members, admins)
+	result, err := handler.Models.Group.Create(payload.UserId, name, description, avatarUrl, groupType, inviteLink, members, admins, isSecret)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createGroup", "failed to create group")
 		return
@@ -362,40 +365,14 @@ func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, "group deleted successfully")
 }
 
-func (handler *Handler) AddGroupWebsocket(w http.ResponseWriter, r *http.Request) {
-	groupId := chi.URLParam(r, "group_id")
-	if groupId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
-		return
-	}
-
-	senderId := r.URL.Query().Get("sender_id")
-	if senderId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "sender id is missing")
-		return
-	}
-
-	wsConn, err := WebsocketUpgrade(w, r)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "upgradingWebsocket", err)
-		return
-	}
-
-	wsConn.AddGroup(groupId, senderId, handler.WebSocket)
-
-	go func() {
-		if err := wsConn.HandleGroupIncomingMsgs(groupId, senderId, false, handler.WebSocket, handler); err != nil {
-			slog.Error("handling incoming ws messages", "error", err)
-		}
-	}()
-}
-
 // GetGroupMessages -> Returns all the messages of the group
 func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request) {
 	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
+
+	isSecret := handler.isSecretGroup(r.URL)
 
 	groupId := chi.URLParam(r, "group_id")
 	if groupId == "" {
@@ -410,7 +387,8 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 	}
 
 	filter := bson.M{
-		"group_id": groupObjectId,
+		"group_id":  groupObjectId,
+		"is_secret": isSecret,
 	}
 
 	page, pageLimit, errResp := utils.ParsePageAndLimitQueryParams(r.URL)
@@ -455,6 +433,8 @@ func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	isSecret := handler.isSecretGroup(r.URL)
+
 	groupId := chi.URLParam(r, "group_id")
 	if groupId == "" {
 		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
@@ -468,7 +448,8 @@ func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) 
 	}
 
 	filter := bson.M{
-		"_id": groupObjectId,
+		"_id":       groupObjectId,
+		"is_secret": isSecret,
 	}
 
 	projection := bson.M{
@@ -491,8 +472,6 @@ func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) 
 			"avatar_url": avatarUrl,
 		}
 	}
-
-	fmt.Println(members)
 
 	utils.WriteJSON(w, http.StatusOK, members)
 }
@@ -753,4 +732,42 @@ func (handler *Handler) getIdByInviteLink(inviteLink string) (primitive.ObjectID
 	}
 
 	return groupInstance.Id, nil
+}
+
+// isSecretGroup -> Check wether the group is secret or not
+func (handler *Handler) isSecretGroup(url *url.URL) bool {
+	isSecretStr := url.Query().Get("is_secret")
+	isSecretBool, _ := strconv.ParseBool(isSecretStr)
+	return isSecretBool
+}
+
+// AddGroupWebsocket -> Establish WebSocket
+func (handler *Handler) AddGroupWebsocket(w http.ResponseWriter, r *http.Request) {
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "group id is missing")
+		return
+	}
+
+	isSecret := handler.isSecretGroup(r.URL)
+
+	senderId := r.URL.Query().Get("sender_id")
+	if senderId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "sender id is missing")
+		return
+	}
+
+	wsConn, err := WebsocketUpgrade(w, r)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "upgradingWebsocket", err)
+		return
+	}
+
+	wsConn.AddGroup(groupId, senderId, handler.WebSocket)
+
+	go func() {
+		if err := wsConn.HandleGroupIncomingMsgs(groupId, senderId, isSecret, handler.WebSocket, handler); err != nil {
+			slog.Error("handling incoming ws messages", "error", err)
+		}
+	}()
 }

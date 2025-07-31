@@ -32,7 +32,6 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Get("/user/get-chats", handler.GetUserChats)
 		r.Get("/user/get-secret-chats", handler.GetUserSecretChats)
 		r.Get("/user/get-groups", handler.GetUserGroups)
-		r.Get("/user/get-secret-groups", handler.GetUserSecretGroups)
 
 		// Chats
 		r.Post("/chat/create", handler.CreateChat)
@@ -60,20 +59,6 @@ func NewRouter(handler *handlers.Handler) *Router {
 		r.Delete("/group/delete/{group_id}", handler.DeleteGroup)
 		// group websocket
 		r.Get("/websocket/group/add/{group_id}", handler.AddGroupWebsocket)
-
-		// Secret Groups
-		r.Post("/secret-group/create", handler.CreateSecretGroup)
-		r.Put("/secret-group/update/{secret_group_id}", handler.UpdateSecretGroup)
-		r.Get("/secret-group/join/{invite_link}", handler.JoinSecretGroup)
-		r.Post("/secret-group/ban/{secret_group_id}", handler.BanMemberFromSecretGroup)
-		r.Post("/secret-group/unban/{secret_group_id}", handler.UnBanMemberFromSecretGroup)
-		r.Get("/secret-group/get/{secret_group_id}/messages", handler.GetSecretGroupMessages)
-		r.Get("/secret-group/get/{secret_group_id}/members", handler.GetSecretGroupMembers)
-		r.Delete("/secret-group/leave/{secret_group_id}", handler.LeaveSecretGroup)
-		r.Delete("/secret-group/remove-user/{secret_group_id}/{user_id}", handler.RemoveUserFromSecretGroup)
-		r.Delete("/secret-group/delete/{secret_group_id}", handler.DeleteSecretGroup)
-		// secret group websocket
-		r.Get("/websocket/secret-group/add/{secret_group_id}", handler.AddSecretGroupWebsocket)
 
 		// Save Messages
 		r.Post("/save-message/create", handler.CreateSaveMessage)

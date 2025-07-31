@@ -68,24 +68,6 @@ func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, isSecret boo
 	return nil
 }
 
-func (handler *Handler) storeSecretGroupMsgToDB(groupId, senderId, payload string) error {
-	senderObjectId, err := utils.ToObjectId(senderId)
-	if err != nil {
-		return errors.New(err.Type)
-	}
-
-	groupObjectId, err := utils.ToObjectId(groupId)
-	if err != nil {
-		return errors.New(err.Type)
-	}
-
-	if _, err := handler.Models.SecretGroupMessages.Create(groupObjectId, senderObjectId, payload); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (handler *Handler) EditMessage(w http.ResponseWriter, r *http.Request) {
 	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
 	if err != nil {
