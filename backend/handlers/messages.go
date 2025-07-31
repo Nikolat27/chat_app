@@ -68,25 +68,18 @@ func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, isSecret boo
 	return nil
 }
 
-func (handler *Handler) storeSecretGroupMsgToDB(groupId, senderId string, payload []byte, symmetricKey map[string]string) error {
+func (handler *Handler) storeSecretGroupMsgToDB(groupId, senderId, payload string) error {
 	senderObjectId, err := utils.ToObjectId(senderId)
 	if err != nil {
 		return errors.New(err.Type)
 	}
-
-	ciphered, err2 := handler.Cipher.Encrypt(payload)
-	if err2 != nil {
-		return err2
-	}
-
-	encodedCipher := hex.EncodeToString(ciphered)
 
 	groupObjectId, err := utils.ToObjectId(groupId)
 	if err != nil {
 		return errors.New(err.Type)
 	}
 
-	if _, err := handler.Models.SecretGroupMessages.Create(groupObjectId, senderObjectId, encodedCipher, symmetricKey); err != nil {
+	if _, err := handler.Models.SecretGroupMessages.Create(groupObjectId, senderObjectId, payload); err != nil {
 		return err
 	}
 
