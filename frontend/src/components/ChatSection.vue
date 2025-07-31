@@ -55,7 +55,9 @@
             :other-user-avatar="null"
             :chat-id="currentGroup?.id"
             :is-loading-messages="isLoadingMessages"
+            :is-secret-group="isCurrentChatSecret"
             @load-more-messages="handleLoadMoreGroupMessages"
+            @open-secret-key-modal="openSecretKeyModal"
         />
         <!-- Debug user avatar -->
         <div v-if="currentGroup && isCurrentChatGroup" style="display: none;">
@@ -112,6 +114,16 @@
             @close="handleUpdateGroupModalClose"
             @group-updated="handleGroupUpdated"
         />
+
+        <!-- Secret Group Key Modal -->
+        <SecretGroupKeyModal
+            :is-visible="showSecretKeyModal"
+            :group-id="secretChatIdForKey || ''"
+            :group-name="currentGroup?.name || ''"
+            :is-group-owner="currentGroup?.owner_id === userStore.user_id"
+            @close="closeSecretKeyModal"
+            @key-entered="handleSecretKeyLoaded"
+        />
     </section>
 </template>
 
@@ -131,6 +143,7 @@ import GroupMessageInput from "./chat/GroupMessageInput.vue";
 import GroupInfoModal from "./ui/GroupInfoModal.vue";
 import SecretGroupInfoModal from "./ui/SecretGroupInfoModal.vue";
 import UpdateGroupModal from "./ui/UpdateGroupModal.vue";
+import SecretGroupKeyModal from "./chat/SecretGroupKeyModal.vue";
 import { useWebSocket } from "../composables/useWebSocket";
 import { useGroupChat } from "../composables/useGroupChat";
 import { useMessagePagination } from "../composables/useMessagePagination";
@@ -877,6 +890,32 @@ const handleGroupUpdated = (updatedGroup) => {
         currentGroup.value = { ...currentGroup.value, ...updatedGroup };
     }
     handleUpdateGroupModalClose();
+};
+
+// Secret key modal handling
+const showSecretKeyModal = ref(false);
+const secretChatIdForKey = ref(null);
+
+const openSecretKeyModal = (chatId) => {
+    secretChatIdForKey.value = chatId;
+    showSecretKeyModal.value = true;
+};
+
+const closeSecretKeyModal = () => {
+    showSecretKeyModal.value = false;
+    secretChatIdForKey.value = null;
+};
+
+const handleSecretKeyLoaded = async (chatId) => {
+    console.log('Secret key loaded for chat:', chatId);
+    // Re-validate the chat for encryption after key is loaded
+    const validation = await validateSecretChatForEncryption(chatId);
+    if (validation.valid) {
+        showMessage('Secret key loaded successfully. You can now send messages in this chat.');
+    } else {
+        showError(validation.message);
+    }
+    closeSecretKeyModal();
 };
 </script>
 

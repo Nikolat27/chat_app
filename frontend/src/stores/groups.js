@@ -65,26 +65,31 @@ export const useGroupStore = defineStore('groups', {
                 }));
                 
                 // Process secret groups
-                const secretGroups = secretGroupsData.map(group => ({
-                    id: group.id || group._id,
-                    name: group.name,
-                    description: group.description,
-                    type: 'secret',
-                    avatar_url: group.avatar_url,
-                    invite_link: group.invite_link,
-                    owner_id: group.owner_id,
-                    created_at: group.created_at,
-                    member_count: group.users?.length || group.member_count || 1,
-                    role: group.role || 'member',
-                    admins: group.admins || [],
-                    banned_members: group.banned_members || [],
-                    is_secret: true
-                }));
+                const secretGroups = secretGroupsData.map(group => {
+                    const processedGroup = {
+                        id: group.id || group._id,
+                        name: group.name,
+                        description: group.description,
+                        type: 'secret',
+                        avatar_url: group.avatar_url,
+                        invite_link: group.invite_link,
+                        owner_id: group.owner_id,
+                        created_at: group.created_at,
+                        member_count: group.users?.length || group.member_count || 1,
+                        role: group.role || 'member',
+                        admins: group.admins || [],
+                        banned_members: group.banned_members || [],
+                        is_secret: true
+                    };
+                    console.log('🔍 Processing secret group:', processedGroup);
+                    return processedGroup;
+                });
                 
                 // Combine both types of groups
                 this.groups = [...regularGroups, ...secretGroups];
                 
                 console.log('✅ Loaded', regularGroups.length, 'regular groups and', secretGroups.length, 'secret groups');
+                console.log('🔍 All groups:', this.groups.map(g => ({ id: g.id, name: g.name, type: g.type, is_secret: g.is_secret })));
                 
                 return this.groups;
             } catch (error) {
@@ -203,8 +208,8 @@ export const useGroupStore = defineStore('groups', {
                 
                 // Generate keys for the actual group ID
                 try {
-                    const { initializeSecretGroupEncryption } = useSecretGroupE2EE();
-                    await initializeSecretGroupEncryption(newGroup.id);
+                    const { initializeSecretGroup } = useSecretGroupE2EE();
+                    await initializeSecretGroup(newGroup.id);
                     console.log('✅ Secret group encryption initialized');
                 } catch (encryptionError) {
                     console.error('❌ Failed to initialize secret group encryption:', encryptionError);
@@ -277,8 +282,8 @@ export const useGroupStore = defineStore('groups', {
                         // Initialize encryption for secret groups
                         if (completeGroup.type === 'secret') {
                             try {
-                                const { initializeSecretGroupEncryption } = useSecretGroupE2EE();
-                                await initializeSecretGroupEncryption(completeGroup.id);
+                                const { initializeSecretGroup } = useSecretGroupE2EE();
+                                await initializeSecretGroup(completeGroup.id);
                                 console.log('✅ Secret group encryption initialized after joining');
                             } catch (encryptionError) {
                                 console.error('❌ Failed to initialize secret group encryption after joining:', encryptionError);
@@ -308,24 +313,11 @@ export const useGroupStore = defineStore('groups', {
 
         async joinSecretGroup(inviteLink) {
             try {
-                // Generate key pair for this secret group first
-                const { generateSecretGroupKeyPair, exportSecretGroupPublicKey } = useKeyPair();
-                const groupId = Date.now(); // Temporary ID for key generation
-                await generateSecretGroupKeyPair(groupId);
-                const publicKey = await exportSecretGroupPublicKey(groupId);
+                console.log('🔐 joinSecretGroup called with inviteLink:', inviteLink);
                 
-                if (!publicKey) {
-                    throw new Error('Failed to generate public key for secret group');
-                }
-                
-                // Convert JWK to base64 for backend transmission
-                const publicKeyString = JSON.stringify(publicKey);
-                const base64PublicKey = btoa(publicKeyString);
-                
-                // Join secret group with public key
-                const response = await axiosInstance.post(`/api/secret-group/join/${inviteLink}`, {
-                    public_key: base64PublicKey
-                });
+                console.log('🔐 Making GET request to join secret group');
+                // Join secret group with GET method
+                const response = await axiosInstance.get(`/api/secret-group/join/${inviteLink}`);
                 console.log('Join secret group response:', response.data);
                 
                 const joinedGroup = response.data.group || response.data;
@@ -382,8 +374,8 @@ export const useGroupStore = defineStore('groups', {
                         
                         // Initialize encryption for secret groups
                         try {
-                            const { initializeSecretGroupEncryption } = useSecretGroupE2EE();
-                            await initializeSecretGroupEncryption(completeGroup.id);
+                            const { initializeSecretGroup } = useSecretGroupE2EE();
+                            await initializeSecretGroup(completeGroup.id);
                             console.log('✅ Secret group encryption initialized after joining');
                         } catch (encryptionError) {
                             console.error('❌ Failed to initialize secret group encryption after joining:', encryptionError);
@@ -426,11 +418,11 @@ export const useGroupStore = defineStore('groups', {
                 }
                 
                 // Clear encryption keys for secret groups
-                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
                 const { clearSecretGroupKeys } = useKeyPair();
+                const { clearGroupSecretKey } = useSecretGroupE2EE();
                 
                 try {
-                    clearGroupSymmetricKey(groupId);
+                    clearGroupSecretKey(groupId);
                     await clearSecretGroupKeys(groupId);
                     console.log('✅ Cleared encryption keys for left group');
                 } catch (keyError) {
@@ -470,11 +462,11 @@ export const useGroupStore = defineStore('groups', {
                 }
                 
                 // Clear encryption keys for secret groups
-                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearGroupSecretKey } = useSecretGroupE2EE();
                 const { clearSecretGroupKeys } = useKeyPair();
                 
                 try {
-                    clearGroupSymmetricKey(groupId);
+                    clearGroupSecretKey(groupId);
                     await clearSecretGroupKeys(groupId);
                     console.log('✅ Cleared encryption keys for left secret group');
                 } catch (keyError) {
@@ -610,11 +602,11 @@ export const useGroupStore = defineStore('groups', {
                 }
                 
                 // Clear encryption keys for secret groups
-                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearGroupSecretKey } = useSecretGroupE2EE();
                 const { clearSecretGroupKeys } = useKeyPair();
                 
                 try {
-                    clearGroupSymmetricKey(groupId);
+                    clearGroupSecretKey(groupId);
                     await clearSecretGroupKeys(groupId);
                     console.log('✅ Cleared encryption keys for deleted group');
                 } catch (keyError) {
@@ -654,11 +646,11 @@ export const useGroupStore = defineStore('groups', {
                 }
                 
                 // Clear encryption keys for secret groups
-                const { clearGroupSymmetricKey } = useSecretGroupE2EE();
+                const { clearGroupSecretKey } = useSecretGroupE2EE();
                 const { clearSecretGroupKeys } = useKeyPair();
                 
                 try {
-                    clearGroupSymmetricKey(groupId);
+                    clearGroupSecretKey(groupId);
                     await clearSecretGroupKeys(groupId);
                     console.log('✅ Cleared encryption keys for deleted secret group');
                 } catch (keyError) {

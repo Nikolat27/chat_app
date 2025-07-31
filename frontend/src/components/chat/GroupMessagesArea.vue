@@ -4,6 +4,25 @@
         class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"
         @scroll="handleScroll"
     >
+        <!-- Secret Key Error Banner -->
+        <div v-if="showSecretKeyError" class="sticky top-0 z-20 bg-red-50 border-b border-red-200">
+            <div class="flex items-center justify-between p-4">
+                <div class="flex items-center gap-3">
+                    <span class="material-icons text-red-600">warning</span>
+                    <div>
+                        <div class="text-red-800 font-medium text-sm">Secret Key Required</div>
+                        <div class="text-red-600 text-xs">You need to enter the secret key to read encrypted messages</div>
+                    </div>
+                </div>
+                <button
+                    @click="openSecretKeyModal"
+                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium"
+                >
+                    Enter Key
+                </button>
+            </div>
+        </div>
+
         <!-- Loading indicator for older messages -->
         <div v-if="isLoadingMessages" class="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200">
             <div class="flex items-center justify-center py-4">
@@ -119,6 +138,7 @@
 <script setup>
 import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import { useMessageDeletion } from '../../composables/useMessageDeletion';
+import { useSecretGroupE2EE } from '../../composables/useSecretGroupE2EE';
 
 const props = defineProps({
     messages: {
@@ -148,15 +168,41 @@ const props = defineProps({
     isLoadingMessages: {
         type: Boolean,
         default: false
+    },
+    isSecretGroup: {
+        type: Boolean,
+        default: false
     }
 });
 
-const emit = defineEmits(['load-more-messages']);
+const emit = defineEmits(['load-more-messages', 'open-secret-key-modal']);
 
 const messagesContainer = ref(null);
 const { handleDeleteMessage, isDeleting } = useMessageDeletion();
+const { hasGroupSecretKey } = useSecretGroupE2EE();
 const previousMessageCount = ref(0);
 const isPaginationLoading = ref(false);
+const showSecretKeyError = ref(false);
+
+// Check if user has entered the secret key
+const checkSecretKey = async () => {
+    if (!props.isSecretGroup) {
+        showSecretKeyError.value = false;
+        return;
+    }
+    
+    try {
+        const hasKey = await hasGroupSecretKey(props.chatId);
+        showSecretKeyError.value = !hasKey;
+    } catch (error) {
+        console.error('Error checking secret key:', error);
+        showSecretKeyError.value = true; // Show error if we can't check
+    }
+};
+
+const openSecretKeyModal = () => {
+    emit('open-secret-key-modal');
+};
 
 // Filter messages to only show valid ones
 const filteredMessages = computed(() => {
@@ -252,6 +298,17 @@ watch(
 
 onMounted(() => {
     scrollToBottom();
+    checkSecretKey();
+});
+
+// Watch for changes in secret group status
+watch(() => props.isSecretGroup, () => {
+    checkSecretKey();
+});
+
+// Watch for changes in chatId
+watch(() => props.chatId, () => {
+    checkSecretKey();
 });
 </script>
 

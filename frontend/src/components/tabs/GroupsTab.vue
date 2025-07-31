@@ -70,7 +70,7 @@
         <!-- Groups List -->
         <div v-else-if="groups && groups.length > 0" class="space-y-3">
             <h4 class="text-sm font-semibold text-gray-700 mb-3">
-                Your Groups
+                Your Groups ({{ groups.length }})
             </h4>
             <div
                 v-for="group in groups"
@@ -103,13 +103,13 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
                                 <span
-                                    class="font-semibold text-gray-800 truncate"
+                                    class="font-semibold text-gray-800 flex-shrink-0"
                                 >
                                     {{ group.name }}
                                 </span>
                                 <div 
                                     :class="
-                                        group.is_secret
+                                        (group.is_secret || group.type === 'secret')
                                         ? 'bg-purple-100 text-purple-700 border-purple-200' 
                                             : group.type === 'private'
                                             ? 'bg-orange-100 text-orange-700 border-orange-200'
@@ -119,7 +119,7 @@
                                 >
                                     <span class="material-icons text-xs">
                                         {{
-                                            group.is_secret
+                                            (group.is_secret || group.type === 'secret')
                                                 ? "lock"
                                                 : group.type === "private"
                                                 ? "lock_outline"
@@ -127,7 +127,7 @@
                                         }}
                                     </span>
                                     {{
-                                        group.is_secret
+                                        (group.is_secret || group.type === 'secret')
                                             ? "Secret"
                                             : group.type === "private"
                                             ? "Private"

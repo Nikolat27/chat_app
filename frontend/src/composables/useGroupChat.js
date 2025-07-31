@@ -116,32 +116,40 @@ export function useGroupChat() {
             let finalMessageData = messageData;
             console.log("📤 Original message data:", messageData);
             
-            // Handle secret group messages with symmetric keys for each user
+            // Handle secret group messages with simple secret key encryption
             console.log('🔐 Checking if message should be encrypted. isSecretGroup:', isSecretGroup);
             if (isSecretGroup) {
                 console.log('🔐 Processing secret group message:', groupId);
                 console.log('🔐 Original message content:', messageData.content);
+                console.log('🔐 Message content length:', messageData.content?.length);
+                console.log('🔐 Message content type:', typeof messageData.content);
                 
                 try {
-                    // Use the new sendSecretGroupMessage function
+                    // Use the new simple sendSecretGroupMessage function
                     const { sendSecretGroupMessage } = useSecretGroupE2EE();
                     console.log('🔐 About to call sendSecretGroupMessage...');
                     const secretMessagePayload = await sendSecretGroupMessage(messageData.content, groupId);
                     console.log('🔐 sendSecretGroupMessage completed successfully');
+                    console.log('🔐 Secret message payload received:', secretMessagePayload);
+                    
+                    if (!secretMessagePayload) {
+                        console.error('❌ sendSecretGroupMessage returned null/undefined');
+                        throw new Error('sendSecretGroupMessage returned null/undefined');
+                    }
+                    
+                    if (!secretMessagePayload.encrypted_content) {
+                        console.error('❌ Secret message payload has no encrypted content');
+                        console.error('❌ Payload:', secretMessagePayload);
+                        throw new Error('Secret message payload has no encrypted content');
+                    }
                     
                     console.log('🔐 Secret message payload:', {
-                        content_length: secretMessagePayload.content.length,
-                        users_count: Object.keys(secretMessagePayload.users_symmetric_keys).length,
-                        users: Object.keys(secretMessagePayload.users_symmetric_keys)
+                        encrypted_content_length: secretMessagePayload.encrypted_content.length,
                     });
                     
-                    finalMessageData = {
-                        ...messageData,
-                        content: secretMessagePayload.content,
-                        users_symmetric_keys: secretMessagePayload.users_symmetric_keys,
-                        is_encrypted: true
-                    };
-                    console.log('✅ Secret group message prepared with symmetric keys');
+                    // Send just the raw encrypted content
+                    finalMessageData = secretMessagePayload.encrypted_content;
+                    console.log('✅ Secret group message prepared - sending raw encrypted content');
                 } catch (error) {
                     console.error('❌ Error in sendSecretGroupMessage:', error);
                     console.error('❌ Error details:', {
@@ -159,8 +167,19 @@ export function useGroupChat() {
             console.log("📤 WebSocket ready state:", groupSocket.readyState);
             console.log("📤 WebSocket URL:", groupSocket.url);
             
+            // Add detailed logging for secret group messages
+            if (isSecretGroup) {
+                console.log("🔐 Secret group message details:", {
+                    content_length: typeof finalMessageData === 'string' ? finalMessageData.length : finalMessageData.content?.length,
+                    is_raw_string: typeof finalMessageData === 'string'
+                });
+            }
+            
             try {
-                groupSocket.send(JSON.stringify(finalMessageData));
+                // For secret groups, send the raw encrypted content as a string
+                // For regular groups, send the full message object
+                const messageToSend = isSecretGroup ? finalMessageData : JSON.stringify(finalMessageData);
+                groupSocket.send(messageToSend);
                 console.log("✅ Group message sent successfully");
             } catch (sendError) {
                 console.error("❌ Error sending WebSocket message:", sendError);
@@ -227,8 +246,14 @@ export function useGroupChat() {
                 // Nested users array
                 users = response.data.users;
             } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-                // Object with user IDs as keys
-                users = Object.values(response.data);
+                // Object with user IDs as keys (secret groups)
+                const userEntries = Object.entries(response.data);
+                users = userEntries.map(([userId, userData]) => ({
+                    user_id: userId,
+                    id: userId,
+                    _id: userId,
+                    ...userData
+                }));
                 console.log('✅ Converted object response to array with', users.length, 'users');
             } else {
                 console.warn('⚠️ Unexpected response structure for group users:', response.data);
@@ -244,6 +269,7 @@ export function useGroupChat() {
             
             groupUsers.value = users.reduce((acc, user) => {
                 const userId = user.user_id || user.id || user._id;
+                console.log('🔍 Processing user:', { user, userId });
                 if (userId) {
                     acc[userId] = user;
                 }
@@ -251,6 +277,7 @@ export function useGroupChat() {
             }, {});
             
             console.log('✅ Loaded', Object.keys(groupUsers.value).length, 'group users');
+            console.log('🔍 Final groupUsers.value:', groupUsers.value);
             return groupUsers.value;
         } catch (error) {
             console.error('❌ Failed to load group users:', error);
@@ -265,117 +292,176 @@ export function useGroupChat() {
     };
 
     const getUsernameBySenderId = (senderId) => {
+        console.log('🔍 Looking up username for senderId:', senderId);
+        console.log('🔍 Available users:', Object.keys(groupUsers.value));
+        console.log('🔍 User data for this senderId:', groupUsers.value[senderId]);
+        
         const user = groupUsers.value[senderId];
-        return user ? user.username : 'Unknown User';
+        const username = user ? user.username : 'Unknown User';
+        console.log('🔍 Returning username:', username);
+        return username;
     };
 
     const getAvatarBySenderId = (senderId) => {
         const user = groupUsers.value[senderId];
-        return user ? user.avatar_url : null;
+        if (!user) return null;
+        
+        if (!user.avatar_url) {
+            return '/src/assets/default-avatar.jpg';
+        }
+        
+        // If it's already a full URL, return as is
+        if (user.avatar_url.startsWith('http')) {
+            return user.avatar_url;
+        }
+        
+        // Construct full URL with backend base URL
+        const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+        return `${backendBaseUrl}/static/${user.avatar_url}`;
     };
 
-    // Load group messages from API with pagination and decryption for secret groups
-    const loadGroupMessages = async (groupId, page = 1, limit = 20, isSecretGroup = false) => {
+    // Load regular group messages from API with pagination
+    const loadRegularGroupMessages = async (groupId, page = 1, limit = 20) => {
         if (isLoadingMessages.value) return;
 
         try {
             isLoadingMessages.value = true;
-            console.log('📥 Loading group messages for group:', groupId, 'page:', page, 'limit:', limit, 'isSecret:', isSecretGroup);
+            console.log('📥 Loading regular group messages for group:', groupId, 'page:', page, 'limit:', limit);
             
-            let response;
-            if (isSecretGroup) {
-                response = await axiosInstance.get(`/api/secret-group/get/${groupId}/messages`, {
+            const response = await axiosInstance.get(`/api/group/get/${groupId}/messages`, {
                     params: { page, limit }
-                });
-            } else {
-                response = await axiosInstance.get(`/api/group/get/${groupId}/messages`, {
-                params: { page, limit }
             });
-            }
             
-            console.log('📥 Group messages response:', response.data);
+            console.log('📥 Regular group messages response:', response.data);
             
             // Handle the response structure: { messages: [...] }
             const messagesArray = response.data?.messages || response.data || [];
             
             if (Array.isArray(messagesArray)) {
-                console.log('📥 Processing', messagesArray.length, 'messages');
+                console.log('📥 Processing', messagesArray.length, 'regular group messages');
                 // Transform API messages to our format
-                const transformedMessages = await Promise.all(messagesArray.map(async (msg, index) => {
-                    console.log(`📥 Processing message ${index + 1}:`, {
+                const transformedMessages = messagesArray.map((msg, index) => {
+                    console.log(`📥 Processing regular message ${index + 1}:`, {
                         id: msg.id,
                         content: msg.content,
                         sender_id: msg.sender_id,
-                        is_encrypted: msg.is_encrypted,
-                        has_symmetric_keys: !!msg.users_symmetric_keys,
-                        symmetric_keys_count: msg.users_symmetric_keys ? Object.keys(msg.users_symmetric_keys).length : 0,
-                        symmetric_keys_users: msg.users_symmetric_keys ? Object.keys(msg.users_symmetric_keys) : []
+                        message_type: msg.message_type
                     });
-                    let content = msg.content;
+                    
+                    return {
+                        id: msg.id || msg._id,
+                        sender_id: msg.sender_id,
+                        content: msg.content,
+                        message_type: msg.type === 'text' ? 1 : msg.message_type || 1,
+                        created_at: msg.created_at,
+                        sender_name: getUsernameBySenderId(msg.sender_id),
+                        sender_avatar: getAvatarBySenderId(msg.sender_id),
+                        is_encrypted: false
+                    };
+                });
+                
+                // For pagination, we'll assume there are more messages if we got a full page
+                const hasMore = messagesArray.length >= limit;
+                
+                // Update pagination state
+                currentPage.value = page;
+                hasMoreMessages.value = hasMore;
+                
+                // If it's the first page, replace messages; otherwise, prepend to existing messages
+                if (page === 1) {
+                    groupMessages.value = transformedMessages;
+                } else {
+                    // Prepend older messages to the beginning (for pagination)
+                    groupMessages.value.unshift(...transformedMessages);
+                }
+                
+                console.log('✅ Loaded', transformedMessages.length, 'regular group messages (page', page, ')');
+            } else {
+                console.log('📥 No regular group messages found or invalid response format');
+                if (page === 1) {
+                    groupMessages.value = [];
+                }
+                hasMoreMessages.value = false;
+            }
+        } catch (error) {
+            console.error('❌ Failed to load regular group messages:', error);
+            showError('Failed to load group messages. Please try again.');
+            if (page === 1) {
+                groupMessages.value = [];
+            }
+        } finally {
+            isLoadingMessages.value = false;
+        }
+    };
+
+    // Load secret group messages from API with pagination and decryption
+    const loadSecretGroupMessages = async (groupId, page = 1, limit = 20) => {
+        if (isLoadingMessages.value) return;
+
+        try {
+            isLoadingMessages.value = true;
+            console.log('📥 Loading secret group messages for group:', groupId, 'page:', page, 'limit:', limit);
+            
+            const response = await axiosInstance.get(`/api/secret-group/get/${groupId}/messages`, {
+                params: { page, limit }
+            });
+            
+            console.log('📥 Secret group messages response:', response.data);
+            
+            // Handle the response structure: { messages: [...] }
+            const messagesArray = response.data?.messages || response.data || [];
+            
+            if (Array.isArray(messagesArray)) {
+                console.log('📥 Processing', messagesArray.length, 'secret group messages');
+                // Transform API messages to our format with decryption
+                const transformedMessages = await Promise.all(messagesArray.map(async (msg, index) => {
+                    console.log(`📥 Raw message ${index + 1} from backend:`, msg);
+                    console.log(`📥 Processing secret message ${index + 1}:`, {
+                        id: msg.id,
+                        content: msg.content,
+                        encrypted_content: msg.encrypted_content,
+                        sender_id: msg.sender_id,
+                        is_encrypted: msg.is_encrypted,
+                        has_symmetric_keys: !!(msg.users_symmetric_keys || msg.encrypted_symmetric_keys),
+                        symmetric_keys_count: (msg.users_symmetric_keys || msg.encrypted_symmetric_keys) ? Object.keys(msg.users_symmetric_keys || msg.encrypted_symmetric_keys).length : 0,
+                        symmetric_keys_users: (msg.users_symmetric_keys || msg.encrypted_symmetric_keys) ? Object.keys(msg.users_symmetric_keys || msg.encrypted_symmetric_keys) : [],
+                        // Show all available fields for debugging
+                        all_fields: Object.keys(msg),
+                        // Show symmetric keys structure
+                        symmetric_keys_structure: msg.users_symmetric_keys || msg.encrypted_symmetric_keys
+                    });
+                    
+                    let content = msg.content || msg.encrypted_content || '';
                     
                     // Handle empty content in secret groups (old messages or failed encryption)
-                    if (isSecretGroup && !msg.content && !msg.is_encrypted) {
+                    if (!content && !msg.is_encrypted) {
                         console.log('⚠️ Found empty message in secret group - likely old message or failed encryption');
                         content = '[Old message - no content available]';
                     }
                     
-                    // For secret groups, check if we have our private key
-                    if (isSecretGroup) {
-                        const { hasSecretGroupKeys } = useKeyPair();
-                        const hasKeys = await hasSecretGroupKeys(groupId);
-                        console.log('🔐 User has private keys for secret group:', hasKeys);
-                    }
-                    
-                    // Decrypt message for secret groups
-                    if (isSecretGroup && msg.is_encrypted) {
+                    // Decrypt message for secret groups - check for encrypted content
+                    if (content && content.length > 20) {
                         try {
                             console.log('🔐 Decrypting message for secret group:', groupId);
                             console.log('🔐 Message structure:', {
                                 id: msg.id,
-                                content: msg.content,
-                                is_encrypted: msg.is_encrypted,
-                                users_symmetric_keys: msg.users_symmetric_keys ? Object.keys(msg.users_symmetric_keys) : null
+                                content: content,
+                                is_encrypted: msg.is_encrypted
                             });
                             
-                            // Check if this message has symmetric keys for users
-                            if (msg.users_symmetric_keys) {
-                                console.log('🔐 Message has symmetric keys for users, processing...');
-                                
-                                // Get current user ID to find their encrypted symmetric key
-                                const currentUserId = userStore.user_id;
-                                console.log('🔐 Current user ID:', currentUserId);
-                                console.log('🔐 Available user IDs in symmetric keys:', Object.keys(msg.users_symmetric_keys));
-                                
-                                const userEncryptedKey = msg.users_symmetric_keys[currentUserId];
-                                
-                                if (userEncryptedKey) {
-                                    console.log('🔐 Found encrypted symmetric key for current user');
-                                    
-                                    // Decrypt the symmetric key using our private key
-                                    const { decryptGroupSymmetricKey } = useSecretGroupE2EE();
-                                    const { getSecretGroupPrivateKey } = useKeyPair();
-                                    
-                                    const privateKey = await getSecretGroupPrivateKey(groupId);
-                                    if (privateKey) {
-                                        const symmetricKey = await decryptGroupSymmetricKey(userEncryptedKey, privateKey);
-                                        
-                                        // Now decrypt the message content with the symmetric key
-                                        content = await decryptGroupMessage(msg.content, symmetricKey);
-                                        console.log('✅ Message decrypted using symmetric key');
-                                    } else {
-                                        console.error('❌ No private key available for group');
-                                        content = '[Encrypted message - no private key]';
-                                    }
-                                } else {
-                                    console.warn('⚠️ No encrypted symmetric key found for current user');
-                                    console.warn('⚠️ Current user ID:', currentUserId);
-                                    console.warn('⚠️ Available keys:', Object.keys(msg.users_symmetric_keys));
-                                    content = '[Encrypted message - no symmetric key]';
-                                }
+                            // Get the secret key for this group
+                            const { getGroupSecretKey, decryptGroupMessage } = useSecretGroupE2EE();
+                            const secretKey = await getGroupSecretKey(groupId);
+                            
+                            if (!secretKey) {
+                                console.warn('⚠️ No secret key available for this group');
+                                content = '[Encrypted message - no secret key]';
                             } else {
-                                // Fallback to old method (should not happen with new architecture)
-                                console.warn('⚠️ Message does not have symmetric keys, using fallback');
-                                content = '[Encrypted message - no symmetric keys]';
+                                console.log('🔐 Secret key available, decrypting message...');
+                                
+                                // Decrypt the message content with the secret key
+                                content = await decryptGroupMessage(content, secretKey);
+                                console.log('✅ Message decrypted using secret key');
                             }
                         } catch (decryptError) {
                             console.error('❌ Failed to decrypt message:', decryptError);
@@ -392,7 +478,7 @@ export function useGroupChat() {
                     sender_name: getUsernameBySenderId(msg.sender_id),
                         sender_avatar: getAvatarBySenderId(msg.sender_id),
                         is_encrypted: msg.is_encrypted || false,
-                        users_symmetric_keys: msg.users_symmetric_keys
+                        users_symmetric_keys: msg.users_symmetric_keys || msg.encrypted_symmetric_keys
                     };
                 }));
                 
@@ -411,22 +497,31 @@ export function useGroupChat() {
                     groupMessages.value.unshift(...transformedMessages);
                 }
                 
-                console.log('✅ Loaded', transformedMessages.length, 'group messages (page', page, ')');
+                console.log('✅ Loaded', transformedMessages.length, 'secret group messages (page', page, ')');
             } else {
-                console.log('📥 No group messages found or invalid response format');
+                console.log('📥 No secret group messages found or invalid response format');
                 if (page === 1) {
                     groupMessages.value = [];
                 }
                 hasMoreMessages.value = false;
             }
         } catch (error) {
-            console.error('❌ Failed to load group messages:', error);
+            console.error('❌ Failed to load secret group messages:', error);
             showError('Failed to load group messages. Please try again.');
             if (page === 1) {
                 groupMessages.value = [];
             }
         } finally {
             isLoadingMessages.value = false;
+        }
+    };
+
+    // Unified load group messages function that calls the appropriate handler
+    const loadGroupMessages = async (groupId, page = 1, limit = 20, isSecretGroup = false) => {
+        if (isSecretGroup) {
+            return await loadSecretGroupMessages(groupId, page, limit);
+        } else {
+            return await loadRegularGroupMessages(groupId, page, limit);
         }
     };
 
@@ -445,17 +540,17 @@ export function useGroupChat() {
         hasMoreMessages.value = true;
         isLoadingMessages.value = false;
         
-        // For secret groups, verify we have private keys (symmetric keys are loaded from messages)
+        // For secret groups, verify we have the secret key
         if (isSecretGroup) {
             try {
                 console.log('🔐 Verifying secret group encryption setup:', groupId);
-                const { hasSecretGroupKeys } = useKeyPair();
-                const hasKeys = await hasSecretGroupKeys(groupId);
+                const { hasGroupSecretKey } = useSecretGroupE2EE();
+                const hasKey = await hasGroupSecretKey(groupId);
                 
-                if (!hasKeys) {
-                    console.warn('⚠️ No private keys available for secret group, encryption may not work');
+                if (!hasKey) {
+                    console.warn('⚠️ No secret key available for secret group, encryption may not work');
                 } else {
-                    console.log('✅ Private keys available for secret group');
+                    console.log('✅ Secret key available for secret group');
                 }
             } catch (error) {
                 console.error('❌ Failed to verify secret group encryption setup:', error);
@@ -476,49 +571,24 @@ export function useGroupChat() {
 
         let content = groupMessage.content;
         
-        // Decrypt message for secret groups
-        if (isSecretGroup && groupMessage.is_encrypted) {
+        // Decrypt message for secret groups using the simple secret key
+        if (isSecretGroup && content && content.length > 20) {
             try {
                 console.log('🔐 Decrypting incoming message for secret group:', groupId);
                 
-                // Check if this message has symmetric keys for users
-                if (groupMessage.users_symmetric_keys) {
-                    console.log('🔐 Message has symmetric keys for users, processing...');
-                    
-                    // Get current user ID to find their encrypted symmetric key
-                    const currentUserId = groupStore.currentGroup?.current_user_id || 'current_user';
-                    const userEncryptedKey = groupMessage.users_symmetric_keys[currentUserId];
-                    
-                    if (userEncryptedKey) {
-                        console.log('🔐 Found encrypted symmetric key for current user');
-                        
-                        // Decrypt the symmetric key using our private key
-                        const { decryptGroupSymmetricKey } = useSecretGroupE2EE();
-                        const { getSecretGroupPrivateKey } = useKeyPair();
-                        
-                        const privateKey = await getSecretGroupPrivateKey(groupId);
-                        if (privateKey) {
-                            const symmetricKey = await decryptGroupSymmetricKey(userEncryptedKey, privateKey);
-                            
-                            // Store the symmetric key for this message
-                            const { storeGroupSymmetricKey } = useSecretGroupE2EE();
-                            await storeGroupSymmetricKey(groupId, symmetricKey);
-                            
-                            // Now decrypt the message content with the symmetric key
-                            content = await decryptGroupMessage(groupMessage.content, symmetricKey);
-                            console.log('✅ Message decrypted using symmetric key');
-                        } else {
-                            console.error('❌ No private key available for group');
-                            content = '[Encrypted message - no private key]';
-                        }
-                    } else {
-                        console.warn('⚠️ No encrypted symmetric key found for current user');
-                        content = '[Encrypted message - no symmetric key]';
-                    }
+                // Get the secret key for this group
+                const { getGroupSecretKey, decryptGroupMessage } = useSecretGroupE2EE();
+                const secretKey = await getGroupSecretKey(groupId);
+                
+                if (!secretKey) {
+                    console.warn('⚠️ No secret key available for this group');
+                    content = '[Encrypted message - no secret key]';
                 } else {
-                    // Fallback to old method (should not happen with new architecture)
-                    console.warn('⚠️ Message does not have symmetric keys, using fallback');
-                    content = '[Encrypted message - no symmetric keys]';
+                    console.log('🔐 Secret key available, decrypting incoming message...');
+                    
+                    // Decrypt the message content with the secret key
+                    content = await decryptGroupMessage(content, secretKey);
+                    console.log('✅ Incoming message decrypted using secret key');
                 }
             } catch (decryptError) {
                 console.error('❌ Failed to decrypt incoming message:', decryptError);
