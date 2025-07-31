@@ -356,7 +356,7 @@ export function useGroupChat() {
             
             const response = await axiosInstance.get(`/api/group/get/${groupId}/messages`, {
                     params: { page, limit }
-            });
+                });
             
             console.log('📥 Regular group messages response:', response.data);
             
@@ -605,7 +605,7 @@ export function useGroupChat() {
                 // Get the secret key for this group
                 const { getGroupSecretKey, decryptGroupMessage } = useSecretGroupE2EE();
                 const secretKey = await getGroupSecretKey(groupId);
-                
+                            
                 if (!secretKey) {
                     console.warn('⚠️ No secret key available for this group');
                     content = '[Encrypted message - no secret key]';

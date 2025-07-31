@@ -67,19 +67,19 @@ export const useGroupStore = defineStore('groups', {
                 // Process secret groups
                 const secretGroups = secretGroupsData.map(group => {
                     const processedGroup = {
-                        id: group.id || group._id,
-                        name: group.name,
-                        description: group.description,
-                        type: 'secret',
-                        avatar_url: group.avatar_url,
-                        invite_link: group.invite_link,
-                        owner_id: group.owner_id,
-                        created_at: group.created_at,
-                        member_count: group.users?.length || group.member_count || 1,
-                        role: group.role || 'member',
-                        admins: group.admins || [],
-                        banned_members: group.banned_members || [],
-                        is_secret: true
+                    id: group.id || group._id,
+                    name: group.name,
+                    description: group.description,
+                    type: 'secret',
+                    avatar_url: group.avatar_url,
+                    invite_link: group.invite_link,
+                    owner_id: group.owner_id,
+                    created_at: group.created_at,
+                    member_count: group.users?.length || group.member_count || 1,
+                    role: group.role || 'member',
+                    admins: group.admins || [],
+                    banned_members: group.banned_members || [],
+                    is_secret: true
                     };
                     console.log('🔍 Processing secret group:', processedGroup);
                     return processedGroup;

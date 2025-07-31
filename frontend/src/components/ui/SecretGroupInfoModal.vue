@@ -27,156 +27,156 @@
 
             <!-- Scrollable Content -->
             <div class="flex-1 overflow-y-auto px-8">
-                <!-- Group Info -->
+            <!-- Group Info -->
                 <div class="space-y-6 pb-6">
-                    <!-- Group Basic Info -->
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <div class="flex items-center gap-3 mb-3">
-                            <img
-                                v-if="group.avatar_url"
-                                :src="`${backendBaseUrl}/static/${group.avatar_url}`"
-                                class="w-12 h-12 rounded-full object-cover border-2 border-purple-300 select-none pointer-events-none"
-                                alt="Group Avatar"
-                            />
-                            <img
-                                v-else
-                                src="/src/assets/default-avatar.jpg"
-                                class="w-12 h-12 rounded-full object-cover border-2 border-purple-300 select-none pointer-events-none"
-                                alt="Default Avatar"
-                            />
-                            <div>
-                                <span class="font-semibold text-gray-800">{{ group.name }}</span>
-                                <div class="text-xs text-purple-600 flex items-center gap-1">
-                                    <span class="material-icons text-xs">verified</span>
-                                    Secret group
-                                </div>
-                            </div>
-                        </div>
-                        <p v-if="group.description" class="text-sm text-gray-600 mt-2">
-                            {{ group.description }}
-                        </p>
-                    </div>
-
-                    <!-- Security Features -->
-                    <div class="space-y-4">
-                        <h4 class="font-semibold text-gray-800 flex items-center gap-2">
-                            <span class="material-icons text-purple-600">shield</span>
-                            Security Features
-                        </h4>
-                        
-                        <div class="space-y-3">
-                            <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                <span class="material-icons text-green-600 text-sm mt-0.5">lock</span>
-                                <div>
-                                    <div class="font-medium text-green-800 text-sm">End-to-End Encryption</div>
-                                    <div class="text-xs text-green-700 mt-1">
-                                        All messages are encrypted with unique key pairs for each member.
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <span class="material-icons text-blue-600 text-sm mt-0.5">group</span>
-                                <div>
-                                    <div class="font-medium text-blue-800 text-sm">Per-Member Keys</div>
-                                    <div class="text-xs text-blue-700 mt-1">
-                                        Each member has their own public/private key pair for secure communication.
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                                <span class="material-icons text-purple-600 text-sm mt-0.5">key</span>
-                                <div>
-                                    <div class="font-medium text-purple-800 text-sm">Symmetric Key Distribution</div>
-                                    <div class="text-xs text-purple-700 mt-1">
-                                        Message content is encrypted with symmetric keys distributed to each member.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Group Details -->
-                    <div class="space-y-4">
-                        <h4 class="font-semibold text-gray-800 flex items-center gap-2">
-                            <span class="material-icons text-gray-600">info</span>
-                            Group Details
-                        </h4>
-                        
-                        <div class="space-y-3">
-                            <!-- Member Count -->
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-2">
-                                    <span class="material-icons text-gray-500 text-sm">group</span>
-                                    <span class="text-sm font-medium text-gray-700">Members</span>
-                                </div>
-                                <span class="text-sm text-gray-600">{{ group.member_count || 0 }}</span>
-                            </div>
-
-                            <!-- Created Date -->
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-2">
-                                    <span class="material-icons text-gray-500 text-sm">schedule</span>
-                                    <span class="text-sm font-medium text-gray-700">Created</span>
-                                </div>
-                                <span class="text-sm text-gray-600">{{ formatDate(group.created_at) }}</span>
-                            </div>
-
-                            <!-- Your Role -->
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-2">
-                                    <span class="material-icons text-gray-500 text-sm">person</span>
-                                    <span class="text-sm font-medium text-gray-700">Your Role</span>
-                                </div>
-                                <span class="text-sm text-gray-600 capitalize">{{ group.role || 'member' }}</span>
-                            </div>
-
-                            <!-- Invite Link -->
-                            <div v-if="group.invite_link" class="p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="material-icons text-gray-500 text-sm">link</span>
-                                    <span class="text-sm font-medium text-gray-700">Invite Link</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <input
-                                        :value="group.invite_link"
-                                        readonly
-                                        class="flex-1 px-2 py-1 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
-                                    />
-                                    <button
-                                        @click="copyInviteLink"
-                                        class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded transition-colors duration-200 flex items-center gap-1"
-                                        title="Copy invite link"
-                                    >
-                                        <span class="material-icons text-xs">content_copy</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Encryption Status -->
-                    <div class="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="material-icons text-purple-600 text-sm">security</span>
-                            <span class="font-semibold text-purple-800 text-sm">Encryption Status</span>
-                        </div>
-                        <div class="text-xs text-purple-700 space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span class="material-icons text-xs">check_circle</span>
-                                <span>Your keys are generated and stored</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                <!-- Group Basic Info -->
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <img
+                            v-if="group.avatar_url"
+                            :src="`${backendBaseUrl}/static/${group.avatar_url}`"
+                            class="w-12 h-12 rounded-full object-cover border-2 border-purple-300 select-none pointer-events-none"
+                            alt="Group Avatar"
+                        />
+                        <img
+                            v-else
+                            src="/src/assets/default-avatar.jpg"
+                            class="w-12 h-12 rounded-full object-cover border-2 border-purple-300 select-none pointer-events-none"
+                            alt="Default Avatar"
+                        />
+                        <div>
+                            <span class="font-semibold text-gray-800">{{ group.name }}</span>
+                            <div class="text-xs text-purple-600 flex items-center gap-1">
                                 <span class="material-icons text-xs">verified</span>
-                                <span>Messages are end-to-end encrypted</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="material-icons text-xs">lock</span>
-                                <span>Only group members can read messages</span>
+                                Secret group
                             </div>
                         </div>
                     </div>
+                    <p v-if="group.description" class="text-sm text-gray-600 mt-2">
+                        {{ group.description }}
+                    </p>
+                </div>
+
+                <!-- Security Features -->
+                <div class="space-y-4">
+                    <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                        <span class="material-icons text-purple-600">shield</span>
+                        Security Features
+                    </h4>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <span class="material-icons text-green-600 text-sm mt-0.5">lock</span>
+                            <div>
+                                <div class="font-medium text-green-800 text-sm">End-to-End Encryption</div>
+                                <div class="text-xs text-green-700 mt-1">
+                                    All messages are encrypted with unique key pairs for each member.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <span class="material-icons text-blue-600 text-sm mt-0.5">group</span>
+                            <div>
+                                <div class="font-medium text-blue-800 text-sm">Per-Member Keys</div>
+                                <div class="text-xs text-blue-700 mt-1">
+                                    Each member has their own public/private key pair for secure communication.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                            <span class="material-icons text-purple-600 text-sm mt-0.5">key</span>
+                            <div>
+                                <div class="font-medium text-purple-800 text-sm">Symmetric Key Distribution</div>
+                                <div class="text-xs text-purple-700 mt-1">
+                                    Message content is encrypted with symmetric keys distributed to each member.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Details -->
+                <div class="space-y-4">
+                    <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                        <span class="material-icons text-gray-600">info</span>
+                        Group Details
+                    </h4>
+                    
+                    <div class="space-y-3">
+                        <!-- Member Count -->
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <span class="material-icons text-gray-500 text-sm">group</span>
+                                <span class="text-sm font-medium text-gray-700">Members</span>
+                            </div>
+                            <span class="text-sm text-gray-600">{{ group.member_count || 0 }}</span>
+                        </div>
+
+                        <!-- Created Date -->
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <span class="material-icons text-gray-500 text-sm">schedule</span>
+                                <span class="text-sm font-medium text-gray-700">Created</span>
+                            </div>
+                            <span class="text-sm text-gray-600">{{ formatDate(group.created_at) }}</span>
+                        </div>
+
+                        <!-- Your Role -->
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <span class="material-icons text-gray-500 text-sm">person</span>
+                                <span class="text-sm font-medium text-gray-700">Your Role</span>
+                            </div>
+                            <span class="text-sm text-gray-600 capitalize">{{ group.role || 'member' }}</span>
+                        </div>
+
+                        <!-- Invite Link -->
+                        <div v-if="group.invite_link" class="p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-icons text-gray-500 text-sm">link</span>
+                                <span class="text-sm font-medium text-gray-700">Invite Link</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    :value="group.invite_link"
+                                    readonly
+                                    class="flex-1 px-2 py-1 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                />
+                                <button
+                                    @click="copyInviteLink"
+                                    class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded transition-colors duration-200 flex items-center gap-1"
+                                    title="Copy invite link"
+                                >
+                                    <span class="material-icons text-xs">content_copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Encryption Status -->
+                <div class="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-icons text-purple-600 text-sm">security</span>
+                        <span class="font-semibold text-purple-800 text-sm">Encryption Status</span>
+                    </div>
+                    <div class="text-xs text-purple-700 space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-xs">check_circle</span>
+                            <span>Your keys are generated and stored</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-xs">verified</span>
+                            <span>Messages are end-to-end encrypted</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-xs">lock</span>
+                            <span>Only group members can read messages</span>
+                        </div>
+                    </div>
+                </div>
 
                     <!-- Secret Key Management -->
                     <div class="bg-blue-50 rounded-xl p-4 border border-blue-200">
@@ -214,15 +214,15 @@
                         </div>
                     </div>
 
-                    <!-- Warning -->
-                    <div class="bg-orange-50 rounded-xl p-4 border border-orange-200">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="material-icons text-orange-600 text-sm">warning</span>
-                            <span class="font-semibold text-orange-800 text-sm">Important</span>
-                        </div>
-                        <div class="text-xs text-orange-700 leading-relaxed">
-                            Keep your device secure and don't share your private keys. If you leave the group, 
-                            your keys will be automatically deleted for security.
+                <!-- Warning -->
+                <div class="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-icons text-orange-600 text-sm">warning</span>
+                        <span class="font-semibold text-orange-800 text-sm">Important</span>
+                    </div>
+                    <div class="text-xs text-orange-700 leading-relaxed">
+                        Keep your device secure and don't share your private keys. If you leave the group, 
+                        your keys will be automatically deleted for security.
                         </div>
                     </div>
                 </div>

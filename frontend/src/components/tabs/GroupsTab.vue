@@ -8,14 +8,14 @@
                 <div class="flex-1"></div>
                 <div class="flex items-center space-x-3">
                     <!-- Pending Approvals Badge -->
-                    <div 
+                    <div
                         v-if="pendingApprovals.length > 0"
                         class="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium"
                     >
                         <span class="material-icons text-xs">schedule</span>
                         {{ pendingApprovals.length }} pending
                     </div>
-                    
+
                     <button
                         @click="handleOpenApprovals"
                         class="px-3 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center space-x-1"
@@ -29,8 +29,8 @@
                     <span
                         class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
                     >
-                    {{ groups ? groups.length : 0 }} groups
-                </span>
+                        {{ groups ? groups.length : 0 }} groups
+                    </span>
                 </div>
             </div>
             <p class="text-sm text-gray-600">
@@ -116,10 +116,11 @@
                                 >
                                     {{ group.name }}
                                 </span>
-                                <div 
+                                <div
                                     :class="
-                                        (group.is_secret || group.type === 'secret')
-                                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                                        group.is_secret ||
+                                        group.type === 'secret'
+                                            ? 'bg-purple-100 text-purple-700 border-purple-200'
                                             : group.type === 'private'
                                             ? 'bg-orange-100 text-orange-700 border-orange-200'
                                             : 'bg-green-100 text-green-700 border-green-200'
@@ -128,7 +129,8 @@
                                 >
                                     <span class="material-icons text-xs">
                                         {{
-                                            (group.is_secret || group.type === 'secret')
+                                            group.is_secret ||
+                                            group.type === "secret"
                                                 ? "lock"
                                                 : group.type === "private"
                                                 ? "lock_outline"
@@ -136,7 +138,8 @@
                                         }}
                                     </span>
                                     {{
-                                        (group.is_secret || group.type === 'secret')
+                                        group.is_secret ||
+                                        group.type === "secret"
                                             ? "Secret"
                                             : group.type === "private"
                                             ? "Private"
@@ -152,7 +155,10 @@
                                 </span>
                                 <!-- Admin Badge -->
                                 <span
-                                    v-else-if="group.admins && group.admins.includes(userStore.user_id)"
+                                    v-else-if="
+                                        group.admins &&
+                                        group.admins.includes(userStore.user_id)
+                                    "
                                     class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200"
                                 >
                                     Admin
@@ -196,7 +202,9 @@
                                 class="w-8 h-8 text-blue-500 hover:bg-blue-50 rounded-full hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
                                 title="Group users"
                             >
-                                <span class="material-icons text-sm">people</span>
+                                <span class="material-icons text-sm"
+                                    >people</span
+                                >
                             </button>
                             <button
                                 v-if="group.invite_link"
@@ -323,9 +331,9 @@
                             Invite Link
                         </label>
                         <div class="relative">
-                <input
-                    v-model="joinGroupCode"
-                    type="text"
+                            <input
+                                v-model="joinGroupCode"
+                                type="text"
                                 placeholder="Enter invite link..."
                                 class="w-full border-2 border-blue-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-200 text-gray-700 shadow-sm hover:shadow-md"
                                 @keyup.enter="handleJoinGroup"
@@ -753,11 +761,14 @@
                                             >
                                         </div>
                                         <div class="flex-1">
-                                            <div class="font-semibold text-gray-800">
+                                            <div
+                                                class="font-semibold text-gray-800"
+                                            >
                                                 Public
                                             </div>
                                             <div class="text-xs text-gray-500">
-                                                Anyone with invite link can join this secret group
+                                                Anyone with invite link can join
+                                                this secret group
                                             </div>
                                         </div>
                                     </div>
@@ -790,7 +801,8 @@
                                         <div
                                             class="w-10 h-10 rounded-full flex items-center justify-center"
                                             :class="
-                                                newSecretGroup.type === 'private'
+                                                newSecretGroup.type ===
+                                                'private'
                                                     ? 'bg-orange-100 text-orange-600'
                                                     : 'bg-gray-100 text-gray-500'
                                             "
@@ -800,11 +812,14 @@
                                             >
                                         </div>
                                         <div class="flex-1">
-                                            <div class="font-semibold text-gray-800">
+                                            <div
+                                                class="font-semibold text-gray-800"
+                                            >
                                                 Private
                                             </div>
                                             <div class="text-xs text-gray-500">
-                                                Only invited members can join this secret group
+                                                Only invited members can join
+                                                this secret group
                                             </div>
                                         </div>
                                     </div>
@@ -994,54 +1009,75 @@ const newSecretGroup = reactive({
 const checkApprovalStatus = async () => {
     try {
         isCheckingApprovals.value = true;
-        
+
         // Check for sent approvals (approvals submitted by the current user)
-        const response = await axiosInstance.get('/api/sent-approvals/get/');
-        console.log('Sent approvals response:', response.data);
-        
+        const response = await axiosInstance.get(
+            "/api/received-approvals/get/"
+        );
+        console.log("Received approvals response:", response.data);
+
         // Ensure we have an array of approvals
         let approvalsArray = [];
         if (response.data && Array.isArray(response.data)) {
             approvalsArray = response.data;
-        } else if (response.data && response.data.approvals && Array.isArray(response.data.approvals)) {
+        } else if (
+            response.data &&
+            response.data.approvals &&
+            Array.isArray(response.data.approvals)
+        ) {
             approvalsArray = response.data.approvals;
-        } else if (response.data && typeof response.data === 'object') {
+        } else if (response.data && typeof response.data === "object") {
             // If it's an object, try to convert to array
             approvalsArray = Object.values(response.data);
         }
-        
-        console.log('🔍 Processed approvals array:', approvalsArray);
+
+        console.log("🔍 Processed approvals array:", approvalsArray);
         pendingApprovals.value = approvalsArray;
-        
+
         // Show notifications for any approved/rejected approvals
         if (Array.isArray(pendingApprovals.value)) {
-            pendingApprovals.value.forEach(approval => {
-                // Safely check if approval and status exist
-                if (approval && approval.status) {
-                    if (approval.status === 'approved') {
-                        const groupType = approval.is_secret ? 'secret group' : 'group';
-                        showMessage(`Your approval request for the ${groupType} has been approved! You can now join the group.`);
-                    } else if (approval.status === 'rejected') {
-                        const groupType = approval.is_secret ? 'secret group' : 'group';
-                        showError(`Your approval request for the ${groupType} has been rejected. Please contact an administrator.`);
+            pendingApprovals.value.forEach((approval) => {
+                // Safely check if approval and status exist    
+                if (
+                    approval &&
+                    approval.status &&
+                    approval.requester_id === userStore.user_id
+                ) {
+                    if (approval.status === "approved") {
+                        const groupType = approval.is_secret
+                            ? "secret group"
+                            : "group";
+                        showMessage(
+                            `Your approval request for the ${groupType} has been approved! You can now join the group.`
+                        );
+                    } else if (approval.status === "rejected") {
+                        const groupType = approval.is_secret
+                            ? "secret group"
+                            : "group";
+                        showError(
+                            `Your approval request for the ${groupType} has been rejected. Please contact an administrator.`
+                        );
                     }
                 } else {
-                    console.warn('⚠️ Approval object missing status:', approval);
+                    console.warn(
+                        "⚠️ Approval object missing status:",
+                        approval
+                    );
                 }
             });
-            
+
             // Remove processed approvals from the list (only if they have status)
-            pendingApprovals.value = pendingApprovals.value.filter(approval => 
-                approval && approval.status && approval.status === 'pending'
+            pendingApprovals.value = pendingApprovals.value.filter(
+                (approval) =>
+                    approval && approval.status && approval.status === "pending"
             );
         }
-        
     } catch (error) {
-        console.error('Failed to check approval status:', error);
-        console.error('Error details:', {
+        console.error("Failed to check approval status:", error);
+        console.error("Error details:", {
             message: error.message,
             response: error.response?.data,
-            status: error.response?.status
+            status: error.response?.status,
         });
     } finally {
         isCheckingApprovals.value = false;
@@ -1050,31 +1086,33 @@ const checkApprovalStatus = async () => {
 
 // Add this function to test approval flow
 const testApprovalFlow = async () => {
-    console.log('🧪 Testing approval flow...');
-    
+    console.log("🧪 Testing approval flow...");
+
     // Test with a dummy invite link
-    const testInviteLink = 'test-invite-link-for-secret-group';
+    const testInviteLink = "test-invite-link-for-secret-group";
     joinGroupCode.value = testInviteLink;
-    
+
     try {
         await handleJoinGroup();
     } catch (error) {
-        console.log('🧪 Expected error in test:', error);
+        console.log("🧪 Expected error in test:", error);
     }
 };
+
+let approvalCheckInterval;
 
 // Check approval status on component mount
 onMounted(async () => {
     await loadUserGroups();
     await checkApprovalStatus();
-    
+
     // Set up periodic approval status check (every 2 minutes)
-    const approvalCheckInterval = setInterval(checkApprovalStatus, 2 * 60 * 1000);
-    
-    // Clean up interval on component unmount
-    onUnmounted(() => {
-        clearInterval(approvalCheckInterval);
-    });
+    approvalCheckInterval = setInterval(checkApprovalStatus, 2 * 60 * 1000);
+});
+
+// Clean up interval on component unmount
+onUnmounted(() => {
+    clearInterval(approvalCheckInterval);
 });
 
 // API Functions
@@ -1149,17 +1187,17 @@ const handleUpdateGroupModalClose = () => {
 };
 
 const handleGroupUpdated = async (updatedGroup) => {
-    console.log('Group updated:', updatedGroup);
-    
+    console.log("Group updated:", updatedGroup);
+
     try {
         // Fetch updated groups from the backend
         await loadUserGroups();
-        console.log('✅ Groups refreshed after update');
+        console.log("✅ Groups refreshed after update");
     } catch (error) {
-        console.error('❌ Failed to refresh groups after update:', error);
-        showError('Group updated but failed to refresh groups list');
+        console.error("❌ Failed to refresh groups after update:", error);
+        showError("Group updated but failed to refresh groups list");
     }
-    
+
     showUpdateGroupModal.value = false;
     selectedGroup.value = null;
 };
@@ -1175,23 +1213,23 @@ const handleGroupMembersModalClose = () => {
 };
 
 const handleMemberUpdated = (data) => {
-    console.log('Member updated:', data);
+    console.log("Member updated:", data);
     // Optionally refresh groups if needed
     // await loadUserGroups();
 };
 
 const handleStartChat = (userData) => {
-    console.log('💬 Starting chat with user from group:', userData);
-    
+    console.log("💬 Starting chat with user from group:", userData);
+
     // Create a user object for the chat
     const user = {
         id: userData.user_id,
         username: userData.username,
-        avatar_url: userData.avatar_url
+        avatar_url: userData.avatar_url,
     };
-    
+
     // Emit the event to parent component to switch to chats tab and open the chat
-    emit('switch-to-chat', user);
+    emit("switch-to-chat", user);
 };
 
 const handleApprovalsModalClose = () => {
@@ -1221,7 +1259,7 @@ const handleJoinGroup = async () => {
             showError("Please enter an invite link");
             return;
         }
-        
+
         isJoiningGroup.value = true;
 
         // Extract invite link from input
@@ -1235,30 +1273,41 @@ const handleJoinGroup = async () => {
             showMessage("Successfully joined group!");
         } catch (regularGroupError) {
             // If regular group join fails, try as secret group
-            if (regularGroupError.response?.status === 404 || regularGroupError.response?.status === 400) {
+            if (
+                regularGroupError.response?.status === 404 ||
+                regularGroupError.response?.status === 400
+            ) {
                 try {
-                    const response = await groupStore.joinSecretGroup(inviteLink);
+                    const response = await groupStore.joinSecretGroup(
+                        inviteLink
+                    );
                     showMessage("Successfully joined secret group!");
                 } catch (secretGroupError) {
                     // Handle approval-specific errors for secret groups
                     const errorType = secretGroupError.response?.data?.type;
                     const errorDetail = secretGroupError.response?.data?.detail;
-                    
-                    console.log('🔐 Secret group join error:', {
+
+                    console.log("🔐 Secret group join error:", {
                         type: errorType,
                         detail: errorDetail,
-                        status: secretGroupError.response?.status
+                        status: secretGroupError.response?.status,
                     });
 
                     switch (errorType) {
                         case "userApprovalNotFound":
-                            console.log('🔐 No approval found, showing approval modal');
+                            console.log(
+                                "🔐 No approval found, showing approval modal"
+                            );
                             // Store the invite link for approval submission
-                            approvalInviteLink.value = joinGroupCode.value.trim();
+                            approvalInviteLink.value =
+                                joinGroupCode.value.trim();
                             showApprovalModal.value = true;
                             break;
                         case "userApprovalStatus":
-                            console.log('🔐 Approval status error:', errorDetail);
+                            console.log(
+                                "🔐 Approval status error:",
+                                errorDetail
+                            );
                             if (errorDetail?.includes("pending")) {
                                 showError(
                                     "Your approval is pending. Please wait for admin approval."
@@ -1268,14 +1317,23 @@ const handleJoinGroup = async () => {
                                     "Your approval has been rejected. Please contact an administrator."
                                 );
                             } else {
-                                showError(errorDetail || "Approval status error occurred.");
+                                showError(
+                                    errorDetail ||
+                                        "Approval status error occurred."
+                                );
                             }
                             break;
                         case "getUserApproval":
-                            showError("Failed to check approval status. Please try again.");
+                            showError(
+                                "Failed to check approval status. Please try again."
+                            );
                             break;
                         default:
-                            console.log('🔐 Unknown secret group error:', errorType, errorDetail);
+                            console.log(
+                                "🔐 Unknown secret group error:",
+                                errorType,
+                                errorDetail
+                            );
                             showError(
                                 errorDetail ||
                                     "Failed to join secret group. Please check the invite link and try again."
@@ -1287,22 +1345,24 @@ const handleJoinGroup = async () => {
                 // Handle approval-specific errors for regular groups
                 const errorType = regularGroupError.response?.data?.type;
                 const errorDetail = regularGroupError.response?.data?.detail;
-                
-                console.log('👥 Regular group join error:', {
+
+                console.log("👥 Regular group join error:", {
                     type: errorType,
                     detail: errorDetail,
-                    status: regularGroupError.response?.status
+                    status: regularGroupError.response?.status,
                 });
 
                 switch (errorType) {
                     case "userApprovalNotFound":
-                        console.log('👥 No approval found, showing approval modal');
+                        console.log(
+                            "👥 No approval found, showing approval modal"
+                        );
                         // Store the invite link for approval submission
                         approvalInviteLink.value = joinGroupCode.value.trim();
                         showApprovalModal.value = true;
                         break;
                     case "userApprovalStatus":
-                        console.log('👥 Approval status error:', errorDetail);
+                        console.log("👥 Approval status error:", errorDetail);
                         if (errorDetail?.includes("pending")) {
                             showError(
                                 "Your approval is pending. Please wait for admin approval."
@@ -1312,14 +1372,22 @@ const handleJoinGroup = async () => {
                                 "Your approval has been rejected. Please contact an administrator."
                             );
                         } else {
-                            showError(errorDetail || "Approval status error occurred.");
+                            showError(
+                                errorDetail || "Approval status error occurred."
+                            );
                         }
                         break;
                     case "getUserApproval":
-                        showError("Failed to check approval status. Please try again.");
+                        showError(
+                            "Failed to check approval status. Please try again."
+                        );
                         break;
                     default:
-                        console.log('👥 Unknown regular group error:', errorType, errorDetail);
+                        console.log(
+                            "👥 Unknown regular group error:",
+                            errorType,
+                            errorDetail
+                        );
                         showError(
                             errorDetail ||
                                 "Failed to join group. Please check the invite link and try again."
@@ -1333,7 +1401,9 @@ const handleJoinGroup = async () => {
         joinGroupCode.value = "";
     } catch (error) {
         console.error("Failed to join group:", error);
-        showError("Failed to join group. Please check the invite link and try again.");
+        showError(
+            "Failed to join group. Please check the invite link and try again."
+        );
     } finally {
         isJoiningGroup.value = false;
     }
@@ -1345,7 +1415,7 @@ const handleCreateGroup = async () => {
             showError("Please enter a group name");
             return;
         }
-        
+
         isCreatingGroup.value = true;
 
         // Create FormData for multipart/form-data
@@ -1380,7 +1450,7 @@ const handleCreateGroup = async () => {
         }
 
         showCreateGroupModal.value = false;
-        
+
         // Reset form
         newGroup.name = "";
         newGroup.description = "";
@@ -1411,7 +1481,7 @@ const handleCreateSecretGroup = async () => {
             showError("Please enter a group name");
             return;
         }
-        
+
         isCreatingSecretGroup.value = true;
 
         // Create FormData for multipart/form-data
@@ -1446,7 +1516,7 @@ const handleCreateSecretGroup = async () => {
         }
 
         showCreateSecretGroupModal.value = false;
-        
+
         // Reset form
         newSecretGroup.name = "";
         newSecretGroup.description = "";
@@ -1535,4 +1605,4 @@ const handleSecretAvatarUpload = (event) => {
 
 <style scoped>
 @import url("https://fonts.googleapis.com/icon?family=Material+Icons");
-</style> 
+</style>
