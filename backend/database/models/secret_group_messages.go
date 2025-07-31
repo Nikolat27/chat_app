@@ -20,34 +20,32 @@ func NewSecretGroupMessageModel(db *mongo.Database) *SecretGroupMessageModel {
 }
 
 type SecretGroupMessage struct {
-	Id                     primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	GroupId                primitive.ObjectID `json:"group_id" bson:"group_id"`
-	SenderId               primitive.ObjectID `json:"sender_id" bson:"sender_id"`
-	EncryptedContent       string             `json:"encrypted_content" bson:"encrypted_content"`               // base64
-	EncryptedSymmetricKeys map[string]string  `json:"encrypted_symmetric_keys" bson:"encrypted_symmetric_keys"` // userId -> encrypted symmetric key
-	IsDeletedForSender     bool               `json:"is_deleted_for_sender" bson:"is_deleted_for_sender"`
-	EditedAt               *time.Time         `json:"edited_at,omitempty" bson:"edited_at,omitempty"`
-	CreatedAt              time.Time          `json:"created_at" bson:"created_at"`
+	Id                 primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	GroupId            primitive.ObjectID `json:"group_id" bson:"group_id"`
+	SenderId           primitive.ObjectID `json:"sender_id" bson:"sender_id"`
+	EncryptedContent   string             `json:"encrypted_content" bson:"encrypted_content"` // base64
+	IsDeletedForSender bool               `json:"is_deleted_for_sender" bson:"is_deleted_for_sender"`
+	EditedAt           *time.Time         `json:"edited_at,omitempty" bson:"edited_at,omitempty"`
+	CreatedAt          time.Time          `json:"created_at" bson:"created_at"`
 }
 
 func (message *SecretGroupMessageModel) Create(groupId, senderId primitive.ObjectID,
-	content string, symmetricKeys map[string]string) (*mongo.InsertOneResult, error) {
+	content string) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	newMessage := &SecretGroupMessage{
-		GroupId:                groupId,
-		SenderId:               senderId,
-		EncryptedContent:       content,
-		EncryptedSymmetricKeys: symmetricKeys,
-		CreatedAt:              time.Now(),
+		GroupId:          groupId,
+		SenderId:         senderId,
+		EncryptedContent: content,
+		CreatedAt:        time.Now(),
 	}
 
 	return message.collection.InsertOne(ctx, newMessage)
 }
 
-func (message *SecretGroupMessageModel) GetAll(filter, projection bson.M, page, pageLimit int64) ([]Message, error) {
+func (message *SecretGroupMessageModel) GetAll(filter, projection bson.M, page, pageLimit int64) ([]SecretGroupMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -59,7 +57,7 @@ func (message *SecretGroupMessageModel) GetAll(filter, projection bson.M, page, 
 		"created_at": 1,
 	})
 
-	var messages []Message
+	var messages []SecretGroupMessage
 	cursor, err := message.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
