@@ -7,6 +7,15 @@
                 <h3 class="text-lg font-bold text-gray-800">Groups</h3>
                 <div class="flex-1"></div>
                 <div class="flex items-center space-x-3">
+                    <!-- Pending Approvals Badge -->
+                    <div 
+                        v-if="pendingApprovals.length > 0"
+                        class="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium"
+                    >
+                        <span class="material-icons text-xs">schedule</span>
+                        {{ pendingApprovals.length }} pending
+                    </div>
+                    
                     <button
                         @click="handleOpenApprovals"
                         class="px-3 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center space-x-1"
@@ -748,7 +757,7 @@
                                                 Public
                                             </div>
                                             <div class="text-xs text-gray-500">
-                                                Anyone can join with invite link
+                                                Anyone with invite link can join this secret group
                                             </div>
                                         </div>
                                     </div>
@@ -795,7 +804,7 @@
                                                 Private
                                             </div>
                                             <div class="text-xs text-gray-500">
-                                                Only invited members can join
+                                                Only invited members can join this secret group
                                             </div>
                                         </div>
                                     </div>
@@ -917,7 +926,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
 import { showMessage, showError } from "../../utils/toast";
 import { useGroupStore } from "../../stores/groups";
 import { useUserStore } from "../../stores/users";
@@ -926,6 +935,7 @@ import ApprovalModal from "../ui/ApprovalModal.vue";
 import ApprovalsModal from "../ui/ApprovalsModal.vue";
 import UpdateGroupModal from "../ui/UpdateGroupModal.vue";
 import GroupMembersModal from "../ui/GroupMembersModal.vue";
+import axiosInstance from "../../axiosInstance"; // Added axiosInstance import
 
 // Props
 const props = defineProps({
@@ -960,6 +970,8 @@ const joinGroupCode = ref("");
 const isJoiningGroup = ref(false);
 const isCreatingGroup = ref(false);
 const isCreatingSecretGroup = ref(false);
+const pendingApprovals = ref([]);
+const isCheckingApprovals = ref(false);
 
 // Form data
 const newGroup = reactive({
@@ -978,9 +990,91 @@ const newSecretGroup = reactive({
     avatar_file: null,
 });
 
-// Load user groups on component mount
+// Add this function to check approval status
+const checkApprovalStatus = async () => {
+    try {
+        isCheckingApprovals.value = true;
+        
+        // Check for sent approvals (approvals submitted by the current user)
+        const response = await axiosInstance.get('/api/sent-approvals/get/');
+        console.log('Sent approvals response:', response.data);
+        
+        // Ensure we have an array of approvals
+        let approvalsArray = [];
+        if (response.data && Array.isArray(response.data)) {
+            approvalsArray = response.data;
+        } else if (response.data && response.data.approvals && Array.isArray(response.data.approvals)) {
+            approvalsArray = response.data.approvals;
+        } else if (response.data && typeof response.data === 'object') {
+            // If it's an object, try to convert to array
+            approvalsArray = Object.values(response.data);
+        }
+        
+        console.log('🔍 Processed approvals array:', approvalsArray);
+        pendingApprovals.value = approvalsArray;
+        
+        // Show notifications for any approved/rejected approvals
+        if (Array.isArray(pendingApprovals.value)) {
+            pendingApprovals.value.forEach(approval => {
+                // Safely check if approval and status exist
+                if (approval && approval.status) {
+                    if (approval.status === 'approved') {
+                        const groupType = approval.is_secret ? 'secret group' : 'group';
+                        showMessage(`Your approval request for the ${groupType} has been approved! You can now join the group.`);
+                    } else if (approval.status === 'rejected') {
+                        const groupType = approval.is_secret ? 'secret group' : 'group';
+                        showError(`Your approval request for the ${groupType} has been rejected. Please contact an administrator.`);
+                    }
+                } else {
+                    console.warn('⚠️ Approval object missing status:', approval);
+                }
+            });
+            
+            // Remove processed approvals from the list (only if they have status)
+            pendingApprovals.value = pendingApprovals.value.filter(approval => 
+                approval && approval.status && approval.status === 'pending'
+            );
+        }
+        
+    } catch (error) {
+        console.error('Failed to check approval status:', error);
+        console.error('Error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+        });
+    } finally {
+        isCheckingApprovals.value = false;
+    }
+};
+
+// Add this function to test approval flow
+const testApprovalFlow = async () => {
+    console.log('🧪 Testing approval flow...');
+    
+    // Test with a dummy invite link
+    const testInviteLink = 'test-invite-link-for-secret-group';
+    joinGroupCode.value = testInviteLink;
+    
+    try {
+        await handleJoinGroup();
+    } catch (error) {
+        console.log('🧪 Expected error in test:', error);
+    }
+};
+
+// Check approval status on component mount
 onMounted(async () => {
     await loadUserGroups();
+    await checkApprovalStatus();
+    
+    // Set up periodic approval status check (every 2 minutes)
+    const approvalCheckInterval = setInterval(checkApprovalStatus, 2 * 60 * 1000);
+    
+    // Clean up interval on component unmount
+    onUnmounted(() => {
+        clearInterval(approvalCheckInterval);
+    });
 });
 
 // API Functions
@@ -1105,7 +1199,9 @@ const handleApprovalsModalClose = () => {
 };
 
 const handleApprovalUpdated = () => {
-    // Refresh groups list after approval action
+    // Refresh approval status when an approval is updated
+    checkApprovalStatus();
+    // Also refresh groups list after approval action
     loadUserGroups();
 };
 
@@ -1147,14 +1243,22 @@ const handleJoinGroup = async () => {
                     // Handle approval-specific errors for secret groups
                     const errorType = secretGroupError.response?.data?.type;
                     const errorDetail = secretGroupError.response?.data?.detail;
+                    
+                    console.log('🔐 Secret group join error:', {
+                        type: errorType,
+                        detail: errorDetail,
+                        status: secretGroupError.response?.status
+                    });
 
                     switch (errorType) {
                         case "userApprovalNotFound":
+                            console.log('🔐 No approval found, showing approval modal');
                             // Store the invite link for approval submission
                             approvalInviteLink.value = joinGroupCode.value.trim();
                             showApprovalModal.value = true;
                             break;
                         case "userApprovalStatus":
+                            console.log('🔐 Approval status error:', errorDetail);
                             if (errorDetail?.includes("pending")) {
                                 showError(
                                     "Your approval is pending. Please wait for admin approval."
@@ -1171,6 +1275,7 @@ const handleJoinGroup = async () => {
                             showError("Failed to check approval status. Please try again.");
                             break;
                         default:
+                            console.log('🔐 Unknown secret group error:', errorType, errorDetail);
                             showError(
                                 errorDetail ||
                                     "Failed to join secret group. Please check the invite link and try again."
@@ -1182,14 +1287,22 @@ const handleJoinGroup = async () => {
                 // Handle approval-specific errors for regular groups
                 const errorType = regularGroupError.response?.data?.type;
                 const errorDetail = regularGroupError.response?.data?.detail;
+                
+                console.log('👥 Regular group join error:', {
+                    type: errorType,
+                    detail: errorDetail,
+                    status: regularGroupError.response?.status
+                });
 
                 switch (errorType) {
                     case "userApprovalNotFound":
+                        console.log('👥 No approval found, showing approval modal');
                         // Store the invite link for approval submission
                         approvalInviteLink.value = joinGroupCode.value.trim();
                         showApprovalModal.value = true;
                         break;
                     case "userApprovalStatus":
+                        console.log('👥 Approval status error:', errorDetail);
                         if (errorDetail?.includes("pending")) {
                             showError(
                                 "Your approval is pending. Please wait for admin approval."
@@ -1206,6 +1319,7 @@ const handleJoinGroup = async () => {
                         showError("Failed to check approval status. Please try again.");
                         break;
                     default:
+                        console.log('👥 Unknown regular group error:', errorType, errorDetail);
                         showError(
                             errorDetail ||
                                 "Failed to join group. Please check the invite link and try again."
@@ -1304,8 +1418,7 @@ const handleCreateSecretGroup = async () => {
         const formData = new FormData();
         formData.append("name", newSecretGroup.name.trim());
         formData.append("description", newSecretGroup.description.trim());
-        formData.append("group_type", "secret");
-        formData.append("type", newSecretGroup.type); // Add the public/private type
+        formData.append("group_type", newSecretGroup.type); // Send the actual type (public/private)
 
         // Add file if selected
         if (newSecretGroup.avatar_file) {
@@ -1315,8 +1428,7 @@ const handleCreateSecretGroup = async () => {
         console.log("Creating secret group with FormData:", {
             name: newSecretGroup.name.trim(),
             description: newSecretGroup.description.trim(),
-            group_type: "secret",
-            type: newSecretGroup.type,
+            group_type: newSecretGroup.type, // This will be "public" or "private"
             hasFile: !!newSecretGroup.avatar_file,
         });
 

@@ -145,17 +145,89 @@ const handleSubmitApproval = async () => {
     isSubmitting.value = true;
     
     try {
-        const response = await axiosInstance.post(`/api/approvals/submit/${encodeURIComponent(props.inviteLink)}`, {
-            reason: approvalReason.value.trim()
+        // Check if this is a secret group invite
+        // Secret group invite links are typically longer UUIDs
+        // Regular group invite links might be shorter or have a different format
+        const isSecretGroup = props.inviteLink.length >= 36; // UUID length
+        
+        // Clean the invite link and ensure proper encoding
+        const cleanInviteLink = props.inviteLink.trim();
+        const encodedInviteLink = encodeURIComponent(cleanInviteLink);
+        
+        console.log('🔐 Submitting approval for:', isSecretGroup ? 'secret group' : 'regular group');
+        console.log('🔐 Original invite link:', cleanInviteLink);
+        console.log('🔐 Encoded invite link:', encodedInviteLink);
+        console.log('🔐 Request payload:', { reason: approvalReason.value.trim() });
+        
+        let response;
+        let endpoint = `/api/approvals/submit/${encodedInviteLink}`;
+        if (isSecretGroup) {
+            endpoint += '?is_secret=true';
+        }
+        
+        console.log('🔐 Endpoint:', endpoint);
+        console.log('🔐 Full request details:', {
+            url: endpoint,
+            method: 'POST',
+            payload: { reason: approvalReason.value.trim() },
+            reasonLength: approvalReason.value.trim().length
         });
+        
+        try {
+            // Try with simple JSON payload first
+            const payload = { reason: approvalReason.value.trim() };
+            console.log('🔐 Sending JSON payload:', payload);
+            
+            response = await axiosInstance.post(endpoint, payload);
+        } catch (firstError) {
+            console.log('🔐 JSON attempt failed, trying FormData...');
+            console.log('🔐 First error:', firstError);
+            
+            // Try with FormData
+            const formData = new FormData();
+            formData.append('reason', approvalReason.value.trim());
+            
+            console.log('🔐 FormData payload:', formData);
+            response = await axiosInstance.post(endpoint, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+        }
         
         console.log('Approval submission response:', response.data);
         
-        showInfo('Your approval request has been submitted. Please wait for admin approval.');
+        const groupType = isSecretGroup ? 'secret group' : 'group';
+        showInfo(`Your approval request for the ${groupType} has been submitted. Please wait for admin approval.`);
         closeModal();
     } catch (error) {
         console.error('Failed to submit approval:', error);
-        showError(error.response?.data?.message || 'Failed to submit approval request. Please try again.');
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            url: error.config?.url
+        });
+        
+        let errorMessage = 'Failed to submit approval request. Please try again.';
+        
+        if (error.code === 'ERR_NETWORK') {
+            errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.response?.status === 404) {
+            errorMessage = 'Invalid invite link. Please check the link and try again.';
+        } else if (error.response?.status === 400) {
+            if (error.response?.data?.detail?.includes('parseJson')) {
+                errorMessage = 'Backend parsing error. Please try again or contact support.';
+            } else {
+                errorMessage = error.response?.data?.message || 'Invalid request. Please check your input and try again.';
+            }
+        } else if (error.response?.status === 500) {
+            errorMessage = 'Server error. Please try again later.';
+        }
+        
+        showError(errorMessage);
     } finally {
         isSubmitting.value = false;
     }

@@ -59,8 +59,21 @@
             <!-- Group Info -->
             <div class="mb-3 p-3 bg-white rounded-lg border border-gray-200">
               <div class="flex items-center space-x-2">
-                <span class="material-icons text-blue-600 text-sm">group</span>
-                <span class="text-sm font-medium text-gray-700">Group ID: {{ approval.group_id }}</span>
+                <span 
+                  :class="approval.is_secret ? 'text-purple-600' : 'text-blue-600'"
+                  class="material-icons text-sm"
+                >
+                  {{ approval.is_secret ? 'lock' : 'group' }}
+                </span>
+                <span class="text-sm font-medium text-gray-700">
+                  Group ID: {{ approval.group_id }}
+                  <span 
+                    v-if="approval.is_secret" 
+                    class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700"
+                  >
+                    Secret Group
+                  </span>
+                </span>
               </div>
             </div>
             
@@ -159,12 +172,23 @@ const loadApprovals = async () => {
 const handleApproveApproval = async (approvalId) => {
   try {
     isProcessingApproval.value = approvalId;
-    const response = await axiosInstance.put(`/api/approvals/edit-status/${approvalId}`, {
+    
+    // Find the approval to check if it's for a secret group
+    const approval = approvals.value.find(a => a.id === approvalId);
+    const isSecretGroup = approval?.is_secret;
+    
+    let endpoint = `/api/approvals/edit-status/${approvalId}`;
+    if (isSecretGroup) {
+      endpoint += '?is_secret=true';
+    }
+    
+    const response = await axiosInstance.put(endpoint, {
       status: 'approved'
     });
     console.log('Approve approval response:', response.data);
     
-    showInfo('Approval request approved successfully!');
+    const groupType = isSecretGroup ? 'secret group' : 'group';
+    showInfo(`Approval request for ${groupType} approved successfully!`);
     
     // Remove the approved approval from the list
     approvals.value = approvals.value.filter(a => a.id !== approvalId);
@@ -181,12 +205,23 @@ const handleApproveApproval = async (approvalId) => {
 const handleRejectApproval = async (approvalId) => {
   try {
     isProcessingApproval.value = approvalId;
-    const response = await axiosInstance.put(`/api/approvals/edit-status/${approvalId}`, {
+    
+    // Find the approval to check if it's for a secret group
+    const approval = approvals.value.find(a => a.id === approvalId);
+    const isSecretGroup = approval?.is_secret;
+    
+    let endpoint = `/api/approvals/edit-status/${approvalId}`;
+    if (isSecretGroup) {
+      endpoint += '?is_secret=true';
+    }
+    
+    const response = await axiosInstance.put(endpoint, {
       status: 'rejected'
     });
     console.log('Reject approval response:', response.data);
     
-    showInfo('Approval request rejected successfully!');
+    const groupType = isSecretGroup ? 'secret group' : 'group';
+    showInfo(`Approval request for ${groupType} rejected successfully!`);
     
     // Remove the rejected approval from the list
     approvals.value = approvals.value.filter(a => a.id !== approvalId);
