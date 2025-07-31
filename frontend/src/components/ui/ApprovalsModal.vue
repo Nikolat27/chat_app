@@ -98,11 +98,25 @@
                                 </div>
                             </div>
                             <span
-                                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+                                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                :class="{
+                                    'bg-yellow-100 text-yellow-800':
+                                        approval.status === 'pending',
+                                    'bg-green-100 text-green-800':
+                                        approval.status === 'approved',
+                                    'bg-red-100 text-red-800':
+                                        approval.status === 'rejected',
+                                }"
                             >
-                                <span class="material-icons text-xs mr-1"
-                                    >schedule</span
-                                >
+                                <span class="material-icons text-xs mr-1">
+                                    {{
+                                        approval.status === "approved"
+                                            ? "check"
+                                            : approval.status === "rejected"
+                                            ? "close"
+                                            : "schedule"
+                                    }}
+                                </span>
                                 {{ approval.status }}
                             </span>
                         </div>
