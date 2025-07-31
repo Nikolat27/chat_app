@@ -184,14 +184,6 @@ func (wsConn *WsConnection) AddGroup(groupId, userId string, wsInstance *WebSock
 	wsInstance.GroupConnections[groupId][userId] = wsConn.Conn
 }
 
-// Secret Groups
-type SecretGroupMessage struct {
-	MessageType        int               `json:"message_type"`
-	SenderId           string            `json:"sender_id"`
-	Content            string            `json:"content"`
-	UsersSymmetricKeys map[string]string `json:"users_symmetric_keys"`
-}
-
 func (wsConn *WsConnection) HandleSecretGroupIncomingMsgs(groupId, senderId string, wsInstance *WebSocket,
 	handler *Handler) error {
 
@@ -206,21 +198,11 @@ func (wsConn *WsConnection) HandleSecretGroupIncomingMsgs(groupId, senderId stri
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
-		var input struct {
-			Content            string            `json:"content"`
-			UsersSymmetricKeys map[string]string `json:"users_symmetric_keys"`
-		}
-
-		if err := json.Unmarshal(payload, &input); err != nil {
-			return fmt.Errorf("failed to unMarshal message: %s", err)
-		}
-
 		// Wrap the payload with sender info
-		msg := SecretGroupMessage{
-			MessageType:        messageType,
-			SenderId:           senderId,
-			Content:            input.Content,
-			UsersSymmetricKeys: input.UsersSymmetricKeys,
+		msg := GroupMessage{
+			MessageType: messageType,
+			SenderId:    senderId,
+			Content:     string(payload),
 		}
 
 		msgBytes, err := json.Marshal(msg)
@@ -230,7 +212,7 @@ func (wsConn *WsConnection) HandleSecretGroupIncomingMsgs(groupId, senderId stri
 
 		chatConnections := wsInstance.GroupConnections[groupId]
 
-		if err := handler.storeSecretGroupMsgToDB(groupId, senderId, []byte(input.Content), input.UsersSymmetricKeys); err != nil {
+		if err := handler.storeSecretGroupMsgToDB(groupId, senderId, string(payload)); err != nil {
 			return fmt.Errorf("failed to store msg in the DB: %s", err)
 		}
 

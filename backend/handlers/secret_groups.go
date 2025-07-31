@@ -3,8 +3,8 @@ package handlers
 import (
 	"chat_app/utils"
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -45,11 +45,10 @@ func (handler *Handler) CreateSecretGroup(w http.ResponseWriter, r *http.Request
 	members := []primitive.ObjectID{payload.UserId}
 	admins := []primitive.ObjectID{payload.UserId}
 	joinTimes := map[string]time.Time{payload.UserId.Hex(): time.Now()}
-	pubKeys := map[string]string{payload.UserId.Hex(): publicKey}
 
 	result, err := handler.Models.SecretGroup.Create(
 		payload.UserId, name, description, groupType, inviteLink,
-		members, admins, joinTimes, pubKeys,
+		members, admins, joinTimes,
 	)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "createGroup", "failed to create group")
@@ -146,20 +145,13 @@ func (handler *Handler) JoinSecretGroup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var input struct {
-		PublicKey string `json:"public_key"`
+	filter := bson.M{
+		"invite_link": inviteLink,
 	}
-	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "parseJson", err)
-		return
-	}
-	if input.PublicKey == "" {
-		utils.WriteError(w, http.StatusBadRequest, "missingKey", "public key is required")
-		return
+	projection := bson.M{
+		"_id": 1, "members": 1, "banned_members": 1, "type": 1,
 	}
 
-	filter := bson.M{"invite_link": inviteLink}
-	projection := bson.M{"_id": 1, "members": 1, "banned_members": 1, "type": 1}
 	groupInstance, err := handler.Models.SecretGroup.Get(filter, projection)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "getGroup", "group with this invite link does not exist")
@@ -170,6 +162,7 @@ func (handler *Handler) JoinSecretGroup(w http.ResponseWriter, r *http.Request) 
 		utils.WriteError(w, http.StatusBadRequest, "userBanned", "you are banned from this group")
 		return
 	}
+
 	if slices.Contains(groupInstance.Members, payload.UserId) {
 		utils.WriteError(w, http.StatusBadRequest, "userExists", "you are already in this group")
 		return
@@ -182,18 +175,21 @@ func (handler *Handler) JoinSecretGroup(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	now := time.Now()
+	filter = bson.M{
+		"_id": groupInstance.Id,
+	}
+
 	update := bson.M{
 		"$push": bson.M{
 			"members": payload.UserId,
 		},
 		"$set": bson.M{
-			"member_join_times." + payload.UserId.Hex(): now,
-			"public_keys." + payload.UserId.Hex():       input.PublicKey,
+			"member_join_times." + payload.UserId.Hex(): time.Now(),
 		},
 	}
 
-	if _, err := handler.Models.SecretGroup.Update(bson.M{"_id": groupInstance.Id}, update); err != nil {
+	if _, err := handler.Models.SecretGroup.UpdateSmart(filter, update); err != nil {
+		fmt.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, "joinGroup", "failed to join group")
 		return
 	}
@@ -501,12 +497,10 @@ func (handler *Handler) GetSecretGroupMembers(w http.ResponseWriter, r *http.Req
 	for _, userId := range groupInstance.Members {
 		username, _ := getUserUsername(userId, handler)
 		avatarUrl, _ := getUserAvatarUrl(userId, handler)
-		pubKey := groupInstance.UserPublicKeys[userId.Hex()]
 
 		members[userId.Hex()] = map[string]string{
 			"username":   username,
 			"avatar_url": avatarUrl,
-			"public_key": pubKey,
 		}
 	}
 
@@ -533,16 +527,16 @@ func (handler *Handler) GetSecretGroupMessages(w http.ResponseWriter, r *http.Re
 	}
 
 	groupFilter := bson.M{"_id": groupObjectId}
-	projection := bson.M{"join_times": 1}
+	projection := bson.M{"members": 1}
+
 	groupInstance, err := handler.Models.SecretGroup.Get(groupFilter, projection)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "getGroup", "failed to fetch group")
 		return
 	}
 
-	joinTime, ok := groupInstance.MemberJoinTimes[payload.UserId.Hex()]
-	if !ok {
-		utils.WriteError(w, http.StatusBadRequest, "notMemeber", "you are not a member of this group")
+	if !slices.Contains(groupInstance.Members, payload.UserId) {
+		utils.WriteError(w, http.StatusBadRequest, "getMsgs", "you are not a member of this group")
 		return
 	}
 
@@ -553,23 +547,13 @@ func (handler *Handler) GetSecretGroupMessages(w http.ResponseWriter, r *http.Re
 	}
 
 	filter := bson.M{
-		"group_id":   groupObjectId,
-		"created_at": bson.M{"$gte": joinTime},
+		"group_id": groupObjectId,
 	}
 
 	messages, err := handler.Models.SecretGroupMessages.GetAll(filter, bson.M{}, page, pageLimit)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "fetchMessages", err)
 		return
-	}
-
-	for idx := range messages {
-		msgContent := messages[idx].Content
-
-		decodedMsg, _ := hex.DecodeString(msgContent)
-		decryptMsg, _ := handler.Cipher.Decrypt(decodedMsg)
-
-		messages[idx].Content = string(decryptMsg)
 	}
 
 	resp := map[string]any{
