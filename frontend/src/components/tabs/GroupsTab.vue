@@ -606,6 +606,58 @@
 
                 <!-- Create Secret Group Form -->
                 <div class="space-y-6">
+                    <!-- Group Avatar Upload -->
+                    <div>
+                        <label
+                            class="block mb-3 text-purple-700 font-semibold text-sm"
+                        >
+                            <span
+                                class="material-icons align-middle mr-1 text-base"
+                                >photo_camera</span
+                            >
+                            Group Avatar (Optional)
+                        </label>
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <img
+                                    :src="
+                                        newSecretGroup.avatar_url ||
+                                        '/src/assets/default-avatar.jpg'
+                                    "
+                                    alt="Group Avatar Preview"
+                                    class="w-16 h-16 rounded-full object-cover border-2 border-purple-300 shadow-sm"
+                                />
+                                <div
+                                    class="absolute -bottom-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center"
+                                >
+                                    <span
+                                        class="material-icons text-white text-xs"
+                                        >lock</span
+                                    >
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <input
+                                    ref="secretAvatarInput"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.webp"
+                                    @change="handleSecretAvatarUpload"
+                                    class="hidden"
+                                />
+                                <button
+                                    @click="$refs.secretAvatarInput.click()"
+                                    class="w-full px-4 py-2 border-2 border-purple-200 rounded-xl hover:border-purple-300 transition-all duration-200 text-purple-700 font-medium"
+                                >
+                                    <span
+                                        class="material-icons align-middle mr-1 text-sm"
+                                        >upload</span
+                                    >
+                                    Choose Avatar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Group Name -->
                     <div>
                         <label
@@ -642,6 +694,114 @@
                             rows="3"
                             class="w-full border-2 border-purple-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all duration-200 text-gray-700 resize-none"
                         ></textarea>
+                    </div>
+
+                    <!-- Group Type Selection -->
+                    <div>
+                        <label
+                            class="block mb-3 text-purple-700 font-semibold text-sm"
+                        >
+                            <span
+                                class="material-icons align-middle mr-1 text-base"
+                                >visibility</span
+                            >
+                            Group Type
+                        </label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label
+                                class="relative cursor-pointer"
+                                :class="
+                                    newSecretGroup.type === 'public'
+                                        ? 'ring-2 ring-purple-300 bg-purple-50'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                "
+                            >
+                                <input
+                                    type="radio"
+                                    v-model="newSecretGroup.type"
+                                    value="public"
+                                    class="sr-only"
+                                />
+                                <div
+                                    class="p-4 rounded-xl border-2 transition-all duration-200"
+                                    :class="
+                                        newSecretGroup.type === 'public'
+                                            ? 'border-purple-300 bg-purple-50'
+                                            : 'border-gray-200 hover:border-purple-200'
+                                    "
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-full flex items-center justify-center"
+                                            :class="
+                                                newSecretGroup.type === 'public'
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'bg-gray-100 text-gray-500'
+                                            "
+                                        >
+                                            <span class="material-icons text-lg"
+                                                >group</span
+                                            >
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-semibold text-gray-800">
+                                                Public
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                Anyone can join with invite link
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label
+                                class="relative cursor-pointer"
+                                :class="
+                                    newSecretGroup.type === 'private'
+                                        ? 'ring-2 ring-purple-300 bg-purple-50'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                "
+                            >
+                                <input
+                                    type="radio"
+                                    v-model="newSecretGroup.type"
+                                    value="private"
+                                    class="sr-only"
+                                />
+                                <div
+                                    class="p-4 rounded-xl border-2 transition-all duration-200"
+                                    :class="
+                                        newSecretGroup.type === 'private'
+                                            ? 'border-purple-300 bg-purple-50'
+                                            : 'border-gray-200 hover:border-purple-200'
+                                    "
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-full flex items-center justify-center"
+                                            :class="
+                                                newSecretGroup.type === 'private'
+                                                    ? 'bg-orange-100 text-orange-600'
+                                                    : 'bg-gray-100 text-gray-500'
+                                            "
+                                        >
+                                            <span class="material-icons text-lg"
+                                                >lock_outline</span
+                                            >
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-semibold text-gray-800">
+                                                Private
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                Only invited members can join
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Security Info -->
@@ -813,6 +973,9 @@ const newGroup = reactive({
 const newSecretGroup = reactive({
     name: "",
     description: "",
+    type: "public",
+    avatar_url: "",
+    avatar_file: null,
 });
 
 // Load user groups on component mount
@@ -1142,11 +1305,19 @@ const handleCreateSecretGroup = async () => {
         formData.append("name", newSecretGroup.name.trim());
         formData.append("description", newSecretGroup.description.trim());
         formData.append("group_type", "secret");
+        formData.append("type", newSecretGroup.type); // Add the public/private type
+
+        // Add file if selected
+        if (newSecretGroup.avatar_file) {
+            formData.append("file", newSecretGroup.avatar_file);
+        }
 
         console.log("Creating secret group with FormData:", {
             name: newSecretGroup.name.trim(),
             description: newSecretGroup.description.trim(),
             group_type: "secret",
+            type: newSecretGroup.type,
+            hasFile: !!newSecretGroup.avatar_file,
         });
 
         const createdGroup = await groupStore.createSecretGroup(formData);
@@ -1167,6 +1338,9 @@ const handleCreateSecretGroup = async () => {
         // Reset form
         newSecretGroup.name = "";
         newSecretGroup.description = "";
+        newSecretGroup.type = "public"; // Reset to public
+        newSecretGroup.avatar_file = null;
+        newSecretGroup.avatar_url = "";
     } catch (error) {
         console.error("Failed to create secret group:", error);
         let errorMessage = "Failed to create secret group. Please try again.";
@@ -1211,6 +1385,36 @@ const handleAvatarUpload = (event) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             newGroup.avatar_url = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+const handleSecretAvatarUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        // Check file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+            showError("Avatar file size must be less than 5MB");
+            return;
+        }
+
+        // Check file format
+        const allowedFormats = [".jpg", ".jpeg", ".png", ".webp"];
+        const fileExtension = "." + file.name.split(".").pop().toLowerCase();
+
+        if (!allowedFormats.includes(fileExtension)) {
+            showError("Only JPG, JPEG, PNG, and WebP formats are allowed");
+            return;
+        }
+
+        // Store the file for FormData
+        newSecretGroup.avatar_file = file;
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            newSecretGroup.avatar_url = e.target.result;
         };
         reader.readAsDataURL(file);
     }

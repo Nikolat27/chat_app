@@ -240,13 +240,11 @@ const handleGroupClick = async (group) => {
         
         // Check if this is a secret group
         const isSecretGroup = group.type === 'secret';
-        const endpoint = isSecretGroup 
-            ? `/api/secret-group/get/${group.id}/members`
-            : `/api/group/get/${group.id}/members`;
-            
-        console.log("👥 Making API call to:", endpoint);
-
-        const response = await axiosInstance.get(endpoint);
+        const response = await axiosInstance.get(
+                    group.type === 'secret'
+                        ? `/api/group/get/${group.id}/members?is_secret=true`
+                        : `/api/group/get/${group.id}/members`
+                );
         console.log("👥 Group users response:", response.data);
 
         // Store group users in the group store or a reactive variable

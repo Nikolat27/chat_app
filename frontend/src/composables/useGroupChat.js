@@ -51,7 +51,7 @@ export function useGroupChat() {
         // Use different WebSocket URL based on group type
         let wsUrl;
         if (isSecretGroup) {
-            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/secret-group/add/${groupId}?sender_id=${senderId}`;
+            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/group/add/${groupId}?sender_id=${senderId}&is_secret=true`;
             console.log("🔐 Creating secret group WebSocket connection to:", wsUrl);
         } else {
             wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/group/add/${groupId}?sender_id=${senderId}`;
@@ -227,9 +227,9 @@ export function useGroupChat() {
             
             let response;
             if (isSecretGroup) {
-                response = await axiosInstance.get(`/api/secret-group/get/${groupId}/members`);
+                response = await axiosInstance.get(`/api/group/get/${groupId}/members?is_secret=true`);
             } else {
-                response = await axiosInstance.get(`/api/group/${groupId}/members`);
+                response = await axiosInstance.get(`/api/group/get/${groupId}/members`);
             }
             
             console.log('👥 Group users response:', response.data);
@@ -248,12 +248,20 @@ export function useGroupChat() {
             } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
                 // Object with user IDs as keys (secret groups)
                 const userEntries = Object.entries(response.data);
-                users = userEntries.map(([userId, userData]) => ({
-                    user_id: userId,
-                    id: userId,
-                    _id: userId,
-                    ...userData
-                }));
+                console.log('🔍 Processing object response with', userEntries.length, 'users');
+                console.log('🔍 Raw response data:', response.data);
+                
+                users = userEntries.map(([userId, userData]) => {
+                    console.log('🔍 Processing user entry:', { userId, userData });
+                    const processedUser = {
+                        user_id: userId,
+                        id: userId,
+                        _id: userId,
+                        ...userData
+                    };
+                    console.log('🔍 Processed user:', processedUser);
+                    return processedUser;
+                });
                 console.log('✅ Converted object response to array with', users.length, 'users');
             } else {
                 console.warn('⚠️ Unexpected response structure for group users:', response.data);
@@ -297,27 +305,45 @@ export function useGroupChat() {
         console.log('🔍 User data for this senderId:', groupUsers.value[senderId]);
         
         const user = groupUsers.value[senderId];
-        const username = user ? user.username : 'Unknown User';
+        if (!user) {
+            console.warn('⚠️ No user data found for senderId:', senderId);
+            return 'Unknown User';
+        }
+        
+        // Try different possible field names for username
+        const username = user.username || user.name || user.display_name || user.user_name || 'Unknown User';
+        console.log('🔍 User object:', user);
         console.log('🔍 Returning username:', username);
         return username;
     };
 
     const getAvatarBySenderId = (senderId) => {
+        console.log('🔍 Looking up avatar for senderId:', senderId);
         const user = groupUsers.value[senderId];
-        if (!user) return null;
+        
+        if (!user) {
+            console.warn('⚠️ No user data found for avatar lookup, senderId:', senderId);
+            return '/src/assets/default-avatar.jpg';
+        }
+        
+        console.log('🔍 User data for avatar:', user);
         
         if (!user.avatar_url) {
+            console.log('🔍 No avatar_url found, using default');
             return '/src/assets/default-avatar.jpg';
         }
         
         // If it's already a full URL, return as is
         if (user.avatar_url.startsWith('http')) {
+            console.log('🔍 Avatar is already full URL:', user.avatar_url);
             return user.avatar_url;
         }
         
         // Construct full URL with backend base URL
         const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
-        return `${backendBaseUrl}/static/${user.avatar_url}`;
+        const fullAvatarUrl = `${backendBaseUrl}/static/${user.avatar_url}`;
+        console.log('🔍 Constructed avatar URL:', fullAvatarUrl);
+        return fullAvatarUrl;
     };
 
     // Load regular group messages from API with pagination
@@ -402,8 +428,8 @@ export function useGroupChat() {
             isLoadingMessages.value = true;
             console.log('📥 Loading secret group messages for group:', groupId, 'page:', page, 'limit:', limit);
             
-            const response = await axiosInstance.get(`/api/secret-group/get/${groupId}/messages`, {
-                params: { page, limit }
+            const response = await axiosInstance.get(`/api/group/get/${groupId}/messages`, {
+                params: { page, limit, is_secret: true }
             });
             
             console.log('📥 Secret group messages response:', response.data);

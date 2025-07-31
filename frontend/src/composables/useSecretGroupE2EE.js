@@ -37,6 +37,7 @@ export function useSecretGroupE2EE() {
     const storeGroupSecretKey = async (groupId, secretKey) => {
         try {
             console.log('🔐 Storing secret key for group:', groupId);
+            console.log('🔐 Secret key length:', secretKey?.length);
             await localforage.setItem(`secret_group_key_${groupId}`, secretKey);
             console.log('✅ Secret key stored in localForage');
             return true;
@@ -51,6 +52,7 @@ export function useSecretGroupE2EE() {
         try {
             console.log('🔐 Getting secret key for group:', groupId);
             const secretKey = await localforage.getItem(`secret_group_key_${groupId}`);
+            console.log('🔐 Retrieved secret key from localForage:', secretKey ? 'exists' : 'not found');
             console.log('✅ Secret key retrieved from localForage');
             return secretKey;
         } catch (error) {
@@ -164,9 +166,11 @@ export function useSecretGroupE2EE() {
             
             // Generate a new secret key
             const secretKey = await generateGroupSecretKey();
+            console.log('🔐 Generated secret key for group:', groupId);
             
             // Store the secret key
             await storeGroupSecretKey(groupId, secretKey);
+            console.log('🔐 Stored secret key for group:', groupId);
             
             console.log('✅ Secret group initialized with key');
             return secretKey;
