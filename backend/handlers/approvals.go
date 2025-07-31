@@ -34,6 +34,11 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 		Reason string `json:"reason"`
 	}
 
+	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "parseJson", err.Error())
+		return
+	}
+
 	filter := bson.M{
 		"group_id":     groupId,
 		"requester_id": payload.UserId,
@@ -43,16 +48,13 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 		"_id": 1,
 	}
 
-	approvalInstance, err := handler.Models.Approval.Get(filter, projection)
-	if err != nil {
+	if _, err := handler.Models.Approval.Get(filter, projection); err != nil {
 		if !errors.Is(err, mongo.ErrNoDocuments) {
-			utils.WriteError(w, http.StatusBadRequest, "getApproval", "app")
+			utils.WriteError(w, http.StatusBadRequest, "getApproval", err.Error())
 			return
 		}
-	}
-
-	// block duplicate approvals
-	if approvalInstance.Id != primitive.NilObjectID {
+	} else {
+		// If no error returned, it means approval exists → block duplicate
 		utils.WriteError(w, http.StatusBadRequest, "getApproval", "You only can create one approval per group")
 		return
 	}
@@ -68,11 +70,6 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 	groupInstance, err := handler.Models.Group.Get(filter, projection)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "getGroup", err.Error())
-		return
-	}
-
-	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "parseJson", err.Error())
 		return
 	}
 
