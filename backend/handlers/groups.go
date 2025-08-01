@@ -371,6 +371,11 @@ func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := handler.Models.Approval.DeleteAll(filter); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "deleteApprovals", "failed to delete group approvals")
+		return
+	}
+
 	utils.WriteJSON(w, http.StatusOK, "group deleted successfully")
 }
 

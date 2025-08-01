@@ -118,10 +118,15 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 	allowedFormats := []string{".jpg", ".jpeg", ".png", ".webp"}
 	// 20 MB
 	avatarAddress, err := utils.UploadFile(r, 20<<20, "file", allowedFormats)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+		return
+	}
 
 	senderId := payload.UserId
-	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderId, receiverObjectId, "image",
-		avatarAddress, "", false); err != nil {
+	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderId,
+		 receiverObjectId, "image", avatarAddress, "", false); err != nil {
+
 		utils.WriteError(w, http.StatusBadRequest, "createMsg", "failed to create message")
 		return
 	}

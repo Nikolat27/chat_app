@@ -147,10 +147,6 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, is
 			return fmt.Errorf("failed to UnMarshal message: %s", err)
 		}
 
-		if err != nil {
-			return fmt.Errorf("failed to marshal message: %s", err)
-		}
-
 		chatConnections := wsInstance.GroupConnections[groupId]
 
 		if err := handler.storeGroupMsgToDB(groupId, senderId, input.ContentType, input.ContentAddress,
