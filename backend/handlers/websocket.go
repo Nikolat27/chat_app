@@ -70,10 +70,11 @@ func (wsConn *WsConnection) Delete(chatId, userId string, wsInstance *WebSocket)
 
 // Chats
 type ChatMessage struct {
-	MessageType int    `json:"message_type"`
-	SenderId    string `json:"sender_id"`
-	ReceiverId  string `json:"receiver_id"`
-	Content     string `json:"content"`
+	SenderId       string `json:"sender_id"`
+	ReceiverId     string `json:"receiver_id"`
+	Content        string `json:"content"`
+	ContentAddress string `json:"content_address"`
+	ContentType    string `json:"content_type"` // either an image or text
 }
 
 // both regular chat and secret chat
@@ -86,27 +87,25 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 	}()
 
 	for {
-		messageType, payload, err := wsConn.Conn.ReadMessage()
+		_, payload, err := wsConn.Conn.ReadMessage()
 		if err != nil {
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
 		// Wrap the payload with sender info
-		msg := ChatMessage{
-			MessageType: messageType,
-			SenderId:    senderId,
-			ReceiverId:  receiverId,
-			Content:     string(payload),
-		}
+		var input ChatMessage
 
-		msgBytes, err := json.Marshal(msg)
-		if err != nil {
-			return fmt.Errorf("failed to marshal message: %s", err)
+		if err := json.Unmarshal(payload, &input); err != nil {
+			return fmt.Errorf("failed to UnMarshal message: %s", err)
 		}
 
 		chatConnections := wsInstance.ChatConnections[chatId]
 
-		if err := handler.storeChatMsgToDB(chatId, senderId, receiverId, isSecret, payload); err != nil {
+		fmt.Println(input)
+
+		if err := handler.storeChatMsgToDB(chatId, senderId, receiverId, input.ContentType,
+			input.ContentAddress, input.Content, isSecret); err != nil {
+
 			return fmt.Errorf("failed to store msg in the DB: %s", err)
 		}
 
@@ -115,7 +114,7 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 				continue
 			}
 
-			if err := conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
+			if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
 				return fmt.Errorf("failed to send message to %s: %v\n", userId, err)
 			}
 		}

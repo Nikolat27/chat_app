@@ -11,7 +11,8 @@ import (
 	"net/http"
 )
 
-func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, isSecret bool, payload []byte) error {
+func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, contentType, contentAddress,
+	content string, isSecret bool) error {
 	chatObjectId, err := utils.ToObjectId(chatId)
 	if err != nil {
 		return errors.New(err.Type)
@@ -27,7 +28,7 @@ func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, is
 		return errors.New(err.Type)
 	}
 
-	ciphered, err2 := handler.Cipher.Encrypt(payload)
+	ciphered, err2 := handler.Cipher.Encrypt([]byte(content))
 	if err2 != nil {
 		return err2
 	}
@@ -35,7 +36,7 @@ func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, is
 	encodedCipher := hex.EncodeToString(ciphered)
 
 	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderObjectId, receiverObjectId,
-		"text", "", encodedCipher, isSecret); err != nil {
+		contentType, contentAddress, encodedCipher, isSecret); err != nil {
 		return err
 	}
 
@@ -66,6 +67,26 @@ func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, isSecret boo
 	}
 
 	return nil
+}
+
+func (handler *Handler) UploadImageChatMessage(w http.ResponseWriter, r *http.Request) {
+	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	allowedFormats := []string{".png", ".jpeg", ".webp", ".jpg"}
+	fileAddress, errResp := utils.UploadFile(r, "file", allowedFormats)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	resp := map[string]string{
+		"image_address": fileAddress,
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, resp)
 }
 
 func (handler *Handler) EditMessage(w http.ResponseWriter, r *http.Request) {
