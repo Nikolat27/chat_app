@@ -9,6 +9,7 @@
             @keyup.enter="handleSend"
         />
         <button
+            v-if="!isSecretGroup"
             @click="handleImageUpload"
             class="bg-blue-500 hover:bg-blue-600 text-white font-semibold w-10 h-10 rounded-full shadow-sm transition cursor-pointer flex items-center justify-center"
             title="Upload Image"
@@ -116,11 +117,16 @@
 
 <script setup>
 import { ref } from "vue";
+import { showError } from "../../utils/toast";
 
 const props = defineProps({
     modelValue: {
         type: String,
         default: "",
+    },
+    isSecretGroup: {
+        type: Boolean,
+        default: false,
     },
 });
 
@@ -145,6 +151,13 @@ const handleImageUpload = () => {
     fileInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
+            // Check file size (20MB = 20 * 1024 * 1024 bytes)
+            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
+            if (file.size > maxSize) {
+                showError('Image size must be less than 20MB. Please choose a smaller image.');
+                return;
+            }
+            
             selectedImage.value = file;
             imagePreviewUrl.value = URL.createObjectURL(file);
             showImagePreview.value = true;

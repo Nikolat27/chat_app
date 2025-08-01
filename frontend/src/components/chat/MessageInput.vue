@@ -130,6 +130,7 @@
 
 <script setup>
 import { ref } from "vue";
+import { showError } from "../../utils/toast";
 
 const props = defineProps({
     modelValue: {
@@ -167,6 +168,13 @@ const handleImageUpload = () => {
     fileInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
+            // Check file size (20MB = 20 * 1024 * 1024 bytes)
+            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
+            if (file.size > maxSize) {
+                showError('Image size must be less than 20MB. Please choose a smaller image.');
+                return;
+            }
+            
             selectedImage.value = file;
             imagePreviewUrl.value = URL.createObjectURL(file);
             showImagePreview.value = true;

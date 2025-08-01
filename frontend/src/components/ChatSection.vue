@@ -80,6 +80,7 @@
         <GroupMessageInput
             v-if="hasActiveChat && currentGroup && isCurrentChatGroup"
             v-model="newGroupMessage"
+            :is-secret-group="currentGroup?.type === 'secret'"
             @send="sendGroupMessageHandler"
             @image-upload="handleGroupImageUpload"
         />
@@ -703,8 +704,9 @@ const handleImageUpload = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
         
-        // Upload image to server
-        const response = await axiosInstance.post('/api/message/upload-chat-image', formData, {
+        // Upload image to server with chat_id parameter
+        const chatId = getCurrentChatId();
+        const response = await axiosInstance.post(`/api/message/upload-chat-image/${chatId}`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -731,21 +733,21 @@ const handleGroupImageUpload = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
         
-        // Upload image to server
-        const response = await axiosInstance.post('/api/message/upload-chat-image', formData, {
+        // Upload image to server using group-specific endpoint with group_id parameter
+        const response = await axiosInstance.post(`/api/message/upload-group-image/${currentGroup.value.id}`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
         });
         
         const imageAddress = response.data.image_address;
-        console.log('📸 Image uploaded successfully:', imageAddress);
+        console.log('📸 Group image uploaded successfully:', imageAddress);
         
         // Send image message via WebSocket for group
-        await sendImageMessage(imageAddress, true);
+        await sendGroupImageMessage(imageAddress);
         
     } catch (error) {
-        console.error('❌ Image upload failed:', error);
+        console.error('❌ Group image upload failed:', error);
         showError('Failed to upload image. Please try again.');
     }
 };
@@ -843,6 +845,63 @@ const sendImageMessage = async (imageAddress, isGroup = false) => {
         } else {
             showError('Failed to send image message');
         }
+    }
+};
+
+// Send group image message via WebSocket
+const sendGroupImageMessage = async (imageAddress) => {
+    if (!currentGroup.value) {
+        showError('No group selected');
+        return;
+    }
+    
+    // Check if this is a secret group (secret groups can't use image upload)
+    if (currentGroup.value.type === 'secret') {
+        showError('Image upload is not available for secret groups');
+        return;
+    }
+    
+    // Create temporary ID for immediate display
+    const tempId = `temp-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
+    const messageData = {
+        id: tempId,
+        sender_id: userStore.user_id,
+        content: '',
+        content_address: imageAddress,
+        type: 'image',
+        created_at: new Date().toISOString(),
+        sender_name: userStore.username || 'Unknown User',
+        sender_avatar: userStore.avatar_url || null
+    };
+
+    // Add message to group messages immediately with temp ID
+    addGroupMessage(messageData);
+    
+    // Create GroupMessage payload structure
+    const groupMessagePayload = {
+        sender_id: userStore.user_id.toString(),
+        content: '',
+        content_address: imageAddress,
+        content_type: 'image'
+    };
+    
+    // Send via group WebSocket using the existing sendGroupMessage function
+    // For image messages, we need to send the GroupMessage structure
+    const imageMessageData = {
+        ...messageData,
+        content: '', // Empty content for image messages
+        content_address: imageAddress,
+        content_type: 'image'
+    };
+    
+    const success = await sendGroupMessage(imageMessageData, currentGroup.value.id, false);
+    if (success) {
+        showMessage('Image sent successfully!');
+    } else {
+        showError('Failed to send image message');
     }
 };
 

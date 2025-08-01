@@ -38,8 +38,6 @@ export function useMessagePagination() {
             // The response is an array of JSON strings that need to be parsed
             const rawMessages = response.data || [];
 
-            console.log(rawMessages);
-
             // Parse each message from JSON string to object
             const messages = rawMessages
                 .map((msg) => {

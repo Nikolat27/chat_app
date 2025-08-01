@@ -382,7 +382,10 @@ export function useGroupChat() {
                         created_at: msg.created_at,
                         sender_name: getUsernameBySenderId(msg.sender_id),
                         sender_avatar: getAvatarBySenderId(msg.sender_id),
-                        is_encrypted: false
+                        is_encrypted: false,
+                        // Handle image messages
+                        type: msg.content_type === 'image' ? 'image' : msg.type,
+                        content_address: msg.content_address || null
                     };
                 });
                 
@@ -496,15 +499,18 @@ export function useGroupChat() {
                     }
                     
                     return {
-                    id: msg.id || msg._id,
-                    sender_id: msg.sender_id,
+                        id: msg.id || msg._id,
+                        sender_id: msg.sender_id,
                         content: content,
-                    message_type: msg.type === 'text' ? 1 : msg.message_type || 1,
-                    created_at: msg.created_at,
-                    sender_name: getUsernameBySenderId(msg.sender_id),
+                        message_type: msg.type === 'text' ? 1 : msg.message_type || 1,
+                        created_at: msg.created_at,
+                        sender_name: getUsernameBySenderId(msg.sender_id),
                         sender_avatar: getAvatarBySenderId(msg.sender_id),
                         is_encrypted: msg.is_encrypted || false,
-                        users_symmetric_keys: msg.users_symmetric_keys || msg.encrypted_symmetric_keys
+                        users_symmetric_keys: msg.users_symmetric_keys || msg.encrypted_symmetric_keys,
+                        // Handle image messages (note: secret groups don't support images, but handle for consistency)
+                        type: msg.content_type === 'image' ? 'image' : msg.type,
+                        content_address: msg.content_address || null
                     };
                 }));
                 
