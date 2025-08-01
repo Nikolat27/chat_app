@@ -101,8 +101,6 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 
 		chatConnections := wsInstance.ChatConnections[chatId]
 
-		fmt.Println(input)
-
 		if err := handler.storeChatMsgToDB(chatId, senderId, receiverId, input.ContentType,
 			input.ContentAddress, input.Content, isSecret); err != nil {
 
@@ -123,9 +121,10 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 
 // Groups
 type GroupMessage struct {
-	MessageType int    `json:"message_type"`
-	SenderId    string `json:"sender_id"`
-	Content     string `json:"content"`
+	SenderId       string `json:"sender_id"`
+	Content        string `json:"content"`
+	ContentAddress string `json:"content_address"`
+	ContentType    string `json:"content_type"` // either an image or text
 }
 
 func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, isSecret bool, wsInstance *WebSocket,
@@ -137,26 +136,25 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, is
 	}()
 
 	for {
-		messageType, payload, err := wsConn.Conn.ReadMessage()
+		_, payload, err := wsConn.Conn.ReadMessage()
 		if err != nil {
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
-		// Wrap the payload with sender info
-		msg := GroupMessage{
-			MessageType: messageType,
-			SenderId:    senderId,
-			Content:     string(payload),
+		var input GroupMessage
+
+		if err := json.Unmarshal(payload, &input); err != nil {
+			return fmt.Errorf("failed to UnMarshal message: %s", err)
 		}
 
-		msgBytes, err := json.Marshal(msg)
 		if err != nil {
 			return fmt.Errorf("failed to marshal message: %s", err)
 		}
 
 		chatConnections := wsInstance.GroupConnections[groupId]
 
-		if err := handler.storeGroupMsgToDB(groupId, senderId, isSecret, payload); err != nil {
+		if err := handler.storeGroupMsgToDB(groupId, senderId, input.ContentType, input.ContentAddress,
+			input.Content, isSecret); err != nil {
 			return fmt.Errorf("failed to store msg in the DB: %s", err)
 		}
 
@@ -165,7 +163,7 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, is
 				continue
 			}
 
-			if err := conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
+			if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
 				return fmt.Errorf("failed to send message to %s: %v\n", userId, err)
 			}
 		}

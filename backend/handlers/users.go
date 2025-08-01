@@ -105,7 +105,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 	allowedFormats := []string{".png", ".jpeg", ".jpg", ".webp"}
 
-	avatarAddress, err := utils.UploadFile(r, "file", allowedFormats)
+	avatarAddress, err := utils.UploadFile(r, 20<<20, "file", allowedFormats)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return

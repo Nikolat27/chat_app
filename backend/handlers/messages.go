@@ -43,26 +43,27 @@ func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, co
 	return nil
 }
 
-func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, isSecret bool, payload []byte) error {
-	senderObjectId, err := utils.ToObjectId(senderId)
-	if err != nil {
-		return errors.New(err.Type)
+func (handler *Handler) storeGroupMsgToDB(groupId, senderId, contentType, contentAddress,
+	content string, isSecret bool) error {
+	senderObjectId, errResp := utils.ToObjectId(senderId)
+	if errResp != nil {
+		return errors.New(errResp.Type)
 	}
 
-	ciphered, err2 := handler.Cipher.Encrypt(payload)
-	if err2 != nil {
-		return err2
+	ciphered, err := handler.Cipher.Encrypt([]byte(content))
+	if err != nil {
+		return err
 	}
 
 	encodedCipher := hex.EncodeToString(ciphered)
 
-	groupObjectId, err := utils.ToObjectId(groupId)
-	if err != nil {
-		return errors.New(err.Type)
+	groupObjectId, errResp := utils.ToObjectId(groupId)
+	if errResp != nil {
+		return errors.New(errResp.Type)
 	}
 
-	if _, err := handler.Models.Message.Create(primitive.NilObjectID, groupObjectId, senderObjectId, primitive.NilObjectID,
-		"text", "", encodedCipher, isSecret); err != nil {
+	if _, err := handler.Models.Message.Create(primitive.NilObjectID, groupObjectId, senderObjectId,
+		primitive.NilObjectID, contentType, contentAddress, encodedCipher, isSecret); err != nil {
 		return err
 	}
 
@@ -70,13 +71,101 @@ func (handler *Handler) storeGroupMsgToDB(groupId, senderId string, isSecret boo
 }
 
 func (handler *Handler) UploadImageChatMessage(w http.ResponseWriter, r *http.Request) {
-	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
+	chatId := chi.URLParam(r, "chat_id")
+	if chatId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "getUrlParam", "chat id is missing")
+		return
+	}
+
+	chatObjectId, errResp := utils.ToObjectId(chatId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"_id": chatObjectId,
+		"participants": bson.M{
+			"$in": []primitive.ObjectID{payload.UserId},
+		},
+	}
+
+	projection := bson.M{
+		"_id": 1,
+	}
+
+	if _, err := handler.Models.Chat.Get(filter, projection); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			utils.WriteError(w, http.StatusBadRequest, "getChat", "you are not a participant of this chat")
+			return
+		}
+
+		utils.WriteError(w, http.StatusBadRequest, "getChat", err.Error())
+		return
+	}
+
 	allowedFormats := []string{".png", ".jpeg", ".webp", ".jpg"}
-	fileAddress, errResp := utils.UploadFile(r, "file", allowedFormats)
+	fileAddress, errResp := utils.UploadFile(r, 20<<20, "file", allowedFormats)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	resp := map[string]string{
+		"image_address": fileAddress,
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, resp)
+}
+
+func (handler *Handler) UploadImageGroupMessage(w http.ResponseWriter, r *http.Request) {
+	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	groupId := chi.URLParam(r, "group_id")
+	if groupId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "getUrlParam", "chat id is missing")
+		return
+	}
+
+	groupObjectId, errResp := utils.ToObjectId(groupId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
+		return
+	}
+
+	filter := bson.M{
+		"_id": groupObjectId,
+		"members": bson.M{
+			"$in": []primitive.ObjectID{payload.UserId},
+		},
+	}
+
+	projection := bson.M{
+		"_id": 1,
+	}
+
+	if _, err := handler.Models.Group.Get(filter, projection); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			utils.WriteError(w, http.StatusBadRequest, "getGroup", "you are not a member of this group")
+			return
+		}
+
+		utils.WriteError(w, http.StatusBadRequest, "getGroup", err.Error())
+		return
+	}
+
+	allowedFormats := []string{".png", ".jpeg", ".webp", ".jpg"}
+	fileAddress, errResp := utils.UploadFile(r, 20<<20, "file", allowedFormats)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return

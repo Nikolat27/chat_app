@@ -42,7 +42,7 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	allowedFormats := []string{".jpg", ".jpeg", ".png", ".webp"}
-	avatarUrl, errResp := utils.UploadFile(r, "file", allowedFormats)
+	avatarUrl, errResp := utils.UploadFile(r, 20<<20, "file", allowedFormats)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -109,7 +109,7 @@ func (handler *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	allowedFormats := []string{".jpg", ".jpeg", ".png", ".webp"}
-	avatarUrl, errResp := utils.UploadFile(r, "file", allowedFormats)
+	avatarUrl, errResp := utils.UploadFile(r, 20<<20, "file", allowedFormats)
 	if errResp != nil {
 		if errResp.Type == "fileMissing" {
 			avatarUrl = ""
