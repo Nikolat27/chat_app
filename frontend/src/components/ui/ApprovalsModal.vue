@@ -33,12 +33,24 @@
                         </p>
                     </div>
                 </div>
-                <button
-                    @click="closeModal"
-                    class="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                    <span class="material-icons">close</span>
-                </button>
+                <div class="flex items-center space-x-3">
+                    <button
+                        @click="openSavedMessages"
+                        class="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors shadow-md"
+                        title="View Saved Messages"
+                    >
+                        <span class="material-icons text-sm">bookmark</span>
+                        <span class="text-sm font-semibold"
+                            >Saved Messages</span
+                        >
+                    </button>
+                    <button
+                        @click="closeModal"
+                        class="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Content -->
@@ -266,7 +278,7 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["close", "approval-updated"]);
+const emit = defineEmits(["close", "approval-updated", "open-saved-messages"]);
 
 // Reactive data
 const approvals = ref([]);
@@ -276,6 +288,10 @@ const isProcessingApproval = ref(null);
 // Methods
 const closeModal = () => {
     emit("close");
+};
+
+const openSavedMessages = () => {
+    emit("open-saved-messages");
 };
 
 watch(

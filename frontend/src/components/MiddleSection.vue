@@ -27,6 +27,11 @@
         <div v-else-if="activeTab === 'settings'">
             <SettingsTab />
         </div>
+
+        <!-- Saved Messages Tab -->
+        <div v-else-if="activeTab === 'saved-messages'">
+            <SavedMessagesTab />
+        </div>
     </section>
 </template>
 
@@ -43,6 +48,7 @@ import { showMessage } from "../utils/toast";
 import ChatsTab from "./tabs/ChatsTab.vue";
 import GroupsTab from "./tabs/GroupsTab.vue";
 import SettingsTab from "./tabs/SettingsTab.vue";
+import SavedMessagesTab from "./tabs/SavedMessagesTab.vue";
 
 
 const props = defineProps({ activeTab: String });

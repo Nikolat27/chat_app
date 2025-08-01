@@ -6,24 +6,32 @@
         <button
             class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'chats')"
-            :class="{ 'bg-green-300': activeTab === 'chats' }"
+            :class="{ 'bg-white shadow-md': activeTab === 'chats' }"
         >
-            <span class="material-icons text-gray-700">chat</span>
+            <span class="material-icons" :class="{ 'text-green-600': activeTab === 'chats', 'text-gray-700': activeTab !== 'chats' }">chat</span>
         </button>
         <button
             class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'groups')"
-            :class="{ 'bg-green-300': activeTab === 'groups' }"
+            :class="{ 'bg-white shadow-md': activeTab === 'groups' }"
         >
-            <span class="material-icons text-gray-700">group</span>
+            <span class="material-icons" :class="{ 'text-green-600': activeTab === 'groups', 'text-gray-700': activeTab !== 'groups' }">group</span>
+        </button>
+
+        <button
+            class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
+            @click="$emit('changeTab', 'saved-messages')"
+            :class="{ 'bg-white shadow-md': activeTab === 'saved-messages' }"
+        >
+            <span class="material-icons" :class="{ 'text-green-600': activeTab === 'saved-messages', 'text-gray-700': activeTab !== 'saved-messages' }">bookmark</span>
         </button>
 
         <button
             class="mb-5 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('changeTab', 'settings')"
-            :class="{ 'bg-green-300': activeTab === 'settings' }"
+            :class="{ 'bg-white shadow-md': activeTab === 'settings' }"
         >
-            <span class="material-icons text-gray-700">settings</span>
+            <span class="material-icons" :class="{ 'text-green-600': activeTab === 'settings', 'text-gray-700': activeTab !== 'settings' }">settings</span>
         </button>
 
         <!-- Logout Button -->
