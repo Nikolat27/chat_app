@@ -42,7 +42,9 @@ export function useWebSocket() {
         }
 
         console.log("Creating WebSocket connection to:", wsUrl);
-        currentSocket = new WebSocket(wsUrl);
+        currentSocket = new WebSocket(wsUrl, [], {
+            credentials: 'include'
+        });
 
         currentSocket.onopen = () => {
             console.log("WebSocket connected for chat:", chatId);

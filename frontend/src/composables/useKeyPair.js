@@ -134,6 +134,36 @@ export function useKeyPair() {
         await localforage.removeItem(`secretGroupPublicKey_${groupId}`);
     };
 
+    // Clear all keys from localForage
+    const clearAllKeys = async () => {
+        try {
+            console.log('🔐 Clearing all E2EE keys from localForage');
+            
+            // Get all keys from localForage
+            const keys = await localforage.keys();
+            
+            // Filter keys that are related to E2EE
+            const e2eeKeys = keys.filter(key => 
+                key.includes('secretChatPrivateKey') || 
+                key.includes('secretChatPublicKey') ||
+                key.includes('secretGroupPrivateKey') ||
+                key.includes('secretGroupPublicKey') ||
+                key.includes('secretChatSymmetricKey') ||
+                key.includes('secret_group_key')
+            );
+            
+            // Remove all E2EE keys
+            for (const key of e2eeKeys) {
+                await localforage.removeItem(key);
+                console.log('🔐 Removed key:', key);
+            }
+            
+            console.log('✅ Cleared all E2EE keys successfully');
+        } catch (error) {
+            console.error('❌ Error clearing E2EE keys:', error);
+        }
+    };
+
     return {
         generateKeyPair,
         generateSecretChatKeyPair,
@@ -146,7 +176,8 @@ export function useKeyPair() {
         hasSecretChatKeys,
         hasSecretGroupKeys,
         clearSecretChatKeys,
-        clearSecretGroupKeys
+        clearSecretGroupKeys,
+        clearAllKeys
     };
 }
 

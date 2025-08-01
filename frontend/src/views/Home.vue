@@ -22,11 +22,11 @@ const router = useRouter();
 const { clearAllKeys } = useKeyPair();
 const { clearAllSymmetricKeys } = useE2EE();
 
-onMounted(() => {
-  if (!userStore.token || userStore.isTokenExpired()) {
-    router.replace("/auth");
-  }
-});
+// onMounted(() => {
+//   if (!userStore.token || userStore.isTokenExpired()) {
+//     router.replace("/auth");
+//   }
+// });
 
 async function logout() {
   try {

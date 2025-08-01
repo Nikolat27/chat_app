@@ -80,7 +80,9 @@ export function useGroupChat() {
         console.log("🔌 Creating group WebSocket connection to:", wsUrl);
         
         try {
-            groupSocket = new WebSocket(wsUrl);
+            groupSocket = new WebSocket(wsUrl, [], {
+                credentials: 'include'
+            });
 
             // Add connection timeout
             const connectionTimeout = setTimeout(() => {
