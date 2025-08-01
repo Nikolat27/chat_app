@@ -79,8 +79,26 @@
                                 "
                                 class="rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200 relative"
                             >
-                                <div class="text-base leading-relaxed break-words whitespace-pre-wrap">
+                                <!-- Text Content -->
+                                <div
+                                    v-if="msg.content && msg.content !== ''"
+                                    class="text-base leading-relaxed break-words whitespace-pre-wrap mb-3"
+                                >
                                     {{ msg.content }}
+                                </div>
+                                
+                                <!-- Image Content -->
+                                <div
+                                    v-if="(msg.content_type === 'image' || msg.type === 'image') && msg.content_address"
+                                    class="mb-3"
+                                >
+                                    <img
+                                        :src="`${backendBaseUrl}/static/${msg.content_address}`"
+                                        :alt="msg.content || 'Image message'"
+                                        class="max-w-[200px] sm:max-w-[250px] md:max-w-[300px] h-auto rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200"
+                                        @click="openImageModal(msg.content_address, msg.content)"
+                                        @error="handleImageError"
+                                    />
                                 </div>
 
                                 <!-- Time for sent messages -->
@@ -133,6 +151,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Image Modal -->
+    <div
+        v-if="showImageModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm"
+        @click="closeImageModal"
+    >
+        <div class="relative max-w-4xl max-h-[90vh] mx-4">
+            <!-- Close button -->
+            <button
+                @click="closeImageModal"
+                class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors z-10"
+            >
+                <span class="material-icons text-3xl">close</span>
+            </button>
+            
+            <!-- Image container -->
+            <div class="relative">
+                <img
+                    :src="selectedImage"
+                    :alt="selectedImageAlt"
+                    class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                    @click.stop
+                />
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -176,6 +221,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['load-more-messages', 'open-secret-key-modal']);
+
+// Image modal state
+const showImageModal = ref(false);
+const selectedImage = ref(null);
+const selectedImageAlt = ref('');
 
 const messagesContainer = ref(null);
 const { handleDeleteMessage, isDeleting } = useMessageDeletion();
@@ -230,6 +280,24 @@ const formatTime = (timestamp) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// Image modal functions
+const openImageModal = (imageAddress, altText) => {
+    selectedImage.value = `${props.backendBaseUrl}/static/${imageAddress}`;
+    selectedImageAlt.value = altText || 'Image message';
+    showImageModal.value = true;
+};
+
+const closeImageModal = () => {
+    showImageModal.value = false;
+    selectedImage.value = null;
+    selectedImageAlt.value = '';
+};
+
+const handleImageError = (event) => {
+    console.error('Failed to load image:', event.target.src);
+    event.target.style.display = 'none';
 };
 
 const canDeleteMessage = (messageId, currentUserId) => {

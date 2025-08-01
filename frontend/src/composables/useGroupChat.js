@@ -633,7 +633,10 @@ export function useGroupChat() {
             sender_name: getUsernameBySenderId(groupMessage.sender_id),
             sender_avatar: getAvatarBySenderId(groupMessage.sender_id),
             is_encrypted: groupMessage.is_encrypted || false,
-            users_symmetric_keys: groupMessage.users_symmetric_keys
+            users_symmetric_keys: groupMessage.users_symmetric_keys,
+            // Handle image messages
+            type: groupMessage.content_type === 'image' ? 'image' : groupMessage.type,
+            content_address: groupMessage.content_address || null
         };
 
         // Check for duplicate messages

@@ -38,6 +38,8 @@ export function useMessagePagination() {
             // The response is an array of JSON strings that need to be parsed
             const rawMessages = response.data || [];
 
+            console.log(rawMessages);
+
             // Parse each message from JSON string to object
             const messages = rawMessages
                 .map((msg) => {
@@ -190,8 +192,9 @@ export function useMessagePagination() {
                         );
 
                         // For secret chat messages, always try to decrypt if they have encrypted content
-                        const shouldDecrypt = msg.is_secret === true && 
-                            msg.content.length > 20 && 
+                        const shouldDecrypt =
+                            msg.is_secret === true &&
+                            msg.content.length > 20 &&
                             /^[A-Za-z0-9+/=]+$/.test(msg.content) && // Base64 pattern
                             msg.content.length % 4 === 0; // Base64 length check
 
@@ -210,17 +213,24 @@ export function useMessagePagination() {
                                     "🔐 Attempting to decrypt message:",
                                     msg.id
                                 );
-                                
+
                                 // Ensure we have the symmetric key loaded
                                 const { hasSymmetricKey } = useE2EE();
-                                const { loadSecretChatSymmetricKey } = useSecretChatEncryption();
-                                const keyAvailable = await hasSymmetricKey(secretChatId);
-                                
+                                const { loadSecretChatSymmetricKey } =
+                                    useSecretChatEncryption();
+                                const keyAvailable = await hasSymmetricKey(
+                                    secretChatId
+                                );
+
                                 if (!keyAvailable) {
-                                    console.log('🔐 Symmetric key not found, attempting to load...');
-                                    await loadSecretChatSymmetricKey(secretChatId);
+                                    console.log(
+                                        "🔐 Symmetric key not found, attempting to load..."
+                                    );
+                                    await loadSecretChatSymmetricKey(
+                                        secretChatId
+                                    );
                                 }
-                                
+
                                 const decryptedContent = await decryptMessage(
                                     msg.content,
                                     secretChatId
@@ -244,7 +254,8 @@ export function useMessagePagination() {
                                 // If decryption fails, return the encrypted content with a note
                                 return {
                                     ...msg,
-                                    content: '[Encrypted message - decryption failed]',
+                                    content:
+                                        "[Encrypted message - decryption failed]",
                                 };
                             }
                         } else {

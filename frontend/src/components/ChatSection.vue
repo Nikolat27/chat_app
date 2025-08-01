@@ -2,7 +2,7 @@
     <section class="flex flex-col h-full w-full bg-gray-50 font-roboto">
         <!-- Chat Header -->
         <ChatHeader
-            v-if="chatStore.currentChatUser && !isCurrentChatSecret && !isCurrentChatGroup"
+            v-if="hasActiveChat && chatStore.currentChatUser && !isCurrentChatSecret && !isCurrentChatGroup"
             :user="chatStore.currentChatUser"
             :backend-base-url="backendBaseUrl"
             :is-secret-chat="false"
@@ -11,7 +11,7 @@
         
         <!-- Secret Chat Header -->
         <SecretChatHeader
-            v-if="currentSecretChat && isCurrentChatSecret"
+            v-if="hasActiveChat && currentSecretChat && isCurrentChatSecret"
             :secret-chat="currentSecretChat"
             :secret-usernames="chatStore.secretUsernames"
             :backend-base-url="backendBaseUrl"
@@ -20,7 +20,7 @@
 
         <!-- Group Chat Header -->
         <GroupChatHeader
-            v-if="currentGroup && isCurrentChatGroup"
+            v-if="hasActiveChat && currentGroup && isCurrentChatGroup"
             :group="currentGroup"
             :backend-base-url="backendBaseUrl"
             :current-user-id="userStore.user_id"
@@ -31,7 +31,7 @@
 
         <!-- Regular Chat Messages Area -->
         <MessagesArea
-            v-if="chatStore.currentChatUser && !isCurrentChatGroup"
+            v-if="hasActiveChat && chatStore.currentChatUser && !isCurrentChatGroup"
             :messages="chatStore.messages"
             :current-user-id="userStore.user_id"
             :backend-base-url="backendBaseUrl"
@@ -42,12 +42,12 @@
             :is-secret-chat-approved="isSecretChatApproved"
             @load-more-messages="handleLoadMoreMessages"
         />
-
+        
 
 
         <!-- Group Chat Messages Area -->
         <GroupMessagesArea
-            v-if="currentGroup && isCurrentChatGroup"
+            v-if="hasActiveChat && currentGroup && isCurrentChatGroup"
             :messages="groupMessages"
             :current-user-id="userStore.user_id"
             :backend-base-url="backendBaseUrl"
@@ -59,6 +59,8 @@
             @load-more-messages="handleLoadMoreGroupMessages"
             @open-secret-key-modal="openSecretKeyModal"
         />
+        
+
         <!-- Debug user avatar -->
         <div v-if="currentGroup && isCurrentChatGroup" style="display: none;">
             Debug - User Avatar: {{ userStore.avatar_url }}
@@ -66,22 +68,26 @@
 
         <!-- Regular Chat Message Input -->
         <MessageInput
-            v-if="chatStore.currentChatUser && !isCurrentChatGroup"
+            v-if="hasActiveChat && chatStore.currentChatUser && !isCurrentChatGroup"
             v-model="newMessage"
             :is-secret-chat="isCurrentChatSecret"
             :is-secret-chat-approved="isSecretChatApproved"
             @send="sendMessage"
+            @image-upload="handleImageUpload"
         />
 
         <!-- Group Chat Message Input -->
         <GroupMessageInput
-            v-if="currentGroup && isCurrentChatGroup"
+            v-if="hasActiveChat && currentGroup && isCurrentChatGroup"
             v-model="newGroupMessage"
             @send="sendGroupMessageHandler"
+            @image-upload="handleGroupImageUpload"
         />
 
         <!-- No Chat Selected State -->
-        <NoChatSelected v-if="!chatStore.currentChatUser && !currentGroup" />
+        <NoChatSelected v-if="!hasActiveChat" />
+        
+
 
         <!-- Group Info Modal -->
         <GroupInfoModal
@@ -225,6 +231,11 @@ const currentGroup = computed(() => {
     return groupStore.currentGroup;
 });
 
+// Check if there's an active chat (either regular chat or group chat)
+const hasActiveChat = computed(() => {
+    return chatStore.currentChatUser || currentGroup.value;
+});
+
 
 
 // WebSocket management
@@ -277,6 +288,18 @@ watch(
             if (chatData) {
                 console.log('🔌 Establishing WebSocket connection for chat:', chatData);
                 establishConnection(chatData, handleIncomingMessage);
+                
+                // Load initial messages for the chat
+                const chatId = getCurrentChatId();
+                if (chatId) {
+                    console.log('📥 Loading initial messages for chat:', chatId);
+                    if (isCurrentChatSecret.value) {
+                        await loadInitialSecretChatMessages(chatId);
+                    } else {
+                        await loadInitialMessages(chatId);
+                    }
+                }
+                
                 // Wait a bit for connection to establish
                 await new Promise(resolve => setTimeout(resolve, 500)); // Increased wait time
             } else {
@@ -492,7 +515,9 @@ const handleIncomingMessage = async (data) => {
         ...message,
         content: decryptedContent,
         // Add timestamp if not present (for WebSocket messages)
-        created_at: message.created_at || new Date().toISOString()
+        created_at: message.created_at || new Date().toISOString(),
+        // Ensure type field is set for image messages
+        type: message.content_type === 'image' ? 'image' : message.type
     };
 
     // Check if this is a confirmation of a sent message (same content and sender)
@@ -656,10 +681,169 @@ const sendMessage = async () => {
         content: newMessage.value, // Store decrypted content for display
     });
 
-    // Send encrypted content via WebSocket
-    const success = sendWebSocketMessage(messageContent);
+    // Send message via WebSocket with new structure
+    const messagePayload = {
+        sender_id: chatData.senderId.toString(),
+        receiver_id: chatData.receiverId.toString(),
+        content: messageContent,
+        content_address: "",
+        content_type: "text"
+    };
+    const success = sendWebSocketMessage(JSON.stringify(messagePayload));
     
     newMessage.value = "";
+};
+
+// Handle image upload for regular chats
+const handleImageUpload = async (file) => {
+    try {
+        console.log('📸 Uploading image for regular chat:', file);
+        
+        // Create FormData for multipart upload
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Upload image to server
+        const response = await axiosInstance.post('/api/message/upload-chat-image', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        
+        const imageAddress = response.data.image_address;
+        console.log('📸 Image uploaded successfully:', imageAddress);
+        
+        // Send image message via WebSocket
+        await sendImageMessage(imageAddress, false);
+        
+    } catch (error) {
+        console.error('❌ Image upload failed:', error);
+        showError('Failed to upload image. Please try again.');
+    }
+};
+
+// Handle image upload for group chats
+const handleGroupImageUpload = async (file) => {
+    try {
+        console.log('📸 Uploading image for group chat:', file);
+        
+        // Create FormData for multipart upload
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Upload image to server
+        const response = await axiosInstance.post('/api/message/upload-chat-image', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        
+        const imageAddress = response.data.image_address;
+        console.log('📸 Image uploaded successfully:', imageAddress);
+        
+        // Send image message via WebSocket for group
+        await sendImageMessage(imageAddress, true);
+        
+    } catch (error) {
+        console.error('❌ Image upload failed:', error);
+        showError('Failed to upload image. Please try again.');
+    }
+};
+
+// Send image message via WebSocket
+const sendImageMessage = async (imageAddress, isGroup = false) => {
+    if (isGroup) {
+        // Handle group image message
+        if (!currentGroup.value) {
+            showError('No group selected');
+            return;
+        }
+        
+        // Create temporary ID for immediate display
+        const tempId = `temp-${Date.now()}-${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
+
+        const messageData = {
+            id: tempId,
+            sender_id: userStore.user_id,
+            content: '',
+            content_address: imageAddress,
+            type: 'image',
+            created_at: new Date().toISOString(),
+            sender_name: userStore.username || 'Unknown User',
+            sender_avatar: userStore.avatar_url || null
+        };
+
+        // Add message to group messages immediately with temp ID
+        addGroupMessage(messageData);
+        
+        const messagePayload = {
+            sender_id: userStore.user_id.toString(),
+            receiver_id: currentGroup.value.id.toString(),
+            content: '',
+            content_address: imageAddress,
+            content_type: 'image'
+        };
+        
+        // Send via group WebSocket
+        const success = sendWebSocketMessage(JSON.stringify(messagePayload));
+        if (success) {
+            showMessage('Image sent successfully!');
+        } else {
+            showError('Failed to send image message');
+        }
+        
+    } else {
+        // Handle regular chat image message
+        if (!chatStore.currentChatUser) {
+            showError('No chat selected');
+            return;
+        }
+        
+        const targetUserId = chatStore.currentChatUser.id;
+        const chatData = getChatData(targetUserId);
+        
+        if (!chatData) {
+            showError('Invalid chat data');
+            return;
+        }
+        
+        // Create temporary ID for immediate display
+        const tempId = `temp-${Date.now()}-${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
+
+        const messageData = {
+            id: tempId,
+            chat_id: chatData.chatId,
+            sender_id: chatData.senderId,
+            receiver_id: chatData.receiverId,
+            content: '',
+            content_address: imageAddress,
+            type: 'image',
+            created_at: new Date().toISOString(),
+        };
+
+        // Add message to store immediately with temp ID
+        chatStore.addMessage(messageData);
+        
+        const messagePayload = {
+            sender_id: chatData.senderId.toString(),
+            receiver_id: chatData.receiverId.toString(),
+            content: '',
+            content_address: imageAddress,
+            content_type: 'image'
+        };
+        
+        // Send via regular WebSocket
+        const success = sendWebSocketMessage(JSON.stringify(messagePayload));
+        if (success) {
+            showMessage('Image sent successfully!');
+        } else {
+            showError('Failed to send image message');
+        }
+    }
 };
 
 // Send group message handler

@@ -145,7 +145,7 @@ const handleOpenChat = async (user) => {
     const existingChat = findExistingChat(user.id);
 
     if (existingChat) {
-        await loadInitialMessages(existingChat.id);
+        // Don't load messages here - ChatSection will handle it when chat user is set
     } else {
         await createNewChat(user);
     }
@@ -181,7 +181,7 @@ const setupNewChat = async (newChat, user) => {
         avatar_url: user.avatar_url,
         chat_id: newChat.id,
     });
-    await loadInitialMessages(newChat.id);
+    // Don't load messages here - ChatSection will handle it when chat user is set
 };
 
 const createNewChat = async (user) => {
