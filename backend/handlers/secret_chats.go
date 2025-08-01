@@ -14,7 +14,7 @@ import (
 )
 
 func (handler *Handler) GetSecretChat(w http.ResponseWriter, r *http.Request) {
-	_, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	_, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -46,7 +46,7 @@ func (handler *Handler) GetSecretChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) CreateSecretChat(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -102,7 +102,7 @@ func (handler *Handler) CreateSecretChat(w http.ResponseWriter, r *http.Request)
 
 // GetSecretChatMessages -> Returns the whole messages
 func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -163,7 +163,7 @@ func (handler *Handler) GetSecretChatMessages(w http.ResponseWriter, r *http.Req
 }
 
 func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -208,7 +208,7 @@ func (handler *Handler) DeleteSecretChat(w http.ResponseWriter, r *http.Request)
 }
 
 func (handler *Handler) UploadSecretChatPublicKey(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -280,7 +280,7 @@ func (handler *Handler) UploadSecretChatPublicKey(w http.ResponseWriter, r *http
 }
 
 func (handler *Handler) UploadSecretChatSymmetricKey(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -354,7 +354,7 @@ func (handler *Handler) UploadSecretChatSymmetricKey(w http.ResponseWriter, r *h
 }
 
 func (handler *Handler) ApproveSecretChat(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return

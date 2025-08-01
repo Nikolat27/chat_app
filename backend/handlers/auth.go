@@ -98,10 +98,19 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_cookie",
+		Value:    token,               
+		Path:     "/",
+		HttpOnly: true,              
+		Secure:   false, // temp (for http)                 
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   3600 * 12,                 // 12 hours
+	})
+
 	var response = map[string]string{
 		"username":   input.Username,
 		"user_id":    user.Id.Hex(),
-		"token":      token,
 		"avatar_url": user.AvatarUrl,
 	}
 

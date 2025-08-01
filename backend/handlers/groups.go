@@ -18,7 +18,7 @@ import (
 )
 
 func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -72,7 +72,7 @@ func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -161,7 +161,7 @@ func (handler *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -227,7 +227,7 @@ func (handler *Handler) JoinGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -313,7 +313,7 @@ func (handler *Handler) RemoveUserFromGroup(w http.ResponseWriter, r *http.Reque
 }
 
 func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -381,7 +381,7 @@ func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 // GetGroupMessages -> Returns all the messages of the group
 func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request) {
-	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+	if _, errResp := utils.CheckAuth(r, handler.Paseto); errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
@@ -442,7 +442,7 @@ func (handler *Handler) GetGroupMessages(w http.ResponseWriter, r *http.Request)
 
 // GetGroupMembers -> Returns all the members (users) of the group
 func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
-	if _, errResp := utils.CheckAuth(r.Header, handler.Paseto); errResp != nil {
+	if _, errResp := utils.CheckAuth(r, handler.Paseto); errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
@@ -491,7 +491,7 @@ func (handler *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) 
 }
 
 func (handler *Handler) BanMemberFromGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -578,7 +578,7 @@ func (handler *Handler) BanMemberFromGroup(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler *Handler) UnBanMemberFromGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -665,7 +665,7 @@ func (handler *Handler) UnBanMemberFromGroup(w http.ResponseWriter, r *http.Requ
 }
 
 func (handler *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return

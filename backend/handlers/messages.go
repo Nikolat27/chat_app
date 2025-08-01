@@ -71,7 +71,7 @@ func (handler *Handler) storeGroupMsgToDB(groupId, senderId, contentType, conten
 }
 
 func (handler *Handler) UploadImageChatMessage(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -125,7 +125,7 @@ func (handler *Handler) UploadImageChatMessage(w http.ResponseWriter, r *http.Re
 }
 
 func (handler *Handler) UploadImageGroupMessage(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -179,7 +179,7 @@ func (handler *Handler) UploadImageGroupMessage(w http.ResponseWriter, r *http.R
 }
 
 func (handler *Handler) EditMessage(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
@@ -236,7 +236,7 @@ func (handler *Handler) EditMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) DeleteMessageForSender(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
@@ -288,7 +288,7 @@ func (handler *Handler) DeleteMessageForSender(w http.ResponseWriter, r *http.Re
 }
 
 func (handler *Handler) DeleteMessageForReceiver(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
@@ -342,7 +342,7 @@ func (handler *Handler) DeleteMessageForReceiver(w http.ResponseWriter, r *http.
 }
 
 func (handler *Handler) DeleteMessageForAll(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return

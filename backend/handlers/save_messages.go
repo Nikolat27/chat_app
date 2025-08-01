@@ -12,7 +12,7 @@ import (
 )
 
 func (handler *Handler) CreateSaveMessage(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -38,7 +38,7 @@ func (handler *Handler) CreateSaveMessage(w http.ResponseWriter, r *http.Request
 }
 
 func (handler *Handler) GetSaveMessages(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
@@ -69,7 +69,7 @@ func (handler *Handler) GetSaveMessages(w http.ResponseWriter, r *http.Request) 
 }
 
 func (handler *Handler) EditSaveMessage(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return
@@ -131,7 +131,7 @@ func (handler *Handler) EditSaveMessage(w http.ResponseWriter, r *http.Request) 
 }
 
 func (handler *Handler) DeleteSaveMessage(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return

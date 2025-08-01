@@ -15,7 +15,7 @@ import (
 )
 
 func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -68,7 +68,7 @@ func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusUnauthorized, "checkAuth", err)
 		return
@@ -140,7 +140,7 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 
 // GetChatMessages -> Returns all the messages of the chat
 func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -199,7 +199,7 @@ func (handler *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) 
 }
 
 func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, err := utils.CheckAuth(r, handler.Paseto)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
 		return

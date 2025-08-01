@@ -12,7 +12,7 @@ import (
 )
 
 func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -87,7 +87,7 @@ func (handler *Handler) CreateApproval(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) EditApprovalStatus(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -139,7 +139,7 @@ func (handler *Handler) EditApprovalStatus(w http.ResponseWriter, r *http.Reques
 
 // GetReceivedApprovals -> You are the group owner and other people have requested you to approve them
 func (handler *Handler) GetReceivedApprovals(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -170,7 +170,7 @@ func (handler *Handler) GetReceivedApprovals(w http.ResponseWriter, r *http.Requ
 
 // GetSentApprovals -> The approvals you have sent to other group owners
 func (handler *Handler) GetSentApprovals(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
@@ -200,7 +200,7 @@ func (handler *Handler) GetSentApprovals(w http.ResponseWriter, r *http.Request)
 }
 
 func (handler *Handler) DeleteApproval(w http.ResponseWriter, r *http.Request) {
-	payload, errResp := utils.CheckAuth(r.Header, handler.Paseto)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
 	if errResp != nil {
 		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
