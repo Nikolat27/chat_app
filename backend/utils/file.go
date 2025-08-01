@@ -11,12 +11,17 @@ import (
 	"strings"
 )
 
-func UploadFile(r *http.Request, keyName string, allowedFormats []string) (string, *ErrorResponse) {
+func UploadFile(r *http.Request, maxSize int64, keyName string, allowedFormats []string) (string, *ErrorResponse) {
 	file, header, err := r.FormFile(keyName)
 	if err != nil {
 		return "", &ErrorResponse{Type: "fileMissing", Detail: err.Error()}
 	}
 	defer file.Close()
+
+	if maxSize < header.Size {
+		errDetail := fmt.Sprintf("the max file is: %d. Your file size is: %d", maxSize, header.Size)
+		return "", &ErrorResponse{Type: "fileSizeLimit", Detail: errDetail}
+	}
 
 	if err := validateFileFormat(header, allowedFormats); err != nil {
 		return "", &ErrorResponse{Type: "validateFormat", Detail: err.Error()}
