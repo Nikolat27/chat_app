@@ -20,25 +20,25 @@ func NewSaveMessageModel(db *mongo.Database) *SaveMessageModel {
 }
 
 type SaveMessage struct {
-	Id             primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	OwnerId        primitive.ObjectID `json:"owner_id" bson:"owner_id"`
-	Type           string             `json:"type" bson:"type"`
-	Content        string             `json:"content" bson:"content"`
-	ContentAddress string             `json:"content_address" bson:"content_address"`
-	EditedAt       *time.Time         `json:"edited_at" bson:"edited_at"`
-	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
+	Id        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	OwnerId   primitive.ObjectID `json:"owner_id" bson:"owner_id"`
+	Title     string             `json:"title" bson:"title"`
+	Content   string             `json:"content" bson:"content"`
+	Category  string             `json:"category" bson:"category"`
+	EditedAt  *time.Time         `json:"edited_at" bson:"edited_at"`
+	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 }
 
-func (save *SaveMessageModel) Create(ownerId primitive.ObjectID, contentType, content, contentAddress string) (*mongo.InsertOneResult, error) {
+func (save *SaveMessageModel) Create(ownerId primitive.ObjectID, title, content, category string) (*mongo.InsertOneResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var newMessage = &SaveMessage{
-		OwnerId:        ownerId,
-		Content:        content,
-		Type:           contentType,
-		ContentAddress: contentAddress,
-		CreatedAt:      time.Now(),
+		OwnerId:   ownerId,
+		Title:     title,
+		Content:   content,
+		Category:  category,
+		CreatedAt: time.Now(),
 	}
 
 	return save.collection.InsertOne(ctx, newMessage)
