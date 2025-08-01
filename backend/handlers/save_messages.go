@@ -3,10 +3,12 @@ package handlers
 import (
 	"chat_app/utils"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"time"
 )
 
 func (handler *Handler) CreateSaveMessage(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +19,9 @@ func (handler *Handler) CreateSaveMessage(w http.ResponseWriter, r *http.Request
 	}
 
 	var input struct {
-		Content string `json:"content"`
+		Title    string `json:"title"`
+		Content  string `json:"content"`
+		Category string `json:"category"`
 	}
 
 	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
@@ -25,7 +29,7 @@ func (handler *Handler) CreateSaveMessage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if _, err := handler.Models.SaveMessage.Create(payload.UserId, "text", input.Content, ""); err != nil {
+	if _, err := handler.Models.SaveMessage.Create(payload.UserId, input.Title, input.Content, input.Category); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "saveMessage", err)
 		return
 	}
@@ -58,6 +62,8 @@ func (handler *Handler) GetSaveMessages(w http.ResponseWriter, r *http.Request) 
 	response := map[string]any{
 		"messages": msgs,
 	}
+
+	fmt.Println(response)
 
 	utils.WriteJSON(w, http.StatusOK, response)
 }
@@ -99,7 +105,9 @@ func (handler *Handler) EditSaveMessage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var input struct {
-		NewContent string `json:"new_content"`
+		Title    string `json:"title"`
+		Content  string `json:"content"`
+		Category string `json:"category"`
 	}
 
 	if err := utils.ParseJSON(r.Body, 1_000, &input); err != nil {
@@ -108,7 +116,10 @@ func (handler *Handler) EditSaveMessage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	updates := bson.M{
-		"content": input.NewContent,
+		"title":       input.Title,
+		"content":     input.Content,
+		"category":    input.Category,
+		"reviewed_at": time.Now(),
 	}
 
 	if _, err := handler.Models.SaveMessage.Update(filter, updates); err != nil {
