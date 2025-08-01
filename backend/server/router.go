@@ -43,7 +43,8 @@ func NewRouter(handler *handlers.Handler) *Router {
 
 		// Messages
 		r.Put("/message/update/{message_id}", handler.EditMessage)
-		r.Post("/message/upload-chat-image", handler.UploadImageChatMessage)
+		r.Post("/message/upload-chat-image/{chat_id}", handler.UploadImageChatMessage)
+		r.Post("/message/upload-group-image/{group_id}", handler.UploadImageGroupMessage)
 		r.Delete("/message/delete/sender/{message_id}", handler.DeleteMessageForSender)
 		r.Delete("/message/delete/all/{message_id}", handler.DeleteMessageForAll)
 
