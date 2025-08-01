@@ -113,7 +113,7 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-				return fmt.Errorf("failed to send message to %s: %v\n", userId, err)
+				return fmt.Errorf("failed to send message to %s: %v", userId, err)
 			}
 		}
 	}
@@ -160,7 +160,7 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, is
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-				return fmt.Errorf("failed to send message to %s: %v\n", userId, err)
+				return fmt.Errorf("failed to send message to %s: %v", userId, err)
 			}
 		}
 	}
