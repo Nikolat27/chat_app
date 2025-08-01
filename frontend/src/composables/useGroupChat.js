@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { showError } from '../utils/toast';
 import axiosInstance from '../axiosInstance';
 import { useGroupStore } from '../stores/groups';
@@ -19,21 +19,55 @@ export function useGroupChat() {
         generateAndUploadGroupSymmetricKeys,
         hasGroupSymmetricKey
     } = useSecretGroupE2EE();
-    
-    const isGroupConnected = ref(false);
+
+    // Reactive state
     const groupMessages = ref([]);
+    const groupUsers = ref({});
+    const isGroupConnected = ref(false);
     const newGroupMessage = ref('');
+    const hasMoreMessages = ref(true);
+    const isLoadingMessages = ref(false);
+    const isConnecting = ref(false); // Add connection state tracking
     
+    // Connection state tracking
+    const currentGroupData = ref(null);
+    const currentMessageCallback = ref(null);
+    const connectionRetryCount = ref(0);
+    const maxRetries = 3;
+
     // Pagination state
     const currentPage = ref(1);
     const pageLimit = ref(20);
-    const hasMoreMessages = ref(true);
-    const isLoadingMessages = ref(false);
 
     // Establish group WebSocket connection
     const establishGroupConnection = (groupData, onMessageCallback, isSecretGroup = false) => {
         console.log("🔌 Establishing group WebSocket connection with data:", groupData, "isSecretGroup:", isSecretGroup);
         
+        const { groupId, senderId, backendBaseUrl } = groupData;
+
+        if (!groupId || !senderId || !backendBaseUrl) {
+            console.error("Missing required data for group WebSocket connection:", { groupId, senderId, backendBaseUrl });
+            return false;
+        }
+
+        // Check if we already have a connection to this group
+        if (groupSocket && groupSocket.readyState === WebSocket.OPEN) {
+            console.log("🔌 Group WebSocket already connected for group:", groupId);
+            return true;
+        }
+
+        // Prevent multiple simultaneous connection attempts
+        if (isConnecting.value) {
+            console.log("🔌 Connection already in progress, skipping...");
+            return false;
+        }
+
+        isConnecting.value = true;
+        
+        // Store connection data for reconnection
+        currentGroupData.value = { ...groupData, isSecretGroup };
+        currentMessageCallback.value = onMessageCallback;
+
         // Close existing group connection if any
         if (groupSocket) {
             console.log("🔌 Closing existing group WebSocket connection");
@@ -41,64 +75,73 @@ export function useGroupChat() {
             groupSocket = null;
         }
 
-        const { groupId, senderId, backendBaseUrl } = groupData;
+        // Use WebSocket URL for groups (both regular and secret)
+        const wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/group/add/${groupId}?sender_id=${senderId}&is_secret=${isSecretGroup}`;
+        console.log("🔌 Creating group WebSocket connection to:", wsUrl);
+        
+        try {
+            groupSocket = new WebSocket(wsUrl);
 
-        if (!groupId || !senderId || !backendBaseUrl) {
-            console.error("Missing required data for group WebSocket connection:", { groupId, senderId, backendBaseUrl });
-            return;
-        }
-
-        // Use different WebSocket URL based on group type
-        let wsUrl;
-        if (isSecretGroup) {
-            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/group/add/${groupId}?sender_id=${senderId}&is_secret=true`;
-            console.log("🔐 Creating secret group WebSocket connection to:", wsUrl);
-        } else {
-            wsUrl = `${backendBaseUrl.replace(/^http/, "ws")}/api/websocket/group/add/${groupId}?sender_id=${senderId}`;
-            console.log("🔌 Creating regular group WebSocket connection to:", wsUrl);
-        }
-        groupSocket = new WebSocket(wsUrl);
-
-        groupSocket.onopen = () => {
-            console.log("🔌 Group WebSocket connected for group:", groupId);
-            isGroupConnected.value = true;
-        };
-
-        groupSocket.onmessage = (event) => {
-            console.log("📨 Received group WebSocket message:", event.data);
-            try {
-                const data = JSON.parse(event.data);
-                console.log("📨 Parsed group WebSocket message:", data);
-                console.log("📨 Message type:", data.type || 'unknown');
-                console.log("📨 Message content:", data.content ? 'present' : 'missing');
-                if (onMessageCallback) {
-                    onMessageCallback(data);
+            // Add connection timeout
+            const connectionTimeout = setTimeout(() => {
+                if (groupSocket && groupSocket.readyState !== WebSocket.OPEN) {
+                    console.error("🔌 Group WebSocket connection timeout");
+                    groupSocket.close();
+                    isGroupConnected.value = false;
+                    isConnecting.value = false;
                 }
-            } catch (error) {
-                console.error("Error parsing group WebSocket message:", error);
-                // Try to handle as plain text if JSON parsing fails
-                if (onMessageCallback) {
-                    onMessageCallback({ content: event.data });
+            }, 10000); // 10 second timeout
+
+            groupSocket.onopen = () => {
+                console.log("🔌 Group WebSocket connected for group:", groupId);
+                clearTimeout(connectionTimeout);
+                isGroupConnected.value = true;
+                isConnecting.value = false;
+            };
+
+            groupSocket.onmessage = (event) => {
+                console.log("📨 Received group WebSocket message:", event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log("📨 Parsed group WebSocket message:", data);
+                    console.log("📨 Message type:", data.type || 'unknown');
+                    console.log("📨 Message content:", data.content ? 'present' : 'missing');
+                    if (onMessageCallback) {
+                        onMessageCallback(data);
+                    }
+                } catch (error) {
+                    console.error("Error parsing group WebSocket message:", error);
+                    // Try to handle as plain text if JSON parsing fails
+                    if (onMessageCallback) {
+                        onMessageCallback({ content: event.data });
+                    }
                 }
-            }
-        };
+            };
 
-        groupSocket.onclose = (event) => {
-            console.log("🔌 Group WebSocket closed for group:", groupId, "Code:", event.code, "Reason:", event.reason);
-            console.log("🔌 WebSocket close details:", {
-                code: event.code,
-                reason: event.reason,
-                wasClean: event.wasClean,
-                target: event.target
-            });
-            isGroupConnected.value = false;
-            groupSocket = null;
-        };
+                                        groupSocket.onclose = (event) => {
+                console.log("🔌 Group WebSocket closed for group:", groupId, "Code:", event.code, "Reason:", event.reason);
+                clearTimeout(connectionTimeout);
+                isGroupConnected.value = false;
+                isConnecting.value = false;
+                groupSocket = null;
+            };
 
-        groupSocket.onerror = (error) => {
-            console.error("🔌 Group WebSocket error:", error);
+            groupSocket.onerror = (error) => {
+                console.error("🔌 Group WebSocket error:", error);
+                console.error("🔌 Error details:", {
+                    message: error.message,
+                    type: error.type,
+                    target: error.target
+                });
+                clearTimeout(connectionTimeout);
+                isGroupConnected.value = false;
+                isConnecting.value = false;
+            };
+        } catch (error) {
+            console.error("🔌 Failed to create WebSocket connection:", error);
             isGroupConnected.value = false;
-        };
+            isConnecting.value = false;
+        }
     };
 
     // Send group message with encryption for secret groups
@@ -107,9 +150,35 @@ export function useGroupChat() {
         console.log("🔌 Group WebSocket state:", groupSocket ? groupSocket.readyState : "null");
         console.log("🔐 Is secret group:", isSecretGroup);
         
+        // Check connection status and retry if needed
         if (!groupSocket || groupSocket.readyState !== WebSocket.OPEN) {
-            console.error("🔌 Group WebSocket is not connected. State:", groupSocket ? groupSocket.readyState : "null");
-            return false;
+            console.log("🔌 Group WebSocket not connected, attempting to reconnect...");
+            
+            // Try to reconnect if we have the necessary data
+            if (currentGroupData.value) {
+                const reconnectSuccess = await establishGroupConnection(
+                    currentGroupData.value,
+                    currentMessageCallback.value,
+                    isSecretGroup
+                );
+                
+                if (!reconnectSuccess) {
+                    console.error("🔌 Failed to reconnect WebSocket");
+                    return false;
+                }
+                
+                // Wait a bit for connection to stabilize
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Check again after reconnection
+                if (!groupSocket || groupSocket.readyState !== WebSocket.OPEN) {
+                    console.error("🔌 WebSocket still not connected after reconnection attempt");
+                    return false;
+                }
+            } else {
+                console.error("🔌 No group data available for reconnection");
+                return false;
+            }
         }
 
         try {
@@ -176,9 +245,13 @@ export function useGroupChat() {
             }
             
             try {
-                // For secret groups, send the raw encrypted content as a string
-                // For regular groups, send the full message object
-                const messageToSend = isSecretGroup ? finalMessageData : JSON.stringify(finalMessageData);
+                // Send the message in the exact format the Go backend expects
+                const messageToSend = JSON.stringify({
+                    sender_id: messageData.sender_id,
+                    content: messageData.content, // Just the message text, not the whole object
+                    content_address: "",
+                    content_type: "text"
+                });
                 groupSocket.send(messageToSend);
                 console.log("✅ Group message sent successfully");
             } catch (sendError) {
@@ -204,6 +277,7 @@ export function useGroupChat() {
     const getGroupConnectionStatus = () => {
         return {
             isConnected: groupSocket ? groupSocket.readyState === WebSocket.OPEN : false,
+            isConnecting: isConnecting.value,
             readyState: groupSocket ? groupSocket.readyState : null,
             socket: groupSocket
         };
@@ -300,21 +374,8 @@ export function useGroupChat() {
     };
 
     const getUsernameBySenderId = (senderId) => {
-        console.log('🔍 Looking up username for senderId:', senderId);
-        console.log('🔍 Available users:', Object.keys(groupUsers.value));
-        console.log('🔍 User data for this senderId:', groupUsers.value[senderId]);
-        
         const user = groupUsers.value[senderId];
-        if (!user) {
-            console.warn('⚠️ No user data found for senderId:', senderId);
-            return 'Unknown User';
-        }
-        
-        // Try different possible field names for username
-        const username = user.username || user.name || user.display_name || user.user_name || 'Unknown User';
-        console.log('🔍 User object:', user);
-        console.log('🔍 Returning username:', username);
-        return username;
+        return user ? user.username : senderId;
     };
 
     const getAvatarBySenderId = (senderId) => {

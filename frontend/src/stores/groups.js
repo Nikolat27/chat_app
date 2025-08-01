@@ -197,6 +197,7 @@ export const useGroupStore = defineStore('groups', {
 
         async joinGroup(inviteLink) {
             try {
+                // Use GET method with invite_link in URL path as per backend specification
                 const response = await axiosInstance.get(`/api/group/join/${inviteLink}`);
                 console.log('Join group response:', response.data);
                 
@@ -288,7 +289,7 @@ export const useGroupStore = defineStore('groups', {
                 console.log('🔐 joinSecretGroup called with inviteLink:', inviteLink);
                 
                 console.log('🔐 Making GET request to join secret group');
-                // Join secret group with GET method
+                // Join secret group with GET method and invite_link in URL path
                 const response = await axiosInstance.get(`/api/group/join/${inviteLink}?is_secret=true`);
                 console.log('Join secret group response:', response.data);
                 

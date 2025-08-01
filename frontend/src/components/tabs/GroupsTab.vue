@@ -1019,17 +1019,35 @@ const checkApprovalStatus = async () => {
         // Ensure we have an array of approvals
         let approvalsArray = [];
         if (response.data && Array.isArray(response.data)) {
+            // Backend returned array directly
             approvalsArray = response.data;
         } else if (
             response.data &&
             response.data.approvals &&
             Array.isArray(response.data.approvals)
         ) {
+            // Backend returned { approvals: [...] }
             approvalsArray = response.data.approvals;
         } else if (response.data && typeof response.data === "object") {
             // If it's an object, try to convert to array
             approvalsArray = Object.values(response.data);
         }
+
+        // Filter out null/undefined approvals
+        approvalsArray = approvalsArray.filter(approval => 
+            approval && 
+            typeof approval === 'object' && 
+            approval.id !== null && 
+            approval.id !== undefined
+        );
+
+        // Add default status if missing
+        approvalsArray.forEach(approval => {
+            if (!approval.status) {
+                approval.status = 'pending'; // Default status
+                console.log("Added default status 'pending' to approval:", approval);
+            }
+        });
 
         console.log("🔍 Processed approvals array:", approvalsArray);
         pendingApprovals.value = approvalsArray;
@@ -1058,7 +1076,7 @@ const checkApprovalStatus = async () => {
                             `Your approval request for the ${groupType} has been rejected. Please contact an administrator.`
                         );
                     }
-                } else {
+                } else if (approval) {
                     console.warn(
                         "⚠️ Approval object missing status:",
                         approval
@@ -1236,11 +1254,12 @@ const handleApprovalsModalClose = () => {
     showApprovalsModal.value = false;
 };
 
-const handleApprovalUpdated = () => {
+const handleApprovalUpdated = async () => {
     // Refresh approval status when an approval is updated
-    checkApprovalStatus();
+    await checkApprovalStatus();
     // Also refresh groups list after approval action
-    loadUserGroups();
+    await loadUserGroups();
+    console.log("✅ Groups refreshed after approval update");
 };
 
 const handleCopyInviteLink = async (group) => {
@@ -1271,6 +1290,9 @@ const handleJoinGroup = async () => {
             // Try joining as regular group first
             const response = await groupStore.joinGroup(inviteLink);
             showMessage("Successfully joined group!");
+            
+            // Refresh groups to update UI with newly joined group
+            await loadUserGroups();
         } catch (regularGroupError) {
             // If regular group join fails, try as secret group
             if (
@@ -1282,6 +1304,9 @@ const handleJoinGroup = async () => {
                         inviteLink
                     );
                     showMessage("Successfully joined secret group!");
+                    
+                    // Refresh groups to update UI with newly joined secret group
+                    await loadUserGroups();
                 } catch (secretGroupError) {
                     // Handle approval-specific errors for secret groups
                     const errorType = secretGroupError.response?.data?.type;
@@ -1316,6 +1341,12 @@ const handleJoinGroup = async () => {
                                 showError(
                                     "Your approval has been rejected. Please contact an administrator."
                                 );
+                            } else if (errorDetail?.includes("approved")) {
+                                showMessage(
+                                    "Your approval has been approved! You can now join the secret group."
+                                );
+                                // Refresh groups to show the newly available group
+                                await loadUserGroups();
                             } else {
                                 showError(
                                     errorDetail ||
@@ -1371,6 +1402,12 @@ const handleJoinGroup = async () => {
                             showError(
                                 "Your approval has been rejected. Please contact an administrator."
                             );
+                        } else if (errorDetail?.includes("approved")) {
+                            showMessage(
+                                "Your approval has been approved! You can now join the group."
+                            );
+                            // Refresh groups to show the newly available group
+                            await loadUserGroups();
                         } else {
                             showError(
                                 errorDetail || "Approval status error occurred."

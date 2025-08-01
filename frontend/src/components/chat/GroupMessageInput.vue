@@ -1,5 +1,53 @@
 <template>
-    <div class="p-4 border-t border-gray-200 bg-white flex gap-2">
+    <!-- Show secret key input if it's a secret group and user hasn't entered the key -->
+    <div v-if="isSecretGroup && !hasSecretKey" class="p-4 border-t border-gray-200 bg-white">
+        <div class="w-full p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <div class="flex items-center gap-2 text-purple-700 mb-3">
+                <span class="material-icons text-sm">lock</span>
+                <span class="text-sm font-medium">Secret Key Required</span>
+            </div>
+            <p class="text-xs text-purple-600 mb-4">
+                You need to enter the secret key to send messages in this secret group.
+            </p>
+            <div class="flex gap-2">
+                <input
+                    v-model="secretKeyInput"
+                    type="password"
+                    placeholder="Enter secret key..."
+                    class="flex-1 border border-purple-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-300 transition"
+                    @keyup.enter="handleEnterSecretKey"
+                />
+                <button
+                    @click="handleEnterSecretKey"
+                    :disabled="!secretKeyInput.trim() || isEnteringKey"
+                    class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                    <span v-if="isEnteringKey" class="flex items-center gap-1">
+                        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Entering...
+                    </span>
+                    <span v-else class="flex items-center gap-1">
+                        <span class="material-icons text-sm">key</span>
+                        Enter Key
+                    </span>
+                </button>
+                <button
+                    v-if="isGroupOwner"
+                    @click="handleOpenSecretKeyModal"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors cursor-pointer text-sm"
+                    title="Copy Secret Key"
+                >
+                    <span class="material-icons text-sm">content_copy</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Show message input only if it's not a secret group or user has entered the key -->
+    <div v-else class="p-4 border-t border-gray-200 bg-white flex gap-2">
         <input
             :value="modelValue"
             type="text"
@@ -116,8 +164,9 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { showError } from "../../utils/toast";
+import { ref, computed, onMounted, watch } from "vue";
+import { showError, showMessage } from "../../utils/toast";
+import { useSecretGroupE2EE } from "../../composables/useSecretGroupE2EE";
 
 const props = defineProps({
     modelValue: {
@@ -128,20 +177,89 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    groupId: {
+        type: String,
+        default: "",
+    },
+    isGroupOwner: {
+        type: Boolean,
+        default: false,
+    },
+    keyStatus: {
+        type: String,
+        default: 'not-entered', // 'not-entered', 'entering', 'entered'
+    }
 });
 
-const emit = defineEmits(["update:modelValue", "send", "image-upload"]);
+const emit = defineEmits(["update:modelValue", "send", "image-upload", "open-secret-key-modal"]);
+
+// Secret group key management
+const { hasGroupSecretKey, enterSecretKey } = useSecretGroupE2EE();
+const hasSecretKey = ref(false);
+const secretKeyInput = ref("");
+const isEnteringKey = ref(false);
 
 // Reactive data for image preview
 const showImagePreview = ref(false);
 const selectedImage = ref(null);
 const imagePreviewUrl = ref('');
 
+// Check if user has secret key on mount and when groupId changes
+const checkSecretKey = async () => {
+    if (props.isSecretGroup && props.groupId) {
+        hasSecretKey.value = await hasGroupSecretKey(props.groupId);
+    }
+};
+
+onMounted(checkSecretKey);
+
+// Watch for groupId changes
+watch(() => props.groupId, checkSecretKey);
+
+// Watch for external key status updates (when key is entered via modal)
+watch(() => props.keyStatus, (newStatus) => {
+    if (newStatus === 'entered') {
+        hasSecretKey.value = true;
+    }
+});
+
 const handleSend = () => {
+    // Only allow sending if not a secret group or user has entered the key
+    if (props.isSecretGroup && !hasSecretKey.value) {
+        showError("Please enter the secret key first");
+        return;
+    }
     emit("send");
 };
 
+const handleEnterSecretKey = async () => {
+    if (!secretKeyInput.value.trim()) {
+        showError("Please enter a secret key");
+        return;
+    }
+
+    isEnteringKey.value = true;
+    
+    try {
+        await enterSecretKey(props.groupId, secretKeyInput.value.trim());
+        hasSecretKey.value = true;
+        secretKeyInput.value = "";
+        showMessage("Secret key entered successfully! You can now send messages.");
+    } catch (error) {
+        console.error("Failed to enter secret key:", error);
+        showError(error.message || "Invalid secret key. Please try again.");
+    } finally {
+        isEnteringKey.value = false;
+    }
+};
+
 const handleImageUpload = () => {
+    // Only allow image upload if not a secret group
+    if (props.isSecretGroup) {
+        showError("Image upload is not available for secret groups");
+        return;
+    }
+    
     // Create a hidden file input
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -173,6 +291,10 @@ const handleSendImage = () => {
         emit('image-upload', selectedImage.value);
         closeImagePreview();
     }
+};
+
+const handleOpenSecretKeyModal = () => {
+    emit('open-secret-key-modal');
 };
 
 const closeImagePreview = () => {

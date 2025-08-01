@@ -81,8 +81,12 @@
             v-if="hasActiveChat && currentGroup && isCurrentChatGroup"
             v-model="newGroupMessage"
             :is-secret-group="currentGroup?.type === 'secret'"
+            :group-id="currentGroup?.id || ''"
+            :is-group-owner="currentGroup?.owner_id === userStore.user_id"
+            :key-status="secretKeyStatus"
             @send="sendGroupMessageHandler"
             @image-upload="handleGroupImageUpload"
+            @open-secret-key-modal="handleOpenSecretKeyModal"
         />
 
         <!-- No Chat Selected State -->
@@ -165,6 +169,7 @@ const userStore = useUserStore();
 const groupStore = useGroupStore();
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 const newMessage = ref("");
+const secretKeyStatus = ref('not-entered');
 
 // Group chat composable
 const {
@@ -342,6 +347,7 @@ watch(
             // Check if this is a secret group
             const isSecretGroup = groupStore.currentGroup.type === 'secret';
             console.log('🔐 Group type:', groupStore.currentGroup.type, 'isSecretGroup:', isSecretGroup);
+            console.log('🔐 Full group data:', groupStore.currentGroup);
             
             // Add a small delay to ensure group is properly set
             await nextTick();
@@ -360,8 +366,13 @@ watch(
             
             const groupData = getGroupChatData(newGroupId);
             if (groupData) {
-                console.log('🔌 Establishing group WebSocket connection:', groupData);
-                establishGroupConnection(groupData, (data) => handleIncomingGroupMessage(data, newGroupId, isSecretGroup), isSecretGroup);
+                // Add group type information to the data
+                const enhancedGroupData = {
+                    ...groupData,
+                    type: groupStore.currentGroup.type
+                };
+                console.log('🔌 Establishing group WebSocket connection:', enhancedGroupData);
+                establishGroupConnection(enhancedGroupData, (data) => handleIncomingGroupMessage(data, newGroupId, isSecretGroup), isSecretGroup);
                 // Wait a bit for connection to establish
                 await new Promise(resolve => setTimeout(resolve, 500));
             } else {
@@ -927,19 +938,37 @@ const sendGroupMessageHandler = async () => {
         if (groupData) {
             establishGroupConnection(groupData, (data) => handleIncomingGroupMessage(data, groupStore.currentGroup.id, isSecretGroup), isSecretGroup);
             
-            // Wait for connection with retries
+            // Wait for connection with retries and better error handling
             let retries = 0;
-            const maxRetries = 5;
-            while (!getGroupConnectionStatus().isConnected && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+            const maxRetries = 10; // Increased retries
+            const retryDelay = 300; // Increased delay
+            
+            while (retries < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                const currentStatus = getGroupConnectionStatus();
+                
+                if (currentStatus.isConnected) {
+                    console.log('✅ Group WebSocket connection established successfully');
+                    break;
+                }
+                
                 retries++;
+                console.log(`🔄 Connection attempt ${retries}/${maxRetries} failed, retrying...`);
             }
             
-            if (!getGroupConnectionStatus().isConnected) {
+            const finalStatus = getGroupConnectionStatus();
+            if (!finalStatus.isConnected) {
+                console.error('❌ Failed to establish group WebSocket connection after all retries');
                 showError('Failed to establish group WebSocket connection. Please try again.');
                 return;
             }
+        } else {
+            console.error('❌ Failed to get group chat data for WebSocket connection');
+            showError('Failed to get group data. Please try again.');
+            return;
         }
+    } else {
+        console.log('✅ Group WebSocket already connected');
     }
 
     // Create temporary ID for immediate display
@@ -961,9 +990,26 @@ const sendGroupMessageHandler = async () => {
     addGroupMessage(messageData);
 
     // Send message via group WebSocket with encryption for secret groups
-    const success = await sendGroupMessage(messageData, groupStore.currentGroup.id, isSecretGroup);
+    let retryCount = 0;
+    const maxRetries = 3;
+    let success = false;
+    
+    while (!success && retryCount < maxRetries) {
+        success = await sendGroupMessage(messageData, groupStore.currentGroup.id, isSecretGroup);
+        
+        if (!success) {
+            retryCount++;
+            console.log(`🔌 Retry ${retryCount}/${maxRetries} for sending group message`);
+            
+            if (retryCount < maxRetries) {
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            }
+        }
+    }
     
     if (!success) {
+        console.error("Failed to send group message after all retries");
         showError('Failed to send group message. Please try again.');
         return;
     }
@@ -1149,16 +1195,18 @@ const closeSecretKeyModal = () => {
     secretChatIdForKey.value = null;
 };
 
-const handleSecretKeyLoaded = async (chatId) => {
-    console.log('Secret key loaded for chat:', chatId);
-    // Re-validate the chat for encryption after key is loaded
-    const validation = await validateSecretChatForEncryption(chatId);
-    if (validation.valid) {
-        showMessage('Secret key loaded successfully. You can now send messages in this chat.');
-    } else {
-        showError(validation.message);
-    }
+const handleSecretKeyLoaded = async (groupId) => {
+    console.log('Secret key loaded for group:', groupId);
+    secretKeyStatus.value = 'entered';
+    showMessage('Secret key entered successfully! You can now send messages in this secret group.');
     closeSecretKeyModal();
+};
+
+const handleOpenSecretKeyModal = () => {
+    if (currentGroup.value?.id) {
+        secretChatIdForKey.value = currentGroup.value.id;
+        showSecretKeyModal.value = true;
+    }
 };
 </script>
 
