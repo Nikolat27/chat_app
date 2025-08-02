@@ -20,7 +20,7 @@ services:
         volumes:
             - ./upload:/app/uploads
         environment:
-            MONGO_URL: "mongodb://mongo:27017/chat_db"
+            MONGO_URI: "mongodb://mongo:27017/chat_db"
             DATABASE_NAME: "chat_db"
             PASETO_SYMMETRIC_KEY: "x@pej!w9t%g$zm7f^ka2r$n!dtvuhp*s"
             ENCRYPTION_SECRET_KEY: "s2r$n!x@pej!w9t%g$zm7f^kadtvuhp*"

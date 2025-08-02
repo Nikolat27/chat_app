@@ -3,8 +3,10 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
+RUN npm config set registry https://registry.npmjs.org/
+
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --prefer-offline --no-audit
 
 COPY . .
 RUN npm run build

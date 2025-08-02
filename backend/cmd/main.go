@@ -7,16 +7,15 @@ import (
 	"chat_app/handlers"
 	"chat_app/web_server"
 	"errors"
-	"github.com/joho/godotenv"
-	"log"
 	"log/slog"
 	"os"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// use it in development only
+	// if err := godotenv.Load(); err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 
 	uri, err := getMongoURI()
 	if err != nil {
