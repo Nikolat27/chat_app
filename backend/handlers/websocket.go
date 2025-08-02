@@ -205,7 +205,9 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, is
 			return fmt.Errorf("failed to store msg in the DB: %s", err)
 		}
 
-		return broadcastMessage(senderId, payload, chatConnections)
+		if err := broadcastMessage(senderId, payload, chatConnections); err != nil {
+			return fmt.Errorf("failed to broadcast msg in the ws connection: %s", err)
+		}
 	}
 }
 
