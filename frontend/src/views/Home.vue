@@ -12,6 +12,7 @@ import { useUserStore } from "../stores/users";
 import { useRouter } from "vue-router";
 import { useKeyPair } from "../composables/useKeyPair";
 import { useE2EE } from "../composables/useE2EE";
+import { useAuthCheck } from "../composables/useAuthCheck";
 import Sidebar from "../components/Sidebar.vue";
 import MiddleSection from "../components/MiddleSection.vue";
 import ChatSection from "../components/ChatSection.vue";
@@ -21,12 +22,16 @@ const userStore = useUserStore();
 const router = useRouter();
 const { clearAllKeys } = useKeyPair();
 const { clearAllSymmetricKeys } = useE2EE();
+const { checkAuth } = useAuthCheck();
 
-// onMounted(() => {
-//   if (!userStore.token || userStore.isTokenExpired()) {
-//     router.replace("/auth");
-//   }
-// });
+onMounted(async () => {
+  try {
+    await checkAuth();
+  } catch (error) {
+    // The axios interceptor will handle the redirect for noAuthCookie errors
+    console.error("Authentication check failed:", error);
+  }
+});
 
 async function logout() {
   try {
