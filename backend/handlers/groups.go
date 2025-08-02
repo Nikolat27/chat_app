@@ -755,7 +755,7 @@ func (handler *Handler) isSecretGroup(url *url.URL) bool {
 	return isSecretBool
 }
 
-// AddGroupWebsocket -> Establish WebSocket
+// AddGroupWebsocket -> Establish WebSocketManager
 func (handler *Handler) AddGroupWebsocket(w http.ResponseWriter, r *http.Request) {
 	groupId := chi.URLParam(r, "group_id")
 	if groupId == "" {

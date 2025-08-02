@@ -9,7 +9,7 @@ import (
 type Handler struct {
 	Models    *models.Models
 	Paseto    *paseto.Maker
-	WebSocket *WebSocket
+	WebSocket *WebSocketManager
 	Cipher    *cipher.Cipher
 }
 

@@ -100,12 +100,12 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_cookie",
-		Value:    token,               
+		Value:    token,
 		Path:     "/",
-		HttpOnly: true,              
-		Secure:   false, // temp (for http)                 
+		HttpOnly: true,
+		Secure:   false, // temp (for http)
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   3600 * 12,                 // 12 hours
+		MaxAge:   3600 * 12, // 12 hours
 	})
 
 	var response = map[string]string{
@@ -115,4 +115,16 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+func (handler *Handler) AuthCheck(w http.ResponseWriter, r *http.Request) {
+	if _, err := r.Cookie("auth_cookie"); err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			utils.WriteError(w, http.StatusUnauthorized, "noAuthCookie", "http only cookie does not exist")
+			return
+		}
+
+		utils.WriteError(w, http.StatusUnauthorized, "noAuthCookie", err.Error())
+		return
+	}
 }
