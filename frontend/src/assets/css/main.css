@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap");
+
+body {
+    font-family: "Roboto", Arial, sans-serif;
+}
+
+*,
+::before,
+::after {
+    border-color: theme("colors.gray.200"); /* Uses Tailwind theme color */
+}
+
+/* Make all images unselectable and not draggable by default */
+img {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    pointer-events: none;
+}
