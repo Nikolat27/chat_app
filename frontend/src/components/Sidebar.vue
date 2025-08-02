@@ -36,7 +36,7 @@
 
         <!-- Logout Button -->
         <button
-            v-if="userStore.token"
+            v-if="userStore.username"
             class="mt-auto mb-4 w-12 h-12 rounded-full hover:bg-green-200 transition cursor-pointer flex items-center justify-center"
             @click="$emit('logout')"
         >

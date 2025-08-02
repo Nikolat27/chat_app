@@ -13,6 +13,7 @@ import { useRouter } from "vue-router";
 import { useKeyPair } from "../composables/useKeyPair";
 import { useE2EE } from "../composables/useE2EE";
 import { useAuthCheck } from "../composables/useAuthCheck";
+import axiosInstance from "../axiosInstance";
 import Sidebar from "../components/Sidebar.vue";
 import MiddleSection from "../components/MiddleSection.vue";
 import ChatSection from "../components/ChatSection.vue";
@@ -35,6 +36,13 @@ onMounted(async () => {
 
 async function logout() {
   try {
+    // Send logout request to backend
+    await axiosInstance.get("/api/logout");
+  } catch (error) {
+    console.error("Error during logout:", error);
+  }
+  
+  try {
     // Clear all E2EE keys
     await clearAllKeys();
     clearAllSymmetricKeys();
@@ -42,7 +50,7 @@ async function logout() {
     console.error("Error clearing E2EE keys on logout:", error);
   }
   
-  userStore.$reset();
+  userStore.clearUser();
   router.replace("/auth");
 }
 

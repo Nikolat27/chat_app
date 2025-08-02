@@ -23,6 +23,7 @@ func NewRouter(handler *handlers.Handler) *Router {
 		// Authentication
 		r.Post("/register", handler.Register)
 		r.Post("/login", handler.Login)
+		r.Get("/logout", handler.Logout)
 		r.Get("/auth-check", handler.AuthCheck)
 
 		// Members

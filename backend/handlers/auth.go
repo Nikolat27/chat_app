@@ -117,6 +117,20 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, response)
 }
 
+func (handler *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_cookie",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1, // delete it
+	})
+
+	utils.WriteJSON(w, http.StatusOK, "Logged out successfully")
+}
+
 func (handler *Handler) AuthCheck(w http.ResponseWriter, r *http.Request) {
 	if _, err := r.Cookie("auth_cookie"); err != nil {
 		if errors.Is(err, http.ErrNoCookie) {
