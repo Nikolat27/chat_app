@@ -362,13 +362,13 @@ func (handler *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filter = bson.M{
-		"group_id": groupObjectId,
+	if _, err := handler.DeleteGroupMessages(groupObjectId); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "deleteGroupMessages", err.Error())
+		return
 	}
 
-	if _, err := handler.Models.Message.DeleteAll(filter); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "deleteMsgs", "failed to delete group messages")
-		return
+	filter = bson.M{
+		"group_id": groupObjectId,
 	}
 
 	if _, err := handler.Models.Approval.DeleteAll(filter); err != nil {

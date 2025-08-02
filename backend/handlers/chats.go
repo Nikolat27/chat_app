@@ -125,7 +125,7 @@ func (handler *Handler) UploadChatImage(w http.ResponseWriter, r *http.Request) 
 
 	senderId := payload.UserId
 	if _, err := handler.Models.Message.Create(chatObjectId, primitive.NilObjectID, senderId,
-		 receiverObjectId, "image", avatarAddress, "", false); err != nil {
+		receiverObjectId, "image", avatarAddress, "", false); err != nil {
 
 		utils.WriteError(w, http.StatusBadRequest, "createMsg", "failed to create message")
 		return
@@ -229,12 +229,8 @@ func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filter = bson.M{
-		"chat_id": chatObjectId,
-	}
-
-	if _, err := handler.Models.Message.DeleteAll(filter); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "deleteChatMessages", err)
+	if _, err := handler.DeleteChatMessages(chatObjectId); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "deleteChatMessages", err.Error())
 		return
 	}
 

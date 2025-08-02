@@ -8,7 +8,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 func (handler *Handler) storeChatMsgToDB(chatId, senderId, receiverId string, contentType, contentAddress,
@@ -342,9 +345,9 @@ func (handler *Handler) DeleteMessageForReceiver(w http.ResponseWriter, r *http.
 }
 
 func (handler *Handler) DeleteMessageForAll(w http.ResponseWriter, r *http.Request) {
-	payload, err := utils.CheckAuth(r, handler.Paseto)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -354,9 +357,9 @@ func (handler *Handler) DeleteMessageForAll(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	messageObjectId, err := utils.ToObjectId(messageId)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err.Type, err.Detail)
+	messageObjectId, errResp := utils.ToObjectId(messageId)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
@@ -368,8 +371,31 @@ func (handler *Handler) DeleteMessageForAll(w http.ResponseWriter, r *http.Reque
 		},
 	}
 
-	deletedResult, err2 := handler.Models.Message.Delete(filter)
-	if err2 != nil {
+	projection := bson.M{
+		"content_address": 1,
+	}
+
+	msg, err := handler.Models.Message.Get(filter, projection)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			utils.WriteError(w, http.StatusBadRequest, "getMsg", "msg with this users or id does not exist")
+			return
+		}
+
+		utils.WriteError(w, http.StatusBadRequest, "getMsg", "failed to get msg")
+		return
+	}
+
+	if msg.ContentAddress != "" {
+		path := filepath.Join("uploads", msg.ContentAddress)
+
+		if err := os.Remove(path); err != nil {
+			slog.Error("remove msg image", "error", err)
+		}
+	}
+
+	deletedResult, err := handler.Models.Message.Delete(filter)
+	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "deleteMsg", "failed to delete msg")
 		return
 	}
@@ -380,4 +406,52 @@ func (handler *Handler) DeleteMessageForAll(w http.ResponseWriter, r *http.Reque
 	}
 
 	utils.WriteJSON(w, http.StatusOK, "message deleted successfully")
+}
+
+func (handler *Handler) DeleteMessagesByFilter(filter bson.M) {
+	projection := bson.M{
+		"content_address": 1,
+	}
+	var (
+		page  int64 = 1
+		limit int64 = 20
+	)
+
+	for {
+		messages, err := handler.Models.Message.GetAll(filter, projection, page, limit)
+		if err != nil {
+			slog.Error("getting messages", "error", err)
+			break
+		}
+
+		if len(messages) == 0 {
+			break
+		}
+
+		for _, msg := range messages {
+			if msg.ContentAddress == "" {
+				continue
+			}
+			path := filepath.Join("uploads", msg.ContentAddress)
+
+			if err := os.Remove(path); err != nil {
+				slog.Error("removing msg file", "error", err, "file", msg.ContentAddress)
+			}
+		}
+
+		page++
+	}
+}
+
+func (handler *Handler) DeleteChatMessages(chatId primitive.ObjectID) (*mongo.DeleteResult, error) {
+	filter := bson.M{"chat_id": chatId}
+	handler.DeleteMessagesByFilter(filter)
+	return handler.Models.Message.DeleteAll(filter)
+
+}
+
+func (handler *Handler) DeleteGroupMessages(groupId primitive.ObjectID) (*mongo.DeleteResult, error) {
+	filter := bson.M{"group_id": groupId}
+	handler.DeleteMessagesByFilter(filter)
+	return handler.Models.Message.DeleteAll(filter)
 }
