@@ -1,4 +1,4 @@
-package server
+package web_server
 
 import (
 	"chat_app/handlers"

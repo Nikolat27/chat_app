@@ -10,7 +10,7 @@ COPY go.sum ./
 RUN go mod download
 
 COPY . . 
-RUN go build -o server ./cmd
+RUN go build -o web_server ./cmd
 
 # production stage
 FROM alpine:latest

@@ -5,7 +5,7 @@ import (
 	"chat_app/database"
 	"chat_app/database/models"
 	"chat_app/handlers"
-	"chat_app/server"
+	"chat_app/web_server"
 	"errors"
 	"github.com/joho/godotenv"
 	"log"
@@ -41,11 +41,11 @@ func main() {
 	cipherInstance := cipher.New()
 	handlerInstance.Cipher = cipherInstance
 
-	srv := server.New(getPort(), handlerInstance)
+	srv := web_server.New(getPort(), handlerInstance)
 	defer srv.Close()
 
 	if err := srv.Run(); err != nil {
-		slog.Error("running http server", "error", err)
+		slog.Error("running http web_server", "error", err)
 		return
 	}
 }
