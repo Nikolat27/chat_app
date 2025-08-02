@@ -38,19 +38,8 @@ services:
             - backend
         environment:
             - VITE_BACKEND_BASE_URL=/api
-
-    nginx:
-        image: nginx:1.25-alpine
-        container_name: nginx
-        depends_on:
-            - frontend
-            - backend
-        volumes:
-            - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-            - ./frontend/dist:/usr/share/nginx/html:ro
         ports:
-            - "80:80"
-        restart: unless-stopped
+            - 80:80
 
 volumes:
     mongo-data:
