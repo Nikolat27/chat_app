@@ -10,19 +10,19 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [vue(), vueDevTools(), tailwindcss()],
         server: {
-            port: 80,
-            // proxy: {
-            //     '/api': {
-            //         target: env.VITE_BACKEND_BASE_URL,
-            //         changeOrigin: true,
-            //         secure: false,
-            //     },
-            //     '/websocket': {
-            //         target: env.VITE_BACKEND_BASE_URL,
-            //         ws: true,
-            //         changeOrigin: true,
-            //     },
-            // },
+            port: 5000,
+            proxy: {
+                "/api": {
+                    target: env.VITE_BACKEND_BASE_URL,
+                    changeOrigin: true,
+                    secure: false,
+                },
+                "/websocket": {
+                    target: env.VITE_BACKEND_BASE_URL,
+                    ws: true,
+                    changeOrigin: true,
+                },
+            },
         },
         resolve: {
             alias: {
