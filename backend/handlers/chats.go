@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"log/slog"
-	"net/http"
 )
 
 func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +267,7 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 
 	go func() {
 		if err := wsConn.HandleChatIncomingMsgs(chatId, payload.UserId.Hex(),
-		 receiverId, false, handler.WebSocket, handler); err != nil {
+			receiverId, false, handler.WebSocket, handler); err != nil {
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()
