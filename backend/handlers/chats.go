@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"log/slog"
-	"net/http"
 )
 
 func (handler *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
@@ -238,15 +239,15 @@ func (handler *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request) {
-	chatId := chi.URLParam(r, "chat_id")
-	if chatId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusBadRequest, errResp.Type, errResp.Detail)
 		return
 	}
 
-	senderId := r.URL.Query().Get("sender_id")
-	if senderId == "" {
-		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "sender id is missing")
+	chatId := chi.URLParam(r, "chat_id")
+	if chatId == "" {
+		utils.WriteError(w, http.StatusBadRequest, "paramMissing", "chat id is missing")
 		return
 	}
 
@@ -262,10 +263,11 @@ func (handler *Handler) AddChatWebsocket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	wsConn.AddChat(chatId, senderId, handler.WebSocket)
+	wsConn.AddChat(chatId, payload.UserId.Hex(), handler.WebSocket)
 
 	go func() {
-		if err := wsConn.HandleChatIncomingMsgs(chatId, senderId, receiverId, false, handler.WebSocket, handler); err != nil {
+		if err := wsConn.HandleChatIncomingMsgs(chatId, payload.UserId.Hex(),
+			receiverId, false, handler.WebSocket, handler); err != nil {
 			slog.Error("handling incoming ws messages", "error", err)
 		}
 	}()

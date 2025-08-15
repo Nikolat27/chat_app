@@ -1,10 +1,11 @@
-package web_server
+package webserver
 
 import (
 	"chat_app/handlers"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"net/http"
 )
 
 type Router struct {

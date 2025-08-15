@@ -5,12 +5,13 @@ import (
 	"chat_app/utils"
 	"encoding/hex"
 	"errors"
+	"log/slog"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"log/slog"
-	"net/http"
 )
 
 func (handler *Handler) GetSecretChat(w http.ResponseWriter, r *http.Request) {

@@ -5,16 +5,17 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func (handler *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {

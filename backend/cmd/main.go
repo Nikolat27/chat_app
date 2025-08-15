@@ -5,7 +5,7 @@ import (
 	"chat_app/database"
 	"chat_app/database/models"
 	"chat_app/handlers"
-	"chat_app/web_server"
+	"chat_app/webserver"
 	"errors"
 	"log/slog"
 	"os"
@@ -40,11 +40,11 @@ func main() {
 	cipherInstance := cipher.New()
 	handlerInstance.Cipher = cipherInstance
 
-	srv := web_server.New(getPort(), handlerInstance)
+	srv := webserver.New(getPort(), handlerInstance)
 	defer srv.Close()
 
 	if err := srv.Run(); err != nil {
-		slog.Error("running http web_server", "error", err)
+		slog.Error("running http webserver", "error", err)
 		return
 	}
 }

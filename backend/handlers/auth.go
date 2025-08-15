@@ -132,13 +132,16 @@ func (handler *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *Handler) AuthCheck(w http.ResponseWriter, r *http.Request) {
-	if _, err := r.Cookie("auth_cookie"); err != nil {
-		if errors.Is(err, http.ErrNoCookie) {
-			utils.WriteError(w, http.StatusUnauthorized, "noAuthCookie", "http only cookie does not exist")
-			return
-		}
-
-		utils.WriteError(w, http.StatusUnauthorized, "noAuthCookie", err.Error())
+	payload, errResp := utils.CheckAuth(r, handler.Paseto)
+	if errResp != nil {
+		utils.WriteError(w, http.StatusUnauthorized, errResp.Type, errResp.Detail)
 		return
 	}
+
+	var response = map[string]string{
+		"username": payload.Username,
+		"user_id":  payload.UserId.Hex(),
+	}
+
+	utils.WriteJSON(w, http.StatusOK, response)
 }
