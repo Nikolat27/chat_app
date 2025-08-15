@@ -3,13 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+    "slices"
+	"github.com/gorilla/websocket"
 )
 
 // WebSocketManager -> Rooms connections
@@ -32,10 +33,8 @@ var upgrader = websocket.Upgrader{
 		allowedOrigins := getAllowedOrigins()
 		currentOrigin := r.Header.Get("Origin")
 
-		for _, origin := range allowedOrigins {
-			if origin == currentOrigin {
-				return true
-			}
+		if slices.Contains(allowedOrigins, currentOrigin) {
+			return true
 		}
 
 		return false
@@ -74,29 +73,41 @@ func (ws *WebSocketManager) Delete(roomId, userId string) {
 	ws.ConnMutex.Lock()
 	defer ws.ConnMutex.Unlock()
 
-	connections, ok := ws.ChatConnections[roomId]
-	if !ok {
-		return // Room doesn't exist
+	// Try to delete from chat connections first
+	if connections, ok := ws.ChatConnections[roomId]; ok {
+		delete(connections, userId)
+		if len(connections) == 0 {
+			delete(ws.ChatConnections, roomId)
+		}
+		return
 	}
 
-	delete(connections, userId)
-
-	if len(connections) == 0 {
-		delete(ws.ChatConnections, roomId)
+	// If not found in chat connections, try group connections
+	if connections, ok := ws.GroupConnections[roomId]; ok {
+		delete(connections, userId)
+		if len(connections) == 0 {
+			delete(ws.GroupConnections, roomId)
+		}
+		return
 	}
 }
 
 // broadcastMessage -> Sends a message to all users in the room except the sender
 func broadcastMessage(senderId string, payload []byte, connections map[string]*websocket.Conn) error {
+	var errors []string
+
 	for userId, conn := range connections {
 		if userId == senderId {
 			continue
 		}
 
 		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-			return fmt.Errorf("failed to send message to %s: %v", userId, err)
+			errors = append(errors, fmt.Sprintf("failed to send message to %s: %v", userId, err))
 		}
+	}
 
+	if len(errors) > 0 {
+		return fmt.Errorf("broadcast errors: %s", strings.Join(errors, "; "))
 	}
 
 	return nil
@@ -139,17 +150,17 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 	for {
 		_, payload, err := wsConn.Conn.ReadMessage()
 		if err != nil {
-			return fmt.Errorf("failed to ws read message: %s", err)
+			return fmt.Errorf("failed to ws read message: %w", err)
 		}
 
 		// Wrap the payload with sender info
 		var input ChatMessage
 
 		if err := json.Unmarshal(payload, &input); err != nil {
-			return fmt.Errorf("failed to UnMarshal ws message: %s", err)
+			return fmt.Errorf("failed to UnMarshal ws message: %w", err)
 		}
 
-		chatConnections := wsInstance.ChatConnections[chatId]
+		chatConnections := wsInstance.GetChatConnections(chatId)
 		// to prevent panics...
 		if chatConnections == nil {
 			continue
@@ -158,7 +169,7 @@ func (wsConn *WsConnection) HandleChatIncomingMsgs(chatId, senderId, receiverId 
 		if err := handler.storeChatMsgToDB(chatId, senderId, receiverId, input.ContentType,
 			input.ContentAddress, input.Content, isSecret); err != nil {
 
-			return fmt.Errorf("failed to store msg in the DB: %s", err)
+			return fmt.Errorf("failed to store msg in the DB: %w", err)
 		}
 
 		if err := broadcastMessage(senderId, payload, chatConnections); err != nil {
@@ -189,24 +200,24 @@ func (wsConn *WsConnection) HandleGroupIncomingMsgs(groupId, senderId string, is
 	for {
 		_, payload, err := wsConn.Conn.ReadMessage()
 		if err != nil {
-			return fmt.Errorf("failed to read message: %s", err)
+			return fmt.Errorf("failed to read message: %w", err)
 		}
 
 		var input GroupMessage
 
 		if err := json.Unmarshal(payload, &input); err != nil {
-			return fmt.Errorf("failed to UnMarshal message: %s", err)
+			return fmt.Errorf("failed to UnMarshal message: %w", err)
 		}
 
-		chatConnections := wsInstance.GroupConnections[groupId]
+		chatConnections := wsInstance.GetGroupConnections(groupId)
 
 		if err := handler.storeGroupMsgToDB(groupId, senderId, input.ContentType, input.ContentAddress,
 			input.Content, isSecret); err != nil {
-			return fmt.Errorf("failed to store msg in the DB: %s", err)
+			return fmt.Errorf("failed to store msg in the DB: %w", err)
 		}
 
 		if err := broadcastMessage(senderId, payload, chatConnections); err != nil {
-			return fmt.Errorf("failed to broadcast msg in the ws connection: %s", err)
+			return fmt.Errorf("failed to broadcast msg in the ws connection: %w", err)
 		}
 	}
 }
@@ -223,6 +234,62 @@ func (wsConn *WsConnection) AddGroup(groupId, userId string, ws *WebSocketManage
 	}
 
 	conns[userId] = wsConn.Conn
+}
+
+// GetChatConnections -> Safely get chat connections with mutex protection
+func (ws *WebSocketManager) GetChatConnections(chatId string) map[string]*websocket.Conn {
+	ws.ConnMutex.Lock()
+	defer ws.ConnMutex.Unlock()
+
+	if connections, ok := ws.ChatConnections[chatId]; ok {
+		// Return a copy to avoid race conditions
+		result := make(map[string]*websocket.Conn)
+		for k, v := range connections {
+			result[k] = v
+		}
+		return result
+	}
+	return nil
+}
+
+// GetGroupConnections -> Safely get group connections with mutex protection
+func (ws *WebSocketManager) GetGroupConnections(groupId string) map[string]*websocket.Conn {
+	ws.ConnMutex.Lock()
+	defer ws.ConnMutex.Unlock()
+
+	if connections, ok := ws.GroupConnections[groupId]; ok {
+		// Return a copy to avoid race conditions
+		result := make(map[string]*websocket.Conn)
+		for k, v := range connections {
+			result[k] = v
+		}
+		return result
+	}
+	return nil
+}
+
+// IsUserConnectedToChat -> Check if user is already connected to a chat
+func (ws *WebSocketManager) IsUserConnectedToChat(chatId, userId string) bool {
+	ws.ConnMutex.Lock()
+	defer ws.ConnMutex.Unlock()
+
+	if connections, ok := ws.ChatConnections[chatId]; ok {
+		_, exists := connections[userId]
+		return exists
+	}
+	return false
+}
+
+// IsUserConnectedToGroup -> Check if user is already connected to a group
+func (ws *WebSocketManager) IsUserConnectedToGroup(groupId, userId string) bool {
+	ws.ConnMutex.Lock()
+	defer ws.ConnMutex.Unlock()
+
+	if connections, ok := ws.GroupConnections[groupId]; ok {
+		_, exists := connections[userId]
+		return exists
+	}
+	return false
 }
 
 func getAllowedOrigins() []string {
