@@ -14,7 +14,7 @@ var modelsTestDB *mongo.Database
 func setupModelsTestDB(t testing.TB) {
 	// Set up test environment variables
 	os.Setenv("DATABASE_NAME", "test_database")
-	
+
 	// Connect to test database
 	uri := "mongodb://localhost:27017"
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
@@ -36,7 +36,7 @@ func cleanupModelsTestDB(t testing.TB) {
 				t.Logf("Failed to drop collection %s: %v", collectionName, err)
 			}
 		}
-		
+
 		// Disconnect from database
 		err := modelsTestDB.Client().Disconnect(context.Background())
 		if err != nil {
@@ -109,7 +109,7 @@ func TestModelsIntegration(t *testing.T) {
 	// Test User model
 	if models.User != nil {
 		// Try to create a user (this should work or fail gracefully)
-		_, err := models.User.Create("testuser", "password", "salt")
+		_, err := models.User.Create("testuser", "password")
 		if err != nil {
 			// This is expected if there are validation issues
 			t.Logf("User creation failed (expected in test environment): %v", err)
@@ -169,4 +169,4 @@ func BenchmarkNew(b *testing.B) {
 			b.Fatal("Expected Models instance, got nil")
 		}
 	}
-} 
+}

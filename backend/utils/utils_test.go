@@ -320,118 +320,36 @@ func TestWriteError(t *testing.T) {
 // Hash tests
 func TestHash(t *testing.T) {
 	plainText := []byte("password123")
-	salt := []byte("salt123")
 
-	hash := Hash(plainText, salt)
-
-	if len(hash) != Size {
-		t.Errorf("Expected hash length %d, got %d", Size, len(hash))
+	hash, err := Hash(plainText)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
 	}
 
-	// Hash should be deterministic
-	hash2 := Hash(plainText, salt)
-	if hash != hash2 {
-		t.Error("Hash should be deterministic for same input")
+	if len(hash) == 0 {
+		t.Error("Expected non-empty hash")
 	}
 
-	// Different salt should produce different hash
-	salt2 := []byte("salt456")
-	hash3 := Hash(plainText, salt2)
-	if hash == hash3 {
-		t.Error("Different salt should produce different hash")
-	}
-}
-
-func TestVerifyHash(t *testing.T) {
-	plainText := []byte("password123")
-	salt := []byte("salt123")
-
-	hash := Hash(plainText, salt)
-
-	// Valid verification
-	if !VerifyHash(hash[:], salt, plainText) {
-		t.Error("Hash verification should succeed for correct input")
+	// Verify the hash can be used to verify the original password
+	if !VerifyHash(string(hash), string(plainText)) {
+		t.Error("Hash verification should succeed for the same password")
 	}
 
-	// Invalid plain text
-	wrongPlainText := []byte("wrongpassword")
-	if VerifyHash(hash[:], salt, wrongPlainText) {
-		t.Error("Hash verification should fail for wrong plain text")
-	}
-
-	// Invalid salt
-	wrongSalt := []byte("wrongsalt")
-	if VerifyHash(hash[:], wrongSalt, plainText) {
-		t.Error("Hash verification should fail for wrong salt")
-	}
-
-	// Invalid hash
-	wrongHash := make([]byte, Size)
-	if VerifyHash(wrongHash, salt, plainText) {
-		t.Error("Hash verification should fail for wrong hash")
-	}
-}
-
-func TestGenerateSalt(t *testing.T) {
-	tests := []struct {
-		name        string
-		size        int64
-		expectError bool
-	}{
-		{"Small salt", 8, false},
-		{"Medium salt", 16, false},
-		{"Large salt", 32, false},
-		{"Zero size", 0, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			salt, err := GenerateSalt(tt.size)
-
-			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error, got nil")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
-				if tt.size > 0 && len(salt) != int(tt.size) {
-					t.Errorf("Expected salt length %d, got %d", tt.size, len(salt))
-				}
-			}
-		})
+	// Verify wrong password fails
+	if VerifyHash(string(hash), "wrongpassword") {
+		t.Error("Hash verification should fail for wrong password")
 	}
 }
 
 // Benchmark tests
 func BenchmarkHash(b *testing.B) {
 	plainText := []byte("password123")
-	salt := []byte("salt123")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Hash(plainText, salt)
-	}
-}
-
-func BenchmarkVerifyHash(b *testing.B) {
-	plainText := []byte("password123")
-	salt := []byte("salt123")
-	hash := Hash(plainText, salt)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		VerifyHash(hash[:], salt, plainText)
-	}
-}
-
-func BenchmarkGenerateSalt(b *testing.B) {
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := GenerateSalt(32)
+		_, err := Hash(plainText)
 		if err != nil {
-			b.Fatalf("Failed to generate salt: %v", err)
+			b.Fatalf("Failed to hash password: %v", err)
 		}
 	}
 }

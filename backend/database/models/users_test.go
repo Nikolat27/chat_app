@@ -72,13 +72,11 @@ func TestUserModelCreate(t *testing.T) {
 		name           string
 		username       string
 		hashedPassword string
-		salt           string
 		expectError    bool
 	}{
-		{"Valid user", "testuser", "hashedpassword123", "salt123", false},
-		{"Empty username", "", "hashedpassword123", "salt123", false}, // MongoDB allows empty strings
-		{"Empty hashed password", "testuser", "", "salt123", false},   // MongoDB allows empty strings
-		{"Empty salt", "testuser", "hashedpassword123", "", false},    // MongoDB allows empty strings
+		{"Valid user", "testuser", "hashedpassword123", false},
+		{"Empty username", "", "hashedpassword123", false}, // MongoDB allows empty strings
+		{"Empty hashed password", "testuser", "", false},   // MongoDB allows empty strings
 	}
 
 	for i, tt := range tests {
@@ -89,7 +87,7 @@ func TestUserModelCreate(t *testing.T) {
 				uniqueUsername = fmt.Sprintf("testuser%d", i)
 			}
 
-			userID, err := userModel.Create(uniqueUsername, tt.hashedPassword, tt.salt)
+			userID, err := userModel.Create(uniqueUsername, tt.hashedPassword)
 
 			if tt.expectError {
 				if err == nil {
@@ -116,13 +114,13 @@ func TestUserModelCreateDuplicateUsername(t *testing.T) {
 	}
 
 	// Create first user
-	userID1, err := userModel.Create("duplicateuser", "password1", "salt1")
+	userID1, err := userModel.Create("duplicateuser", "password1")
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
 	// Try to create second user with same username
-	userID2, err := userModel.Create("duplicateuser", "password2", "salt2")
+	userID2, err := userModel.Create("duplicateuser", "password2")
 	if err == nil {
 		t.Error("Expected error for duplicate username, got nil")
 		// Clean up the second user if it was created
@@ -150,7 +148,7 @@ func TestUserModelGet(t *testing.T) {
 	}
 
 	// Create a test user
-	userID, err := userModel.Create("testuser", "hashedpassword", "salt")
+	userID, err := userModel.Create("testuser", "hashedpassword")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
@@ -201,9 +199,6 @@ func TestUserModelGet(t *testing.T) {
 						if user.HashedPassword != "" {
 							t.Errorf("Expected empty hashed password due to projection, got '%s'", user.HashedPassword)
 						}
-						if user.Salt != "" {
-							t.Errorf("Expected empty salt due to projection, got '%s'", user.Salt)
-						}
 					} else {
 						// Full projection - verify all fields
 						if user.Username != "testuser" {
@@ -211,9 +206,6 @@ func TestUserModelGet(t *testing.T) {
 						}
 						if user.HashedPassword != "hashedpassword" {
 							t.Errorf("Expected hashed password 'hashedpassword', got '%s'", user.HashedPassword)
-						}
-						if user.Salt != "salt" {
-							t.Errorf("Expected salt 'salt', got '%s'", user.Salt)
 						}
 					}
 					if user.Id != userID {
@@ -234,7 +226,7 @@ func TestUserModelUpdate(t *testing.T) {
 	}
 
 	// Create a test user
-	userID, err := userModel.Create("testuser", "oldpassword", "oldsalt")
+	userID, err := userModel.Create("testuser", "oldpassword")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
@@ -247,7 +239,7 @@ func TestUserModelUpdate(t *testing.T) {
 	}{
 		{"Update username", bson.M{"_id": userID}, bson.M{"username": "newusername"}, false},
 		{"Update password", bson.M{"_id": userID}, bson.M{"hashed_password": "newpassword"}, false},
-		{"Update multiple fields", bson.M{"_id": userID}, bson.M{"username": "updateduser", "salt": "newsalt"}, false},
+		{"Update multiple fields", bson.M{"_id": userID}, bson.M{"username": "updateduser"}, false},
 		{"Update non-existent user", bson.M{"_id": primitive.NewObjectID()}, bson.M{"username": "newusername"}, false},
 		{"Update with invalid filter", bson.M{"invalid_field": "value"}, bson.M{"username": "newusername"}, false},
 	}
@@ -290,7 +282,7 @@ func TestUserModelDelete(t *testing.T) {
 	}
 
 	// Create a test user
-	userID, err := userModel.Create("testuser", "password", "salt")
+	userID, err := userModel.Create("testuser", "password")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
@@ -340,7 +332,7 @@ func TestUserModelCRUDCycle(t *testing.T) {
 	}
 
 	// Create
-	userID, err := userModel.Create("cruduser", "password", "salt")
+	userID, err := userModel.Create("cruduser", "password")
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -394,7 +386,7 @@ func BenchmarkUserModelCreate(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		username := fmt.Sprintf("benchmarkuser%d", i)
-		_, err := userModel.Create(username, "password", "salt")
+		_, err := userModel.Create(username, "password")
 		if err != nil {
 			b.Fatalf("Create failed: %v", err)
 		}
@@ -410,7 +402,7 @@ func BenchmarkUserModelGet(b *testing.B) {
 	}
 
 	// Create a test user
-	userID, err := userModel.Create("benchmarkuser", "password", "salt")
+	userID, err := userModel.Create("benchmarkuser", "password")
 	if err != nil {
 		b.Fatalf("Failed to create test user: %v", err)
 	}
@@ -433,7 +425,7 @@ func BenchmarkUserModelUpdate(b *testing.B) {
 	}
 
 	// Create a test user
-	userID, err := userModel.Create("benchmarkuser", "password", "salt")
+	userID, err := userModel.Create("benchmarkuser", "password")
 	if err != nil {
 		b.Fatalf("Failed to create test user: %v", err)
 	}

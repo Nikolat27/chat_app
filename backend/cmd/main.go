@@ -8,6 +8,7 @@ import (
 	"chat_app/webserver"
 	"errors"
 	"log/slog"
+	"os"
 
 	"github.com/spf13/viper"
 )
@@ -61,6 +62,13 @@ func loadConfig() error {
 		}
 		return err
 	}
+
+	// Set environment variables from viper config for compatibility
+	os.Setenv("DATABASE_NAME", viper.GetString("DATABASE_NAME"))
+	os.Setenv("MONGO_URI", viper.GetString("MONGO_URI"))
+	os.Setenv("PASETO_SYMMETRIC_KEY", viper.GetString("PASETO_SYMMETRIC_KEY"))
+	os.Setenv("ENCRYPTION_SECRET_KEY", viper.GetString("ENCRYPTION_SECRET_KEY"))
+	os.Setenv("CORS_ALLOWED_ORIGINS", viper.GetString("CORS_ALLOWED_ORIGINS"))
 
 	return nil
 }
