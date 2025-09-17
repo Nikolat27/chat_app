@@ -2,11 +2,12 @@ package models
 
 import (
 	"context"
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type GroupModel struct {
@@ -37,8 +38,8 @@ type Group struct {
 	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
 }
 
-func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, avatarUrl, groupType, inviteLink string,
-	members, admins []primitive.ObjectID, isSecret bool) (*mongo.InsertOneResult, error) {
+func (group *GroupModel) Create(ownerId primitive.ObjectID, name, description, avatarUrl, groupType,
+	inviteLink string, members, admins []primitive.ObjectID, isSecret bool) (*mongo.InsertOneResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

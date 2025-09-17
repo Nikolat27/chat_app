@@ -2,18 +2,19 @@ package models
 
 import (
 	"context"
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type SecretChatModel struct {
 	collection *mongo.Collection
 }
 
-// SecretChat -> This model is for e2ee 1 v 1 chat (direct)
+// SecretChat -> This model is for E2EE 1 v 1 chat (direct)
 type SecretChat struct {
 	Id                         primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	User1                      primitive.ObjectID `json:"user_1" bson:"user_1"`
