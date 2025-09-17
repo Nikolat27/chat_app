@@ -3,10 +3,11 @@ package paseto
 import (
 	"crypto/sha256"
 	"errors"
-	"github.com/o1egl/paseto"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"os"
 	"time"
+
+	"github.com/o1egl/paseto"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Maker struct {
