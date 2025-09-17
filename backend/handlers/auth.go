@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"chat_app/utils"
-	"encoding/hex"
 	"errors"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,6 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	projection := bson.M{
 		"_id":             1,
 		"hashed_password": 1,
-		"salt":            1,
 		"avatar_url":      1,
 	}
 
@@ -75,19 +74,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decodedHashedPassword, err := hex.DecodeString(user.HashedPassword)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "decodeHashedPassword", err)
-		return
-	}
-
-	decodedSalt, err := hex.DecodeString(user.Salt)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "decodeSalt", err)
-		return
-	}
-
-	if !utils.VerifyHash(decodedHashedPassword, decodedSalt, []byte(input.RawPassword)) {
+	if !utils.VerifyHash(user.HashedPassword, input.RawPassword) {
 		utils.WriteError(w, http.StatusBadRequest, "passwordValidation", "password is invalid")
 		return
 	}
