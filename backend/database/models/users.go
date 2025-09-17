@@ -3,11 +3,12 @@ package models
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type UserModel struct {
@@ -18,7 +19,6 @@ type User struct {
 	Id             primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Username       string             `json:"username" bson:"username"`
 	HashedPassword string             `json:"hashed_password" bson:"hashed_password"`
-	Salt           string             `json:"salt" bson:"salt"`
 	AvatarUrl      string             `json:"avatar_url" bson:"avatar_url"`
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
 }
@@ -42,14 +42,13 @@ func NewUserModel(db *mongo.Database) *UserModel {
 	}
 }
 
-func (user *UserModel) Create(username, hashedPassword, salt string) (primitive.ObjectID, error) {
+func (user *UserModel) Create(username, hashedPassword string) (primitive.ObjectID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var newUser = &User{
 		Username:       username,
 		HashedPassword: hashedPassword,
-		Salt:           salt,
 		CreatedAt:      time.Now(),
 	}
 

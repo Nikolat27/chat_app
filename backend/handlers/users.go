@@ -2,30 +2,25 @@ package handlers
 
 import (
 	"chat_app/utils"
-	"encoding/hex"
 	"errors"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"net/http"
 )
 
 func (handler *Handler) CreateUser(username string, rawPassword []byte) *utils.ErrorResponse {
-	salt, err := utils.GenerateSalt(14)
+	hashedPassword, err := utils.Hash(rawPassword)
 	if err != nil {
 		return &utils.ErrorResponse{
-			Type:   "generatingSalt",
-			Detail: err,
+			Type:   "hashPassword",
+			Detail: "failed to hash the password",
 		}
 	}
 
-	hashedPassword := utils.Hash(rawPassword, salt)
-
-	encodedHashedPassword := hex.EncodeToString(hashedPassword[:])
-	encodedSalt := hex.EncodeToString(salt)
-
-	if _, err := handler.Models.User.Create(username, encodedHashedPassword, encodedSalt); err != nil {
+	if _, err := handler.Models.User.Create(username, string(hashedPassword)); err != nil {
 		return &utils.ErrorResponse{
 			Type:   "createUser",
 			Detail: "failed to create user",
