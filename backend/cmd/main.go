@@ -12,11 +12,6 @@ import (
 )
 
 func main() {
-	// use it in development only
-	// if err := godotenv.Load(); err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
-
 	uri, err := getMongoURI()
 	if err != nil {
 		panic(err)
