@@ -19,7 +19,7 @@ type WebSocketManager struct {
 	ChatConnections  map[string]map[string]*websocket.Conn // chatId -> userId -> ws Conn
 	GroupConnections map[string]map[string]*websocket.Conn // groupId -> userId -> ws Conn
 	UserConnections  map[string]*websocket.Conn            // userId -> ws Conn (ensures 1 connection per user)
-	ConnMutex        sync.RWMutex                          // Read/Write mutex for better concurrency
+	ConnMutex        sync.RWMutex
 }
 
 // WsConnection -> Websocket connection itself for users
@@ -65,13 +65,6 @@ func (wsConn *WsConnection) Close() {
 	if err := wsConn.Conn.Close(); err != nil {
 		slog.Error("closing ws conn", "error", err)
 	}
-}
-
-// GetGoroutineCount -> Get current number of goroutines (for monitoring)
-func (ws *WebSocketManager) GetGoroutineCount() int {
-	// This is a simple way to get goroutine count
-	// In production, you might want to use runtime.NumGoroutine()
-	return 0 // Placeholder - you can implement actual goroutine counting if needed
 }
 
 // Delete -> Delete user`s connection from either chatId or groupId. Also deletes the room if it`s empty
