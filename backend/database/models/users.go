@@ -26,10 +26,18 @@ type User struct {
 func NewUserModel(db *mongo.Database) *UserModel {
 	collection := db.Collection("users")
 
-	_, err := collection.Indexes().CreateMany(context.TODO(), []mongo.IndexModel{
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Indexes
+	_, err := collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "username", Value: 1}},
 			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "avatar_url", Value: 1}},
+			Options: options.Index().SetUnique(false),
 		},
 	})
 
