@@ -8,10 +8,16 @@ import (
 	"chat_app/webserver"
 	"errors"
 	"log/slog"
-	"os"
+
+	"github.com/spf13/viper"
 )
 
 func main() {
+	// load .env
+	if err := loadConfig(); err != nil {
+		panic(err)
+	}
+
 	uri, err := getMongoURI()
 	if err != nil {
 		panic(err)
@@ -44,20 +50,33 @@ func main() {
 	}
 }
 
-func getMongoURI() (string, error) {
-	uri := os.Getenv("MONGO_URI")
-	if uri == "" {
-		return "", errors.New("MONGO_URI env variable does not exist")
+func loadConfig() error {
+	viper.SetConfigFile(".env")
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
+			return errors.New(".env file not found")
+		}
+		return err
 	}
 
+	return nil
+}
+
+func getMongoURI() (string, error) {
+	uri := viper.GetString("MONGO_URI")
+	if uri == "" {
+		return "", errors.New("MONGO_URI not set")
+	}
 	return uri, nil
 }
 
 func getPort() string {
-	port := os.Getenv("PORT")
+	port := viper.GetString("PORT")
 	if port == "" {
 		return "8000" // default port
 	}
-
 	return port
 }
