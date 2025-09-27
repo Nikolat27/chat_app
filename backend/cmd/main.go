@@ -1,11 +1,11 @@
 package main
 
 import (
+	"chat_app/HttpServer"
 	"chat_app/cipher"
 	"chat_app/database"
 	"chat_app/database/models"
 	"chat_app/handlers"
-	"chat_app/webserver"
 	"errors"
 	"log/slog"
 	"os"
@@ -42,11 +42,11 @@ func main() {
 	cipherInstance := cipher.New()
 	handlerInstance.Cipher = cipherInstance
 
-	srv := webserver.New(getPort(), handlerInstance)
+	srv := HttpServer.New(getPort(), handlerInstance)
 	defer srv.Close()
 
 	if err := srv.Run(); err != nil {
-		slog.Error("running http webserver", "error", err)
+		slog.Error("running http HttpServer", "error", err)
 		return
 	}
 }

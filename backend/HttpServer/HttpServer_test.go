@@ -1,4 +1,4 @@
-package webserver
+package HttpServer
 
 import (
 	"chat_app/handlers"
@@ -37,7 +37,7 @@ func TestNew(t *testing.T) {
 			}
 
 			if server.Server == nil {
-				t.Fatal("Expected http.Server instance, got nil")
+				t.Fatal("Expected http.HttpServer instance, got nil")
 			}
 
 			if server.Server.Addr != tt.expected {
@@ -59,10 +59,10 @@ func TestNewWithNilHandler(t *testing.T) {
 	}
 
 	if server.Server == nil {
-		t.Fatal("Expected http.Server instance, got nil")
+		t.Fatal("Expected http.HttpServer instance, got nil")
 	}
 
-	// Server should still be created even with nil handler
+	// HttpServer should still be created even with nil handler
 	if server.Server.Handler == nil {
 		t.Fatal("Expected handler, got nil")
 	}
@@ -149,7 +149,7 @@ func TestServerIntegration(t *testing.T) {
 	go func() {
 		err := server.Run()
 		if err != nil && err != http.ErrServerClosed {
-			t.Errorf("Server error: %v", err)
+			t.Errorf("HttpServer error: %v", err)
 		}
 	}()
 
@@ -205,10 +205,10 @@ func TestServerPortValidation(t *testing.T) {
 				t.Fatal("Expected server instance, got nil")
 			}
 
-			// Server should be created regardless of port validity
+			// HttpServer should be created regardless of port validity
 			// The actual port validation happens when the server starts
 			if server.Server == nil {
-				t.Fatal("Expected http.Server instance, got nil")
+				t.Fatal("Expected http.HttpServer instance, got nil")
 			}
 		})
 	}

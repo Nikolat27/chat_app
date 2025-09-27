@@ -1,4 +1,4 @@
-package webserver
+package HttpServer
 
 import (
 	"chat_app/handlers"
@@ -6,13 +6,13 @@ import (
 	"net/http"
 )
 
-type Server struct {
+type HttpServer struct {
 	Server *http.Server
 	Port   string
 }
 
-func New(port string, handler *handlers.Handler) *Server {
-	var srv = &Server{
+func New(port string, handler *handlers.Handler) *HttpServer {
+	var srv = &HttpServer{
 		Port: port,
 	}
 
@@ -21,7 +21,7 @@ func New(port string, handler *handlers.Handler) *Server {
 	return srv
 }
 
-func (srv *Server) setupServer(handler *handlers.Handler) {
+func (srv *HttpServer) setupServer(handler *handlers.Handler) {
 	router := NewRouter(handler)
 
 	srv.Server = &http.Server{
@@ -30,15 +30,15 @@ func (srv *Server) setupServer(handler *handlers.Handler) {
 	}
 }
 
-func (srv *Server) Run() error {
+func (srv *HttpServer) Run() error {
 	fmt.Println("application started")
 	return srv.Server.ListenAndServe()
 }
 
-func (srv *Server) RunHttps(certFile, keyFile string) error {
+func (srv *HttpServer) RunHttps(certFile, keyFile string) error {
 	return srv.Server.ListenAndServeTLS(certFile, keyFile)
 }
 
-func (srv *Server) Close() error {
+func (srv *HttpServer) Close() error {
 	return srv.Server.Close()
 }
